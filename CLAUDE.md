@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-A learning project for **dbt Core + Fabric**. The domain (stylometric "fingerprints" of  gutenberg authors) is the vehicle; the goal is... {TODO - fill in from project doc}.
+A learning project for **dbt Core + Fabric**. The domain (stylometric "fingerprints" of Gutenberg authors) is the vehicle; the goal is **production data-engineering operations**: a nightly CDC pipeline (Data Factory orchestration, watermarks, audit trails), incremental dbt models in a Fabric Warehouse, and a self-managing capacity pause/resume bracket (FinOps). The dbt modeling layer carries over from the prior project and is already familiar; the Fabric/pipeline side is the new material — and the resume piece.
 
 ## Implementation docs
 
@@ -16,17 +16,17 @@ Reference the past project for design choices related to dbt, python, or evidenc
 
 ## How we work
 
-- The user is still learning, so **you are also the documentation**: explain what you're doing and why as you go, enough to follow without leaving the editor. No need to stop and wait for sign-off before each edit.
-- **Just build it.** Batch related steps when it makes sense, then summarize what changed and why. Don't gate every command or file behind a separate approval.
+- The user is still learning, so **you are also the documentation**: explain what you're doing and why as you go, enough to follow without leaving the editor. dbt/DuckDB basics are known; assume **zero prior Fabric knowledge**.
+- **Build piece-by-piece, pause at boundaries.** Batch closely related steps (multiple edits to one model, a run+test cycle), but **stop and check in before moving to a new type of file or a set of commands serving a different purpose** — e.g. finishing models and starting tests, or switching from dbt work to pipeline work. Don't gate every individual command or file.
 - For a **significant or hard-to-reverse design/tech choice**, call out the options and your recommendation before committing to it. For small, reversible calls, pick a sensible default and note it.
-- **Never rely on memory for code/tech specs.** Check the local refs in `docs/reference/` first (`dbt-core.md`, TODO - add fabric, cloudflare). If they don't cover it, fetch current docs (Context7 / official sources), then update/add the ref file. Keep these refs current.
+- **Never rely on memory for code/tech specs.** Check the local refs in `docs/reference/` first (`dbt-core.md`, `dbt-duckdb.md`, `duckdb.md`, `evidence.md`, `fabric.md`, `spacy.md`, ...). If they don't cover it, fetch current docs (Context7 / Microsoft Learn MCP / official sources), then update/add the ref file. For Cloudflare, use the installed Cloudflare skills + docs MCP instead of a local ref.
 - **Be lean.** Fewest words possible in chat and in prose docs. No extended justification, no restating known facts, no exhaustive examples.
 - **Never stage or commit.** Don't run `git add`/`git commit` unless explicitly instructed; the user handles version control.
 
 ## Deployment
 
-- The Evidence site (`reports/`) will be published to Cloudflare Pages at **TODO**.
-- Styling mirrors the user's other site, **wordleaves.com** (see `reports/sparse.css` + `reports/wordleaves.css`: cream/charcoal, copper accent, iA Writer Quattro font).
+- The Evidence site (`evidence/`) will be published to Cloudflare Pages (URL TBD — record it here at first deploy, Phase 5).
+- Styling mirrors the user's other site, **wordleaves.com** (see `evidence/sparse.css` + `evidence/wordleaves.css`: cream/charcoal, copper accent, iA Writer Quattro font).
 
 ## Environment
 
