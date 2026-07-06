@@ -1,0 +1,8 @@
+{
+  "files.exclude": {
+    "**/dbt_packages": true,
+    "**/logs": true,
+    "**/.user.yml": true,
+    "**/target": true
+  }
+}

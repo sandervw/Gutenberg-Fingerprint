@@ -1,0 +1,173 @@
+version: 2
+
+models:
+  - name: dim_metric
+    description: "One row per metric concept (15). Pass-through of seed_metrics + surrogate key."
+    columns:
+      - name: metric_key
+        description: "Surrogate hash of metric_name. Facts join on this, not the free-text name."
+        data_tests:
+          - unique
+          - not_null
+      - name: additivity
+        description: "Kimball additivity class. All 15 metrics are non-additive (ratios/averages/indices); value + zscore must never be summed across rows."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["additive", "semi-additive", "non-additive"]
+
+  - name: dim_author
+    description: "One row per author, deduped from the work-grain seed."
+    columns:
+      - name: author_key
+        description: "Surrogate hash of author name."
+        data_tests:
+          - unique # fails loudly if an author's works disagree on tradition/era
+          - not_null
+
+  - name: dim_work
+    description: "One row per work (135). Catalog spine (seed_authors) + word_count enrichment."
+    columns:
+      - name: work_key
+        description: "Surrogate hash of work_id."
+        data_tests:
+          - unique
+          - not_null
+      - name: word_count
+        description: "Cleaned word count from stg_works."
+        data_tests:
+          - not_null # catches a catalogued work that never got measured
+      - name: author_key
+        description: "FK to dim_author."
+        data_tests:
+          - relationships: # every work's author must exist in dim_author
+              arguments:
+                to: ref('dim_author')
+                field: author_key
+      - name: prose_type
+        description: "Derived size band from word_count thresholds."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["short-story", "novella", "novel"]
+
+  - name: fact_style_measurement
+    description: "Central fact: one row per work x metric series (8,505). Carries value + z-score, FKs to dim_work, dim_author, and dim_metric."
+    columns:
+      - name: measurement_key
+        description: "Surrogate hash of (work_id, metric_name). PK + grain guard."
+        data_tests:
+          - unique # fails if (work, series) ever duplicates -> grain broken
+          - not_null
+      - name: work_key
+        description: "FK to dim_work."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_work')
+                field: work_key
+      - name: author_key
+        description: "FK to dim_author, carried direct off dim_work for star-schema slicing."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_author')
+                field: author_key
+      - name: metric_key
+        description: "FK to dim_metric (concept grain; one key spans a multivalue concept's child series)."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_metric')
+                field: metric_key
+
+  - name: fact_vocab_overlap
+    description: "Author-pair fact (9): you (author_key_a) vs each other author (author_key_b), with Jaccard vocabulary overlap."
+    columns:
+      - name: overlap_key
+        description: "Surrogate hash of (author_key_a, author_key_b). PK + grain guard."
+        data_tests:
+          - unique
+          - not_null
+      - name: author_key_a
+        description: "FK to dim_author -- you (the is_self side)."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_author')
+                field: author_key
+      - name: author_key_b
+        description: "FK to dim_author -- the other author. Unique = exactly one pair per other author."
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_author')
+                field: author_key
+      - name: jaccard
+        description: "|A∩B| / |A∪B|. A proper fraction, so must sit in [0, 1]."
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+  - name: mart_work_fingerprint
+    description: "Wide pivot of fact_style_measurement: one row per work, a z-score column per series (63)."
+    columns:
+      - name: work_key
+        description: "PK + grain guard (one row per work)."
+        data_tests:
+          - unique
+          - not_null
+      - name: author_key
+        description: "FK to dim_author; the handle for rolling works up to author."
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_author')
+                field: author_key
+
+  - name: mart_style_long
+    description: "Report-serving OBT (8,505): fact_style_measurement denormalized against its dims, kept long, with a precomputed series_label. Feeds the Evidence pages so they don't re-join the star."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns: # grain = work x child series
+          arguments:
+            combination_of_columns:
+              - work_key
+              - metric_name
+    columns:
+      - name: work_key
+        description: "FK to dim_work."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_work')
+                field: work_key
+      - name: author_key
+        description: "FK to dim_author."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_author')
+                field: author_key
+      - name: metric_key
+        description: "FK to dim_metric (concept grain)."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_metric')
+                field: metric_key
+      - name: value
+        description: "Raw measured value. Non-additive."
+        data_tests:
+          - not_null
