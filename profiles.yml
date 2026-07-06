@@ -1,0 +1,19 @@
+gutenberg_fingerprint:
+  target: duckdb
+  outputs:
+    duckdb:
+      type: duckdb
+      # Absolute on purpose: dbt-duckdb resolves a RELATIVE path against the
+      # current working dir (not the project), so running dbt from elsewhere
+      # silently makes a second DB. Anchoring it kills that foot-gun. The
+      # .duckdb file is gitignored; on another machine, override via env_var.
+      path: C:/Users/Sander/OneDrive/Documents/Github/Gutenberg-Fingerprint/dbt/warehouse.duckdb
+      threads: 4
+    # fabric:                    # the portability swap — no model changes (Phase 1)
+    #   type: fabric
+    #   driver: "ODBC Driver 18 for SQL Server"
+    #   host: <workspace SQL endpoint, from Warehouse settings>
+    #   database: <warehouse name>
+    #   schema: dbo
+    #   authentication: CLI      # az login locally; service principal for automation
+    #   threads: 4
