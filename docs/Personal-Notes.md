@@ -50,6 +50,12 @@ Python creates a few 'raw' schema tables in duckdb
 - raw_vocab (one row per work per word)
   - USed to claculate vocab overlap between me and others authors (Jaccard)
 
+## Bicep
+
+Basically "Infrastructure as code"
+- See infra/ folder
+- Basically, a .bicep file is a wanted end state; a tool takes all steps to get real state to match; git keeps your written record
+
 ## dbt Models
 
 A dimension is just a model: one `.sql` file = one `SELECT`.
