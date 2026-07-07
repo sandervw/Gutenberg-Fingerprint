@@ -45,10 +45,10 @@ The evolution of `prose-fingerprint`: a nightly, change-data-capturing pipeline 
 
 **Catalog source — do not scrape gutenberg.org.** PG actively blocks crawlers. Two sanctioned options:
 
-| Source | What | Fit |
-|---|---|---|
-| **Official catalog feeds** | `pg_catalog.csv` (zipped) and the RDF/XML dump, both regenerated daily by PG | The diff source. One polite download per night, full catalog snapshot |
-| **Gutendex API** | Community JSON API over the same nightly RDF data; filters on `topic`, `languages`, `copyright` | Handy for metadata enrichment / backfill queries; best-effort service, so cache and don't hammer it |
+| Source                     | What                                                                                            | Fit                                                                                                 |
+| -------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Official catalog feeds** | `pg_catalog.csv` (zipped) and the RDF/XML dump, both regenerated daily by PG                    | The diff source. One polite download per night, full catalog snapshot                               |
+| **Gutendex API**           | Community JSON API over the same nightly RDF data; filters on `topic`, `languages`, `copyright` | Handy for metadata enrichment / backfill queries; best-effort service, so cache and don't hammer it |
 
 **The CDC mechanics** (design these yourself — that's the exercise):
 
@@ -65,14 +65,14 @@ The evolution of `prose-fingerprint`: a nightly, change-data-capturing pipeline 
 
 The fact constellation survives intact. Additions, not rewrites:
 
-| Table | Change |
-|---|---|
-| `dim_author` | Now built from catalog data, not a seed. Keep `is_self = true` on your row — "me vs 500 dead fantasists" is the demo hook |
-| `dim_work` | Adds `gutenberg_id`, `download_count`, `subjects`, `ingested_at` |
-| `fact_style_measurement` | **Becomes incremental** — new works append; unchanged works don't recompute. The materialization you deliberately skipped last time is now justified, and you know exactly why |
-| `fact_vocab_overlap` | Author-level only, top-N vocab, computed **incrementally**: new authors × existing authors, never full recompute. ~500 authors ≈ 125k pairs — fine. All-works pairwise is 8M rows of nothing — don't |
-| `fact_ingestion_run` *(new)* | One row per nightly run, from the audit table. Grain: pipeline run |
-| `dim_date` *(new)* | Now that time exists in the model, a date dimension earns its keep |
+| Table                        | Change                                                                                                                                                                                               |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dim_author`                 | Now built from catalog data, not a seed. Keep `is_self = true` on your row — "me vs 500 dead fantasists" is the demo hook                                                                            |
+| `dim_work`                   | Adds `gutenberg_id`, `download_count`, `subjects`, `ingested_at`                                                                                                                                     |
+| `fact_style_measurement`     | **Becomes incremental** — new works append; unchanged works don't recompute. The materialization you deliberately skipped last time is now justified, and you know exactly why                       |
+| `fact_vocab_overlap`         | Author-level only, top-N vocab, computed **incrementally**: new authors × existing authors, never full recompute. ~500 authors ≈ 125k pairs — fine. All-works pairwise is 8M rows of nothing — don't |
+| `fact_ingestion_run` *(new)* | One row per nightly run, from the audit table. Grain: pipeline run                                                                                                                                   |
+| `dim_date` *(new)*           | Now that time exists in the model, a date dimension earns its keep                                                                                                                                   |
 
 ---
 
@@ -100,13 +100,13 @@ The nightly job means the capacity *must* wake and sleep on its own. There is no
 
 **Cost math (F2 PAYG, US regions, ~$0.18/CU/hr):**
 
-| Item | Estimate |
-|---|---|
-| Backfill (one-time, bump to F4 for a weekend) | $2–5 |
-| Nightly runs (~30 min avg × 30 days on F2) | $5–10/mo |
-| OneLake storage (~2 GB text + Delta) | pennies ($0.023/GB/mo) |
-| Cloudflare Pages nightly builds | free tier covers it |
-| **Left running 24/7 by accident** | **~$263/mo** |
+| Item                                          | Estimate               |
+| --------------------------------------------- | ---------------------- |
+| Backfill (one-time, bump to F4 for a weekend) | $2–5                   |
+| Nightly runs (~30 min avg × 30 days on F2)    | $5–10/mo               |
+| OneLake storage (~2 GB text + Delta)          | pennies ($0.023/GB/mo) |
+| Cloudflare Pages nightly builds               | free tier covers it    |
+| **Left running 24/7 by accident**             | **~$263/mo**           |
 
 That last row is why an **Azure budget alert on the subscription is step zero**, before any pipeline exists. Do the initial build on the 60-day Fabric trial capacity; move to paid F2 only when the automation bracket is proven.
 
@@ -124,7 +124,7 @@ Evidence extracts data at **build time** into a static site — the deployed Clo
 ## 7. Constraints & Gotchas (learn these before they teach you)
 
 1. **PG politeness is non-negotiable.** Official feeds for the diff, rate-limited downloads, cache everything. Getting your IP blocked is the failure mode that kills the whole project.
-2. **Boilerplate stripping is your biggest data-quality fight.** PG headers/footers/license blocks vary by era and would swamp every lexical metric. The `*** START/END OF THE PROJECT GUTENBERG EBOOK ***` markers are a starting point, not a solution. Test-drive against 20 books from different decades before trusting it.
+2. **Boilerplate stripping is your biggest data-quality fight.** PG headers/footers/license blocks vary by era and would swamp every lexical metric. The `*** START/END OF THE PROJECT GUTENBERG EBOOK ***` markers are a starting point, not a solution. Test-drive against 20 books from different decades before trusting it. Extraction also needs to handle cleaning (take special care to use double quotes instead of single quotes in cleaned output texts).
 3. **T-SQL surface:** same rules as before — `dbt_utils` cross-db macros, standard types, no engine-specific SQL. Fabric Warehouse has documented unsupported T-SQL commands and types; your existing models already respect this, keep it that way.
 4. **F2 is small.** One notebook at a time, Python kernel, sequential pipeline steps. Smoothing spreads background CU over 24h, which helps — but the backfill deserves a temporary F4.
 5. **Preview features move.** The Fabric dbt job is preview (no artifact caching yet); the Lakehouse dbt adapter story keeps shifting. Re-verify both when you start, and keep the GitHub Actions fallback in your pocket.

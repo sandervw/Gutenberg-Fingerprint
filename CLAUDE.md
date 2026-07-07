@@ -22,6 +22,7 @@ Reference the past project for design choices related to dbt, python, or evidenc
 - **Never rely on memory for code/tech specs.** Check the local refs in `docs/reference/` first (`dbt-core.md`, `dbt-duckdb.md`, `duckdb.md`, `evidence.md`, `fabric.md`, `spacy.md`, ...). If they don't cover it, fetch current docs (Context7 / Microsoft Learn MCP / official sources), then update/add the ref file. For Cloudflare, use the installed Cloudflare skills + docs MCP instead of a local ref.
 - **Be lean.** Fewest words possible in chat and in prose docs. No extended justification, no restating known facts, no exhaustive examples.
 - **Never stage or commit.** Don't run `git add`/`git commit` unless explicitly instructed; the user handles version control.
+- **Checkpoint ritual.** When the user wraps up a session ("done for a while", "add a left-off memory"), overwrite the `project-checkpoint` memory in place: one date, done/next state only, "next" items concrete enough to act on cold.
 
 ## Deployment
 
