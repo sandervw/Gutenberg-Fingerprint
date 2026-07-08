@@ -1,4 +1,4 @@
-# LEarning Notes
+# Learning Notes
 
 *Claude, never touch this file unless I say to.*
 
@@ -55,6 +55,16 @@ Python creates a few 'raw' schema tables in duckdb
 Basically "Infrastructure as code"
 - See infra/ folder
 - Basically, a .bicep file is a wanted end state; a tool takes all steps to get real state to match; git keeps your written record
+
+## Lakehouse Design
+
+We use two lakehouses in this design
+- Lakehouse is seperate from a lake (OneLake)
+- Lakehouse is a database-shaped folder on top of lake
+- Bronze lakehouse holds raw text blobs, plus delta tables (catalog rows, CDC watermark)
+- Silver holds tidy delta tables only
+- Gold warehouse only holds cleaned marts
+- Seperate layers (bronze/silver/gold) is standard design; creates seperation of trust
 
 ## dbt Models
 

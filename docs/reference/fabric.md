@@ -6,9 +6,12 @@ Local cheat-sheet. Source: Microsoft Learn (via MCP), fetched 2026-07-06. Covers
 
 ## Core concepts
 
-- **Capacity** = the compute meter. F SKUs sized in Capacity Units (CU): F2 = 2 CU, F4 = 4, F64 = 64. Trial capacity = F64-equivalent, 60 days, but **doesn't support pause/resume** (F SKU only).
+- **Capacity** = the compute meter. F SKUs sized in Capacity Units (CU): F2 = 2 CU, F4 = 4, F64 = 64. Trial capacity (per Learn, 2026-07): starts at **4 CU**, resizable to 64 via Admin portal → Capacity settings → Trial → Change size; 60 days; **doesn't support pause/resume** (paid F SKU only). At trial end: items go inactive, content kept in OneLake 7 days, revive by assigning workspace to a paid F capacity.
+- **Trial sign-in gotcha**: Fabric blocks personal-MSA sign-ins (gmail etc.). Path per Learn `free-trial-account-personal-email`: create a native Entra user in the tenant (Azure portal → Entra ID → Users → New user), sign in at app.fabric.microsoft.com with its UPN, Account manager (profile pic, top-right) → Start/Free trial → pick region → Activate. Region is sticky — moving Fabric items cross-region later means deleting them first; match the region you'd buy paid F2 in.
+- **IaC status**: paid F capacities are ARM resources (`Microsoft.Fabric/capacities`, Bicep-able). Trial capacity is portal-only. Workspaces/items sit on Fabric's own control plane — Fabric REST API / Terraform Fabric provider, not ARM/Bicep.
 - **Workspace** = container for items (Lakehouse, Warehouse, notebooks, pipelines, dbt jobs), assigned to a capacity.
-- Everything stores to **OneLake** as Delta/Parquet; engines share the same files.
+- Everything stores to **OneLake** as Delta/Parquet; engines share the same files. OneLake is *the* lake (one per tenant); a Lakehouse item is a database-shaped container over it — multiple Lakehouses copy no data.
+- **Medallion deployment (Learn, 2026-07)**: recommended = one lakehouse per layer (enterprises: one *workspace* per layer for isolation). Alternative = one schema-enabled lakehouse with bronze/silver/gold schemas (used in MS tutorials). Schema-enabled limitations: no workspace-level sharing, no external ADLS table metadata, and **no conversion path** plain↔schema-enabled after creation. Bronze guidance: keep source format (Files/ ok); silver/gold: Delta tables.
 - F2 PAYG ≈ $0.18/CU/hr US regions → ~$263/mo if left running. Pause = step zero of FinOps (see project doc §5).
 
 ## Lakehouse vs Warehouse
