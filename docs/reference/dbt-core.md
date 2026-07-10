@@ -119,6 +119,15 @@ models:
           - not_null
 ```
 
+**Source `database:`/`schema:` overrides** (fetched 2026-07-10, docs: `reference/dbt-jinja-functions/target` + `faqs/Project/source-in-different-database`) — a source can live outside the target database: set `database:` (and/or `schema:`) on the source block and dbt renders the full three-part relation. Both properties accept Jinja, and `target.name`/`target.type` are available. Caveat: properties.yml is a parse-time context — only `builtins.ref/source/config` and core context vars work there, no custom macros. Our cross-target pattern (`_sources.yml`):
+
+```yaml
+sources:
+  - name: raw
+    database: "{{ 'lh_silver' if target.name == 'fabric' else 'warehouse' }}"
+    schema: "{{ 'dbo' if target.name == 'fabric' else 'raw' }}"
+```
+
 **Seeds** = version-controlled CSVs in `seeds/`, loaded by `dbt seed`. Textbook use: small static reference data (our `dim_metric` definitions, author metadata). Not for large data.
 
 ---

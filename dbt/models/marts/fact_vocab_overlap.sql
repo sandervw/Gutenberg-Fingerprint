@@ -19,7 +19,7 @@ me as (  -- the self author; supplies author_key_a for every pair
 
     select author_key as author_key_a
     from {{ ref('dim_author') }}
-    where is_self
+    where is_self = 1  -- bit-friendly (see int_vocab_jaccard note)
 
 )
 
