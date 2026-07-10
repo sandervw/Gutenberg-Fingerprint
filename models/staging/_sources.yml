@@ -2,7 +2,12 @@ version: 2
 
 sources:
   - name: raw                  # logical group → source('raw', <table>)
-    schema: raw                # the DuckDB schema the Python extractor writes to
+    # Target-aware source location. Fabric: wh_gold reads lh_silver's tables
+    # cross-database via the (read-only) SQL analytics endpoint, so sources
+    # must render three-part: lh_silver.dbo.<table>. DuckDB: same tables live
+    # in the local file's catalog ("warehouse" = file stem), schema "raw".
+    database: "{{ 'lh_silver' if target.name == 'fabric' else 'warehouse' }}"
+    schema: "{{ 'dbo' if target.name == 'fabric' else 'raw' }}"
     loader: "extract/ (Python + spaCy)"   # the pipeline that fills these tables; shows in lineage
     description: "Tidy tables landed by the standalone Python extractor (extract/)."
     tables:
