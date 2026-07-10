@@ -19,12 +19,14 @@ with author_vocab as (
 
 ),
 
+-- is_self compared to 1/0, not used bare: T-SQL has no boolean expression
+-- type (bit only), and DuckDB casts int literals to boolean cleanly.
 me as (  -- |A|: your vocabulary
-    select term from author_vocab where is_self
+    select term from author_vocab where is_self = 1
 ),
 
 them as (  -- |B|: each other author's vocabulary
-    select author_key, term from author_vocab where not is_self
+    select author_key, term from author_vocab where is_self = 0
 ),
 
 my_size as (

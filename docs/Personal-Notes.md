@@ -66,11 +66,18 @@ We use two lakehouses in this design
 - Gold warehouse only holds cleaned marts
 - Seperate layers (bronze/silver/gold) is standard design; creates seperation of trust
 
-## dbt Run location
+## dbt + Fabric
 
 dbt currently sits on one machine; fabric/azure sits on another
 - dbt builds the sql from templates (jinja) and mails them to the engine (fabric) to run the actual sql
 - Needs an ODBC 18 driver (the light from the machine "remote" to the engine "TV")
+
+The Full stack
+- dbt Core — renders Jinja into SQL, plans run order
+- dbt-fabric — recasts generic SQL patterns into Fabric's T-SQL, works our link
+- pyodbc — a Python-to-ODBC bridge
+- ODBC Driver 18 — speaks TDS on our wire (our fresh install)
+- Warehouse SQL endpoint — Azure, where all real work happens
 
 ## dbt Models
 
