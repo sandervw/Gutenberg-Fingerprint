@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+import notebookutils
 import polars as pl
 import pyarrow as pa
 import requests
@@ -24,10 +25,20 @@ CATALOG_URL: str = "https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv"
 USER_AGENT: str = "gutenberg-fingerprint-pipeline/0.1 (contact: samvanwilligen@gmail.com)"
 
 FILES_ROOT: Path = Path("/lakehouse/default/Files")
-TABLES_ROOT: Path = Path("/lakehouse/default/Tables")
-CATALOG_TABLE: Path = TABLES_ROOT / "catalog"
-WATERMARK_TABLE: Path = TABLES_ROOT / "watermark"
-AUDIT_TABLE: Path = TABLES_ROOT / "ingest_audit"
+
+ONELAKE_TABLES: str = (
+    "abfss://gutenberg-fingerprint@onelake.dfs.fabric.microsoft.com"
+    "/lh_bronze.Lakehouse/Tables"
+)
+CATALOG_TABLE: str = f"{ONELAKE_TABLES}/catalog"
+WATERMARK_TABLE: str = f"{ONELAKE_TABLES}/watermark"
+AUDIT_TABLE: str = f"{ONELAKE_TABLES}/ingest_audit"
+
+# OneLake token, roughly one hour of life, plenty for a single run
+STORAGE_OPTIONS: dict[str, str] = {
+    "bearer_token": notebookutils.credentials.getToken("storage"),
+    "use_fabric_endpoint": "true",
+}
 
 # Every timestamp tz-aware UTC
 TS_UTC: pl.Datetime = pl.Datetime("us", "UTC")
@@ -92,10 +103,16 @@ def load_catalog(csv_path: Path, run_ts: datetime) -> pl.DataFrame:
 # %% Write - catalog photo via delta-rs
 
 
-def write_catalog(df: pl.DataFrame, table_path: Path) -> None:
-    write_deltalake(str(table_path), df.to_arrow(), mode="overwrite", schema_mode="overwrite")
+def write_catalog(df: pl.DataFrame, table_uri: str) -> None:
+    write_deltalake(
+        table_uri,
+        df.to_arrow(),
+        mode="overwrite",
+        schema_mode="overwrite",
+        storage_options=STORAGE_OPTIONS,
+    )
     # Manual checkpoint per run keeps the log short
-    DeltaTable(str(table_path)).create_checkpoint()
+    DeltaTable(table_uri, storage_options=STORAGE_OPTIONS).create_checkpoint()
 
 
 # %% Watermark - create once, never overwrite
@@ -112,9 +129,11 @@ WATERMARK_SCHEMA: pa.Schema = pa.schema(
 )
 
 
-def ensure_watermark(table_path: Path) -> DeltaTable:
+def ensure_watermark(table_uri: str) -> DeltaTable:
     # mode="ignore": create only when absent
-    return DeltaTable.create(str(table_path), schema=WATERMARK_SCHEMA, mode="ignore")
+    return DeltaTable.create(
+        table_uri, schema=WATERMARK_SCHEMA, mode="ignore", storage_options=STORAGE_OPTIONS
+    )
 
 
 # %% CDC diff - catalog photo vs watermark ledger
@@ -143,7 +162,7 @@ def diff_counts(catalog: pl.DataFrame, watermark: DeltaTable) -> CdcCounts:
     )
 
 
-def write_audit(counts: CdcCounts, run_ts: datetime, table_path: Path) -> None:
+def write_audit(counts: CdcCounts, run_ts: datetime, table_uri: str) -> None:
     row = pl.DataFrame(
         {
             "run_ts": [run_ts],
@@ -164,7 +183,7 @@ def write_audit(counts: CdcCounts, run_ts: datetime, table_path: Path) -> None:
             "failed": pl.Int64,
         },
     )
-    write_deltalake(str(table_path), row.to_arrow(), mode="append")
+    write_deltalake(table_uri, row.to_arrow(), mode="append", storage_options=STORAGE_OPTIONS)
 
 
 # %% Run

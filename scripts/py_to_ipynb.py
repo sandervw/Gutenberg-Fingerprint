@@ -10,6 +10,31 @@ from pathlib import Path
 
 CELL_MARKER = "# %%"
 
+# Metadata mirrors a portal-exported Python-kernel notebook (fab export,
+# 2026-07-11). Without kernel_info/kernelspec, Fabric defaults an imported
+# notebook to the Spark kernel, where polars/deltalake do not exist.
+KERNEL_METADATA: dict[str, object] = {
+    "kernel_info": {"name": "jupyter", "jupyter_kernel_name": "python3.12"},
+    "kernelspec": {"name": "jupyter", "display_name": "Jupyter"},
+    "language_info": {"name": "python"},
+    "microsoft": {"language": "python", "language_group": "jupyter_python"},
+}
+
+# Default-lakehouse binding (lh_bronze). Imports without it leave the
+# notebook detached, so /lakehouse/default/ never mounts.
+LAKEHOUSE_DEPENDENCY: dict[str, object] = {
+    "lakehouse": {
+        "known_lakehouses": [{"id": "1cebda9c-5c4f-47bb-a82a-4820a7fdf71f"}],
+        "default_lakehouse": "1cebda9c-5c4f-47bb-a82a-4820a7fdf71f",
+        "default_lakehouse_name": "lh_bronze",
+        "default_lakehouse_workspace_id": "bfad3948-6e3b-4eeb-8ee1-485e0f47c87b",
+    }
+}
+
+CELL_METADATA: dict[str, object] = {
+    "microsoft": {"language": "python", "language_group": "jupyter_python"}
+}
+
 
 def split_cells(source: str) -> list[str]:
     """Split on lines opening with the cell marker; drop empty cells."""
@@ -33,11 +58,11 @@ def to_ipynb(cells: list[str]) -> dict[str, object]:
                 "source": [f"{line}\n" for line in cell.splitlines()],
                 "execution_count": None,
                 "outputs": [],
-                "metadata": {},
+                "metadata": CELL_METADATA,
             }
             for cell in cells
         ],
-        "metadata": {"language_info": {"name": "python"}},
+        "metadata": {**KERNEL_METADATA, "dependencies": LAKEHOUSE_DEPENDENCY},
     }
 
 
