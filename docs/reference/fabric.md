@@ -38,6 +38,19 @@ Local cheat-sheet. Source: Microsoft Learn (via MCP), fetched 2026-07-06. Covers
   - delta-rs default checkpoint interval is 100 commits (Spark: 10) — set lower; run periodic `optimize`/`vacuum lite` via delta-rs.
 - `notebookutils` data connector lets Python notebooks run T-SQL against Warehouse/endpoints.
 
+## Shipping notebook code: local → workspace (Learn, fetched 2026-07-11)
+
+- **Portal import** (manual): workspace → Import → Notebook → From this computer. Accepts `.ipynb` and source files (`.py`, `.sql`, `.scala`). Each import creates a **new** notebook item — no update-in-place. Fine for a first landing, weak for iteration.
+- **Fabric CLI `fab`** (imperative, az-style): `pip install ms-fabric-cli` (Python ≥3.10). `fab auth login` — own auth store, separate from `az login`; methods: interactive browser, SPN secret, SPN cert, managed identity. Filesystem-style commands over workspace items (`ls`, `cd`, `import`, `export`, ...). Command reference lives on the fabric-cli GitHub pages (aka.ms/FabricCLI), not Learn — verify flags with `fab <cmd> --help`.
+- **`fab import` gotchas (verified 2026-07-11, fab 1.6.1)**:
+  - `-i` **must point at an item-shaped directory** (e.g. `x.Notebook/` containing `artifact.content.ipynb`), not a bare file. A file path silently packs `"parts": []` into the create-item POST → API 400 `InvalidInput` ("Parts: Must be a non-empty collection"). The console shows only the two-word error; the real detail needs `fab config set debug_enabled true` → full request/response log at `%LOCALAPPDATA%\fabric-cli\Logs\fabcli_debug.log`.
+  - Plain-Python `.py` files are NOT valid `--format .py` input — that format means Fabric's git-source markers (`# Fabric notebook source`, `# CELL ***`, `# META`), documented only for Spark kernels. Ship `.ipynb` instead: `scripts/py_to_ipynb.py` (repo) converts a `# %%`-sectioned .py into nbformat-4 cells.
+  - Working ship command (from repo root): `uv run python scripts/py_to_ipynb.py notebooks/<nb>.py <scratch>/<nb>.Notebook/artifact.content.ipynb && fab import gutenberg-fingerprint.Workspace/<nb>.Notebook -i <scratch>/<nb>.Notebook --format .ipynb -f` (`-f` skips the confirm prompt — interactive prompts crash in non-Windows-console shells: mintty/xterm → "expecting a Windows console", winpty → "stdin is not a tty").
+  - fab's console output uses non-cp1252 glyphs (`→`, `∟`) → `[UnexpectedError] charmap` crashes on stock Windows consoles, *after* the API call already ran — a `fab ls` tells the true outcome. `PYTHONUTF8=1` inline suppresses it when needed.
+- **`fab deploy --config config.yml`** (declarative bulk publish): wraps the **fabric-cicd** Python library; publishes a repo folder of item definitions to a workspace and unpublishes items gone from source. Closest analog to Bicep for workspace items (actual Bicep reaches only the capacity ARM resource — see IaC status above).
+- **Workspace Git integration**: workspace ↔ one branch+folder of a GitHub/Azure DevOps repo (GitHub connector = PAT). Notebook serializes as `<Name>.Notebook/notebook-content.py` + `.platform` (+ optional `notebook-settings.json`, `Resources/builtin/`). Cell outputs never sync. Attached-lakehouse ID becomes a logical ID; auto-binding toggle in notebook Git settings — never hand-edit `notebook-settings.json`. Dev loop = commit → push → workspace "Update from Git": built for history/promotion, clunky for tight iteration.
+- **REST Items API**: create/update item with base64 definition parts (`FabricGitSource` format = `notebook-content.py`; or `ipynb`) — the layer every option above wraps. Bulk export/import definitions APIs exist (preview, `?beta=true`).
+
 ## dbt-fabric adapter (local dbt Core → Warehouse)
 
 Prereqs: Python ≥3.7, **Microsoft ODBC Driver 18 for SQL Server**, `pip install dbt-fabric`.
