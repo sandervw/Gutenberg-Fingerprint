@@ -25,7 +25,24 @@ No dbt init — that scaffolds an empty project; we're porting a real one.
 `duckdb -ui prose_fingerprint/warehouse.duckdb`      # browser UI (object tree + grid)
 `duckdb prose_fingerprint/warehouse.duckdb `         # SQL shell: .tables, SELECT ... LIMIT 10
 
-## Design Decisions
+## Python extract
+
+Run on a notebook in fabric (not a script on my pc)
+- runs on a Python kernel (1 CU per second)
+- Use `polars` to shape dataframe of the pg catalog; use `pyarrow` for watermark table shape; use `deltalake` for delta table format on disk
+
+Land untouched plain text gutenberg files in `bronze`, cleaned markdown in `silver`
+
+Steps:
+1. Pull the `PG catalog` feed (pg_catalog.csv - nightly log of all books with ids, title, author, etc); put in bronze
+2. Load `watermark table` (a ledger of what we hold; id, catalog row, text hash, etc)
+   1. *Watermark: how high on the wall the water rose*
+   2. Log of how far ingest got, so tomorrow's run starts at that line; each night:
+   - ID in catalog, absent from watermark: new book, fetch it.
+   - ID in both, row hash differs: PG shipped a correction to an old text (real and common), fetch again.
+   - Hashes match: skip. Most nights near everything skips, and a no-op night costs minutes.
+
+### Old Design
 
 Raw data is extracted from /corpus via the /extracts python logic
 
@@ -50,13 +67,15 @@ Python creates a few 'raw' schema tables in duckdb
 - raw_vocab (one row per work per word)
   - USed to claculate vocab overlap between me and others authors (Jaccard)
 
-## Bicep
+## Fabric
+
+### Bicep
 
 Basically "Infrastructure as code"
 - See infra/ folder
 - Basically, a .bicep file is a wanted end state; a tool takes all steps to get real state to match; git keeps your written record
 
-## Lakehouse Design
+### Lakehouse Design
 
 We use two lakehouses in this design
 - Lakehouse is seperate from a lake (OneLake)
@@ -66,7 +85,7 @@ We use two lakehouses in this design
 - Gold warehouse only holds cleaned marts
 - Seperate layers (bronze/silver/gold) is standard design; creates seperation of trust
 
-## dbt + Fabric
+### dbt + Fabric
 
 dbt currently sits on one machine; fabric/azure sits on another
 - dbt builds the sql from templates (jinja) and mails them to the engine (fabric) to run the actual sql
@@ -79,12 +98,14 @@ The Full stack
 - ODBC Driver 18 — speaks TDS on our wire (our fresh install)
 - Warehouse SQL endpoint — Azure, where all real work happens
 
-## dbt Models
+## dbt
+
+### Models
 
 A dimension is just a model: one `.sql` file = one `SELECT`.
 dbt runs the SELECT and wraps it in `CREATE TABLE AS ...`;
 
-### Where each thing lives
+#### Where each thing lives
 
 | Concern                              | Where                       | How                                                                                           |
 | ------------------------------------ | --------------------------- | --------------------------------------------------------------------------------------------- |
@@ -96,14 +117,14 @@ dbt runs the SELECT and wraps it in `CREATE TABLE AS ...`;
 
 Key point: schema and transformation are the SAME file (the SELECT). The `.yml` only describes and tests what that SELECT produces
 
-### Files for one model (e.g. dim_work)
+#### Files for one model (e.g. dim_work)
 
 1. `models/marts/dim_work.sql` - the transformation + the schema (the SELECT).
 2. `models/marts/_marts.yml` - docs + tests (optional but wanted).
 3. `dbt_project.yml` - already says marts to table.
 4. Upstream `ref()` targets: `seed_authors`, `stg_works` (already built).
 
-### Materializations
+#### Materializations
 
 A materialization answers: when I run this SELECT, what physical thing should exist in the warehouse? It's the build strategy (the DDL wrapper dbt generates).
 
@@ -117,7 +138,7 @@ A materialization answers: when I run this SELECT, what physical thing should ex
 Purpose: it decouples WHAT the data is (the SELECT) from HOW/WHEN it is stored and refreshed.
 Flip a view into a table by changing one config line; the SQL never changes.
 
-## Seeds
+### Seeds
 
 Seeds are small, static CSV files you keep inside your dbt project
 - dbt loads into the warehouse as tables
@@ -125,7 +146,7 @@ Seeds are small, static CSV files you keep inside your dbt project
 - Use seeds for small reference datasets such as country codes, region mappings, or business-defined categories
 - Ref() them downstream like any model
 
-## Marts
+### Marts
 
 Same concept from BI, just expressed as code
 - Serve-ready, business-facing layer (dim_/fct_/agg_ tables)
@@ -134,11 +155,11 @@ Same concept from BI, just expressed as code
 - dbt recommends denormalizing heavily into wide tables
 - Keep marts relatively simple and avoid too many joins, pushing complexity into the intermediate layer. 
 
-## Macros
+### Macros
 
 Like a User Defined Function in sql server, except they aren't artifacts created on a DB - they are translated into sql at compile time
 
-## Tests
+### Tests
 
 run using `dbt test`
 
