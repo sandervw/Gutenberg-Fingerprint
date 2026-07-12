@@ -48,7 +48,7 @@ The evolution of `prose-fingerprint`: a nightly, change-data-capturing pipeline 
 | Source                     | What                                                                                            | Fit                                                                                                 |
 | -------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | **Official catalog feeds** | `pg_catalog.csv` (zipped) and the RDF/XML dump, both regenerated daily by PG                    | The diff source. One polite download per night, full catalog snapshot                               |
-| **Gutendex API**           | Community JSON API over the same nightly RDF data; filters on `topic`, `languages`, `copyright` | Handy for metadata enrichment / backfill queries; best-effort service, so cache and don't hammer it |
+| **Gutendex API**           | Community JSON API over the same nightly RDF data; filters on `topic`, `languages` | Handy for metadata enrichment / backfill queries; best-effort service, so cache and don't hammer it |
 
 **The CDC mechanics** (design these yourself — that's the exercise):
 
@@ -57,7 +57,7 @@ The evolution of `prose-fingerprint`: a nightly, change-data-capturing pipeline 
 - Downloads: plain-text format only, rate-limited (think seconds between requests, not parallelism), from PG's file hosts. A handful of new fantasy titles per week is the norm — the fantasy shelf is small and mostly settled.
 - Every run writes an **ingestion audit row**: run timestamp, books checked, new, changed, failed. This table is gold for both debugging and the dashboard's "pipeline health" page.
 
-**Scope filter** (apply at CDC time, not downstream): English, `copyright = false`, fantasy via subjects/bookshelves keyword match. Expect ~2–4k works, a few hundred authors. Log what you *exclude* too — translations and duplicate editions will poison stylometrics if they leak in, and dedupe heuristics (same author + normalized title) are a genuine data-quality problem worth a README section.
+**Corpus filter** (apply at CDC time, not downstream): English, `Type = Text`, fantasy via subjects/bookshelves keyword match. Translations and juvenile fiction stay in scope, flagged (`is_translation`, `is_juvenile`), surfaced as fields on `stg_works`, filtered at query time in Evidence. Measured 2026-07-12: 689 works, ~290 authors. Log what you *exclude* too — duplicate editions will poison stylometrics if they leak in, and dedupe heuristics (same author + normalized title) are a genuine data-quality problem worth a README section.
 
 ---
 
@@ -137,7 +137,7 @@ Evidence extracts data at **build time** into a static site — the deployed Clo
 Trial capacity, workspace, Lakehouse + Warehouse. Budget alert. Port the dbt repo, add the `fabric` target, `dbt debug` green against the Warehouse. **Done when:** existing marts build in Fabric from manually loaded sample data.
 
 ### Phase 2 — Backfill (wk 2–3)
-Catalog ingestion notebook, scope filter, boilerplate stripper, watermark table. Backfill the full fantasy corpus (rate-limited — let it take days). Stylometrics notebook over the corpus. **Done when:** bronze/silver populated, audit table records the backfill.
+Catalog ingestion notebook, corpus filter, boilerplate stripper, watermark table. Backfill the full fantasy corpus (rate-limited — let it take days). Stylometrics notebook over the corpus. **Done when:** bronze/silver populated, audit table records the backfill.
 
 ### Phase 3 — Incremental dbt (wk 3–4)
 Convert facts to incremental, add snapshots, source freshness, the expanded tests. **Done when:** a second run with a hand-injected "new book" flows through end-to-end and *only* the delta recomputes.
@@ -147,6 +147,8 @@ Data Factory pipeline, resume/pause bracket, nightly schedule, failure alerting.
 
 ### Phase 5 — Serve + Polish (wk 5–6)
 Evidence auth or the parquet decouple (§6), new dashboard pages (corpus explorer, "you vs the field," pipeline health from `fact_ingestion_run`), README with the architecture diagram, repo public. **Done when:** a hiring manager can read the repo and a stranger can browse the site.
+
+**Deferred filter expansion (noted 2026-07-12):** after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Flag columns plus Evidence-side filtering make it a config change, not a redesign.
 
 ---
 
