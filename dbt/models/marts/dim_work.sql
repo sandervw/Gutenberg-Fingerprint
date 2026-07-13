@@ -1,15 +1,24 @@
--- One row per work. seed_authors is the spine; LEFT JOIN word_count from stg_works
--- so an unmeasured work surfaces with a null word_count instead of dropping out.
+-- One row per work: self corpus + catalog.
 select
-    {{ dbt_utils.generate_surrogate_key(['a.work_id']) }} as work_key,
-    {{ dbt_utils.generate_surrogate_key(['author']) }}    as author_key,  -- FK -> dim_author
-    a.work_id,
-    a.title,
-    w.word_count,
-    case
-        when w.word_count < 10000 then 'short-story'
-        when w.word_count < 40000 then 'novella'
-        else 'novel'
-    end as prose_type
-from {{ ref('seed_authors') }} a
-left join {{ ref('stg_works') }} w on w.work_id = a.work_id
+    {{ dbt_utils.generate_surrogate_key(['work_id']) }} as work_key,
+    {{ dbt_utils.generate_surrogate_key(['author']) }}  as author_key,
+    work_id,
+    title,
+    0 as is_translation,
+    0 as is_juvenile,
+    cast(null as {{ dbt.type_bigint() }}) as word_count,
+    cast(null as {{ dbt.type_string() }}) as prose_type
+from {{ ref('seed_authors') }}
+
+union all
+
+select
+    {{ dbt_utils.generate_surrogate_key(['gutenberg_id']) }},
+    cast(null as {{ dbt.type_string() }}),
+    cast(gutenberg_id as {{ dbt.type_string() }}),
+    title,
+    is_translation,
+    is_juvenile,
+    cast(null as {{ dbt.type_bigint() }}),
+    cast(null as {{ dbt.type_string() }})
+from {{ ref('stg_works') }}

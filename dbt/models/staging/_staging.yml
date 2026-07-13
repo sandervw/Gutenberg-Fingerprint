@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: stg_works
+    description: "One row per work (689): catalog fields off silver raw_works plus derived corpus flags. Flagged works stay in; Evidence filters at query time."
+    columns:
+      - name: gutenberg_id
+        description: "PG's natural key. PK + grain guard."
+        data_tests:
+          - unique
+          - not_null
+      - name: title
+        data_tests:
+          - not_null
+      - name: is_translation
+        description: "'[Translator]' author marker, 'Translations into English' subject, or foreign-literature LoC class (PA/PG/PH/PJ/PK/PL/PQ/PT). ~35 works."
+        data_tests:
+          - not_null
+      - name: is_juvenile
+        description: "PZ LoC class or 'juvenile' subject keyword. ~256 works."
+        data_tests:
+          - not_null
