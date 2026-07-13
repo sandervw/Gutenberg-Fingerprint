@@ -1,6 +1,6 @@
 # dbt-duckdb reference
 
-Local cheat-sheet. Source: github.com/duckdb/dbt-duckdb (via Context7), fetched 2026-06-20. This is the adapter that lets dbt target DuckDB. Installing it (`pip install dbt-duckdb`) pulls in `duckdb` itself.
+Local cheat-sheet. Source: github.com/duckdb/dbt-duckdb (via Context7). This is the adapter that lets dbt target DuckDB. Installing it (`pip install dbt-duckdb`) pulls in `duckdb` itself.
 
 ---
 
@@ -19,9 +19,9 @@ prose_fingerprint:
       # schema: main             # optional default schema
 ```
 
-`path` is the DuckDB file. **A relative `path` is resolved against the current working directory, NOT the project dir** (verified 2026-06-22; the README/Context7 examples all use absolute paths). Running dbt from a different folder with a relative path silently creates a SECOND DB there. Fix: use an absolute path (our `profiles.yml` does). `:memory:` for an ephemeral DB. This is where the dual-target swap happens later: add a `fabric:` output alongside `dev`, change `target`, no model changes.
+`path` is the DuckDB file. **A relative `path` is resolved against the current working directory, NOT the project dir.** Running dbt from a different folder with a relative path silently creates a SECOND DB there. Fix: use an absolute path (our `profiles.yml` does). `:memory:` for an ephemeral DB. This is where the dual-target swap happens later: add a `fabric:` output alongside `dev`, change `target`, no model changes.
 
-Optional `plugins:` load Python integrations (gsheet, excel, sqlalchemy) at connection time. Not needed for our flow, but it's how dbt-duckdb reaches outside data.
+Optional `plugins:` load Python integrations (gsheet, excel, sqlalchemy) at connection time, how dbt-duckdb reaches outside data.
 
 ---
 
@@ -47,7 +47,7 @@ sources:
           external_location: "read_csv('flights.csv', types={'FlightDate': 'DATE'})"
 ```
 
-For our project the Python extractor lands tidy rows directly into the DuckDB file, so we'll likely use normal `source()` against real tables rather than external files. External sources are the alternative if we choose to land Parquet/CSV instead.
+Use external sources when landing Parquet/CSV instead of real tables.
 
 ---
 
@@ -74,7 +74,7 @@ Standard `view` / `table` / `incremental` materializations also work as normal.
 
 ## Python models (.py in models/)
 
-dbt-duckdb supports Python models. A `model(dbt, session)` function returns a DataFrame / Arrow table that dbt materializes. Relevant since our metric extraction is Python-heavy, though the plan keeps extraction as a *separate* script that lands raw rows (cleaner portability). Python models are the in-dbt alternative.
+dbt-duckdb supports Python models. A `model(dbt, session)` function returns a DataFrame / Arrow table that dbt materializes.
 
 ```python
 # models/example_python.py
