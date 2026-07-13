@@ -1,13 +1,13 @@
 # Azure reference (non-Fabric)
 
-Local cheat-sheet. Source: Microsoft Learn (via MCP), fetched 2026-07-07. Covers subscription-level Azure: cost budgets, Bicep/ARM deployment, CLI auth.
+Local cheat-sheet. Source: Microsoft Learn (via MCP). Covers subscription-level Azure: cost budgets, Bicep/ARM deployment, CLI auth.
 
 ---
 
 ## Cost budgets (`Microsoft.Consumption/budgets`)
 
 - ARM resource, usually at **subscription scope**. **Alert-only** — never blocks or stops spend; actual cost control is the capacity pause bracket (project doc §5).
-- **Ours (live):** `gutenberg-fingerprint-monthly` — $50/mo, alerts at 50%/90% actual + 100% forecasted → sam.vanwilligen@gmail.com. Declared in `infra/budget.bicep`, deployed 2026-07-07.
+- **Ours (live):** `gutenberg-fingerprint-monthly` — $50/mo, alerts at 50%/90% actual + 100% forecasted → sam.vanwilligen@gmail.com. Declared in `infra/budget.bicep`.
 - Schema essentials (API `2023-11-01`):
   - `category`: `Cost` (dollars) or `Usage`
   - `amount` + `timeGrain`: `Monthly` | `Quarterly` | `Annually` (resets each grain)
@@ -20,7 +20,7 @@ Local cheat-sheet. Source: Microsoft Learn (via MCP), fetched 2026-07-07. Covers
 
 ## Bicep / ARM deployment
 
-- Bicep = declarative IaC DSL, compiles to ARM JSON. az CLI auto-installs the compiler on first use. Storing `.bicep` files in the repo = the cloud artifact lives in git.
+- Bicep = declarative IaC DSL, compiles to ARM JSON. az CLI auto-installs the compiler on first use.
 - **Subscription scope** (`targetScope = 'subscription'`):
   `az deployment sub create --name <label> --location <region> --template-file <file>`
   `--location` only stores deployment metadata — irrelevant for region-less resources. Sub-scope residents: budgets, policy/role assignments, resource groups themselves (a sub-scope template can create RGs and nest modules into them).

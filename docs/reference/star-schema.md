@@ -1,6 +1,6 @@
 # Star schema / dimensional modeling reference
 
-Local cheat-sheet for auditing a dbt star schema. Sources: Kimball Group ("Dimensional Modeling Techniques"), dbt docs, Microsoft Learn (full URLs at bottom). Fetched 2026-06-24. Use as a checklist, not an essay.
+Local cheat-sheet for auditing a dbt star schema. Sources: Kimball Group ("Dimensional Modeling Techniques"), dbt docs, Microsoft Learn (full URLs at bottom). Use as a checklist, not an essay.
 
 A star schema = central **fact** tables surrounded by **dimension** tables (the points of the star). Optimized for analytic queries (filter, group, sort, summarize) via few joins.
 

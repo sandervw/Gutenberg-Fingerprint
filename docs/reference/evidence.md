@@ -1,6 +1,6 @@
 # Evidence.dev reference
 
-Local cheat-sheet. Source: evidence-dev/evidence (via Context7), fetched 2026-06-26. Evidence is "BI as code": reports are Markdown files with SQL inside, built into a static website. It's the dashboard layer that sits on top of our dbt marts.
+Local cheat-sheet. Source: evidence-dev/evidence (via Context7). Evidence is "BI as code": reports are Markdown files with SQL inside, built into a static website. It's the dashboard layer that sits on top of our dbt marts.
 
 ---
 
@@ -46,7 +46,7 @@ npm run dev        # dev server on localhost:3000
 
 `npm run build` produces the static site. `npm run sources -- --changed` rebuilds only changed sources.
 
-### Deploying to Cloudflare Pages (learned 2026-07-01)
+### Deploying to Cloudflare Pages
 
 - Build command `npm run sources && npm run build`, output dir `build`, root dir `reports`.
 - Prerender crawls every link; a `<Value/>` inside a markdown link URL becomes a literal href and 404s the build. Markdown also URL-encodes `[0]` in link destinations, so use a raw `<a href={query[0].col}>` for dynamic links.
@@ -116,7 +116,7 @@ select * from ${author_lengths} where mean_word_length > 4
 
 ---
 
-## Theming & custom styling (learned 2026-07-02)
+## Theming & custom styling
 
 - `evidence.config.yaml` → `appearance:` sets `default: light|dark|system` and `switcher: true` (built-in light/dark toggle, lives in the header kebab menu).
 - `theme.colors` tokens: `primary`, `accent`, `base`, `info`, `positive`, `warning`, `negative` — each with `light:`/`dark:` hex. `base` drives the whole surface: Evidence generates `base-100/200/300` + `base-content` shades from it (header, sidebar, borders, text).
@@ -131,6 +131,6 @@ select * from ${author_lengths} where mean_word_length > 4
 
 ## Exposures (dbt link)
 
-Once a dashboard exists, declare it as a dbt `exposure` so lineage knows the marts feed it. That's the planned Week-3 follow-up after the dashboard is up.
+Once a dashboard exists, declare it as a dbt `exposure` so lineage knows the marts feed it.
 
 > Portability note: Evidence reads straight from the DuckDB file and is independent of the dbt engine — swapping dbt to Fabric later doesn't touch the Evidence layer, only the `connection.yaml`.

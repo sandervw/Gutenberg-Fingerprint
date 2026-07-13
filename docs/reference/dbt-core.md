@@ -1,6 +1,6 @@
 # dbt Core reference
 
-Local cheat-sheet so I don't re-fetch. Source: docs.getdbt.com (via Context7), fetched 2026-06-20. dbt is the "T" in ELT: it runs `select` statements as managed, tested, documented models. Verify version-specific syntax against live docs if something looks off.
+dbt is the "T" in ELT: it runs `select` statements as managed, tested, documented models. Verify version-specific syntax against live docs if something looks off.
 
 ---
 
@@ -15,7 +15,7 @@ project/
 ├── models/              # .sql (and .py) models + .yml property files
 ├── macros/              # reusable Jinja/SQL
 ├── tests/               # singular (custom) tests
-└── snapshots/           # SCD type-2 (not used here)
+└── snapshots/           # SCD type-2
 ```
 
 `dbt_project.yml` links to a profile by name:
@@ -75,7 +75,7 @@ select ...
 |------|----------------|----------|
 | `view` | a DB view, recomputed on read | staging / light transforms (default for our `staging/`) |
 | `table` | a physical table, rebuilt each run | marts, anything queried often (our `marts/`) |
-| `incremental` | table built once, then only new rows appended | append-only event data. **Not needed here** (static corpus); know it exists for the tradeoff |
+| `incremental` | table built once, then only new rows appended | append-only event data |
 | `ephemeral` | inlined as a CTE, no DB object | small reused logic you don't want materialized |
 
 Incremental skeleton (reference only):
@@ -119,7 +119,7 @@ models:
           - not_null
 ```
 
-**Source `database:`/`schema:` overrides** (fetched 2026-07-10, docs: `reference/dbt-jinja-functions/target` + `faqs/Project/source-in-different-database`) — a source can live outside the target database: set `database:` (and/or `schema:`) on the source block and dbt renders the full three-part relation. Both properties accept Jinja, and `target.name`/`target.type` are available. Caveat: properties.yml is a parse-time context — only `builtins.ref/source/config` and core context vars work there, no custom macros. Our cross-target pattern (`_sources.yml`):
+**Source `database:`/`schema:` overrides** — a source can live outside the target database: set `database:` (and/or `schema:`) on the source block and dbt renders the full three-part relation. Both properties accept Jinja, and `target.name`/`target.type` are available. Caveat: properties.yml is a parse-time context — only `builtins.ref/source/config` and core context vars work there, no custom macros. Our cross-target pattern (`_sources.yml`):
 
 ```yaml
 sources:
@@ -183,7 +183,7 @@ Macros = reusable SQL templated with Jinja, in `macros/`. The z-score macro from
 {% endmacro %}
 ```
 
-`stddev_pop` (divide by N), not `stddev`/`stddev_samp` (divide by N-1): our 51 works ARE the whole corpus, not a sample of a larger population, so the population stddev is the honest spread. Call inside a model: `{{ zscore('value', 'metric_name') }}` (partition by the measured child series). Window functions exist in both DuckDB and Fabric, so this stays portable.
+`stddev_pop` (divide by N), not `stddev`/`stddev_samp` (divide by N-1): the 51 works are the whole corpus, not a sample. Call inside a model: `{{ zscore('value', 'metric_name') }}` (partition by the measured child series). Window functions exist in both DuckDB and Fabric, so this stays portable.
 
 ---
 

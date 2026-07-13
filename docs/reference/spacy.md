@@ -1,6 +1,6 @@
 # spaCy reference
 
-Local cheat-sheet. Source: spacy.io (via Context7), fetched 2026-06-21. spaCy is the **Python extractor's** tool only; it never touches the dbt/Fabric side (see dbt-Project.md §7).
+Local cheat-sheet. spaCy is the **Python extractor's** tool only; it never touches the dbt/Fabric side (see dbt-Project.md §7).
 
 Installed: `spacy` 3.8.x + model `en_core_web_sm` 3.8.0. The small model ships a tagger, dependency parser, sentence segmenter, and NER. No word vectors (none of our 15 metrics need them).
 
@@ -106,7 +106,7 @@ Treat this as a best-effort classifier; document the rule in the extractor.
 
 ## Processing long texts (chunking)
 
-Source: spacy.io (via Context7), fetched 2026-06-21. The parser/NER need ~1GB temp memory per 100k characters, and `nlp()` enforces `nlp.max_length` (default 1,000,000 chars). Long works (Seneca ~1.2M chars, the Peake novels) must be split before full parsing.
+The parser/NER need ~1GB temp memory per 100k characters, and `nlp()` enforces `nlp.max_length` (default 1,000,000 chars). Long works (Seneca ~1.2M chars, the Peake novels) must be split before full parsing.
 
 Pattern: clean text, split into sub-100k-char chunks on paragraph (blank-line) boundaries so no sentence is cut, parse the chunks with `nlp.pipe`, reassemble with `Doc.from_docs`, then run metrics on the single work-level Doc.
 

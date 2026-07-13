@@ -1,6 +1,6 @@
 # DuckDB reference
 
-Local cheat-sheet. Source: duckdb.org docs (via Context7), fetched 2026-06-20. DuckDB = in-process analytical SQL DB ("SQLite for analytics"). One file, no server. Two roles here: (1) Python API for the extractor to land rows, (2) SQL engine dbt compiles against.
+Local cheat-sheet. Source: duckdb.org docs (via Context7). DuckDB = in-process analytical SQL DB ("SQLite for analytics"). One file, no server. Two roles here: (1) Python API for the extractor to land rows, (2) SQL engine dbt compiles against.
 
 ---
 
@@ -43,7 +43,7 @@ con.execute("INSERT INTO raw.measurements SELECT * FROM df")
 
 ## SQL essentials
 
-DuckDB's dialect is Postgres-like with extras. Reminder: extras (list/regex/struct) are great but do NOT port to Fabric, so keep them in the extractor, not in dbt models.
+DuckDB's dialect is Postgres-like with extras. The extras (list/regex/struct) do NOT port to Fabric — keep them in the extractor, not in dbt models.
 
 ### Read files directly
 
