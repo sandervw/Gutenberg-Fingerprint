@@ -1,6 +1,28 @@
--- One row per work. Rename/cast over raw_works.
+-- One row per work off silver raw_works.
+-- lower() everything (Fabric collation is case-sensitive); no [ in LIKE (T-SQL);
+-- locc is a '; '-joined list, '; '-prefixed so each element matches as '%; <code>%'.
+{% set locc_list = dbt.concat(["'; '", "coalesce(locc, '')"]) %}
+{% set foreign_lit = ['PA', 'PG', 'PH', 'PJ', 'PK', 'PL', 'PQ', 'PT'] %}
+
 select
-    cast(work_id as {{ dbt.type_string() }})      as work_id,
-    cast(word_count as {{ dbt.type_bigint() }})   as word_count,
-    cast(loaded_at as {{ dbt.type_timestamp() }}) as loaded_at
+    cast(gutenberg_id as {{ dbt.type_bigint() }})   as gutenberg_id,
+    cast(title as {{ dbt.type_string() }})          as title,
+    cast(authors as {{ dbt.type_string() }})        as authors,
+    cast(nullif(issued, '') as date)                as issued,
+    cast(subjects as {{ dbt.type_string() }})       as subjects,
+    cast(bookshelves as {{ dbt.type_string() }})    as bookshelves,
+    case
+        when lower(authors) like '%translator%'                 then 1
+        when lower(subjects) like '%translations into english%' then 1
+        {%- for code in foreign_lit %}
+        when {{ locc_list }} like '%; {{ code }}%' then 1
+        {%- endfor %}
+        else 0
+    end                                             as is_translation,
+    case
+        when {{ locc_list }} like '%; PZ%'     then 1
+        when lower(subjects) like '%juvenile%' then 1
+        else 0
+    end                                             as is_juvenile,
+    cast(loaded_at as {{ dbt.type_timestamp() }})   as loaded_at
 from {{ source('raw', 'raw_works') }}
