@@ -20,3 +20,11 @@ models:
         description: "PZ LoC class or 'juvenile' subject keyword. ~256 works."
         data_tests:
           - not_null
+      - name: is_play
+        description: "'drama'/'plays' subject keyword or Plays/Films/Dramas bookshelf. Script formatting poisons prose stylometrics. ~14 works."
+        data_tests:
+          - not_null
+      - name: is_poetry
+        description: "'poetry' subject keyword. Bookshelf Category: Poetry deliberately excluded (tags prose Poe/Dunsany collections). Misses verse epics subject-tagged as saga only (13486/18328). ~17 works."
+        data_tests:
+          - not_null

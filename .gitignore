@@ -29,6 +29,10 @@ evidence/static/data/
 # --- Local data cache (PG texts live in the Lakehouse, not the repo) ---
 data/
 
+# --- Old-project reference material (Fiction-Fingerprint), not part of this repo ---
+corpus/
+extract/
+
 # --- OS noise ---
 Thumbs.db
 desktop.ini

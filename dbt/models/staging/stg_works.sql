@@ -24,5 +24,15 @@ select
         when lower(subjects) like '%juvenile%' then 1
         else 0
     end                                             as is_juvenile,
+    case
+        when lower(subjects) like '%drama%'                    then 1
+        when lower(subjects) like '%plays%'                    then 1
+        when lower(bookshelves) like '%plays/films/dramas%'    then 1
+        else 0
+    end                                             as is_play,
+    case
+        when lower(subjects) like '%poetry%' then 1
+        else 0
+    end                                             as is_poetry,
     cast(loaded_at as {{ dbt.type_timestamp() }})   as loaded_at
 from {{ source('raw', 'raw_works') }}
