@@ -39,6 +39,7 @@ Local cheat-sheet from Microsoft Learn. Covers the Fabric pieces this project to
   - **DuckDB INSERT never writes checkpoints** → transaction log grows unbounded. Prefer **delta-rs** (`deltalake` lib) as the writer; DuckDB/Polars for compute.
   - delta-rs default checkpoint interval is 100 commits (Spark: 10) — set lower; run periodic `optimize`/`vacuum lite` via delta-rs.
 - `notebookutils` data connector lets Python notebooks run T-SQL against Warehouse/endpoints.
+- **Plain-file access to a non-default lakehouse** (Learn: `notebookutils/notebookutils-mount`, `notebookutils-file-system`): `notebookutils.fs.mount("abfss://<ws>@onelake.dfs.fabric.microsoft.com/<lh>.Lakehouse", "/<name>")` (Entra token auth only, global endpoint only), then standard `open()`/pathlib under `notebookutils.fs.getMountPath("/<name>")` — `Files/...` lives under that root. Small sequential writes are the fuse-friendly case (cf. delta-rs gotcha above). NB: in Python notebooks, *relative* `notebookutils.fs.*` paths resolve to the local working dir, not the default lakehouse — use `/lakehouse/default/...` or absolute abfss. `fs.put`/`fs.append` have no concurrent-write atomicity.
 
 ## Shipping notebook code: local → workspace
 
