@@ -6,6 +6,8 @@ select
     title,
     0 as is_translation,
     0 as is_juvenile,
+    0 as is_play,
+    0 as is_poetry,
     cast(null as {{ dbt.type_bigint() }}) as word_count,
     cast(null as {{ dbt.type_string() }}) as prose_type
 from {{ ref('seed_authors') }}
@@ -19,6 +21,8 @@ select
     title,
     is_translation,
     is_juvenile,
+    is_play,
+    is_poetry,
     cast(null as {{ dbt.type_bigint() }}),
     cast(null as {{ dbt.type_string() }})
 from {{ ref('stg_works') }}
