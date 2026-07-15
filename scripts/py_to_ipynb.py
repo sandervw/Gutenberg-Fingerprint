@@ -37,11 +37,13 @@ CELL_METADATA: dict[str, object] = {
 
 
 def split_cells(source: str) -> list[str]:
-    """Split on lines opening with the cell marker; drop empty cells."""
+    """Split on lines opening with the cell marker; drop empty cells. A bare
+    marker starts a cell without the marker line itself, for magic-only cells:
+    Fabric's %run refuses to share a cell with any other code or magic."""
     groups: list[list[str]] = [[]]
     for line in source.splitlines():
         if line.startswith(CELL_MARKER):
-            groups.append([line])
+            groups.append([] if line.strip() == CELL_MARKER else [line])
         else:
             groups[-1].append(line)
     return ["\n".join(g).strip("\n") for g in groups if any(s.strip() for s in g)]

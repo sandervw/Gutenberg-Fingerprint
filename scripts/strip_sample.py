@@ -1,4 +1,4 @@
-# Offline test harness for notebooks/nb_strip.py: pulls a ~20-book sample of the
+# Offline test harness for notebooks/workflow/nb_strip.py: pulls a ~20-book sample of the
 # roster (spread across PG release dates, plus the three old-format stragglers),
 # strips them, and writes preview markdown to data/corpus_preview/ for eyeballing.
 # Usage: uv run python scripts/strip_sample.py
@@ -15,7 +15,7 @@ import duckdb
 import requests
 
 REPO: Path = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "notebooks"))
+sys.path.insert(0, str(REPO / "notebooks" / "workflow"))
 
 import nb_strip  # noqa: E402  (path shim above; run cell is __main__-guarded)
 
