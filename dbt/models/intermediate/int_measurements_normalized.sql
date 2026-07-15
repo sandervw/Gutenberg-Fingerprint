@@ -12,6 +12,8 @@ with measurements as (
         metric_name,
         value
     from {{ ref('stg_measurements') }}
+    -- word_count is a dim_work attribute, not a style series; keep it out of z-scores.
+    where metric_name <> 'word_count'
 
 ),
 
