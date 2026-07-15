@@ -150,6 +150,8 @@ Evidence auth or the parquet decouple (§6), new dashboard pages (corpus explore
 
 **Deferred filter expansion (noted 2026-07-12):** after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Flag columns plus Evidence-side filtering make it a config change, not a redesign.
 
+**Incremental measure (noted 2026-07-15):** `nb_measure` re-parses the whole corpus every run (~25M words, roughly an hour on the 2-vCore Python kernel). Fine as a backfill; before the Phase 4 nightly schedule, drive it off the bronze `watermark` ledger — re-parse a work when its watermark `last_changed`/`text_hash` is newer than its `raw_measurements.loaded_at`, so both new AND corrected texts recompute and a quiet night parses nothing. Presence-in-`raw_measurements` alone misses updates.
+
 ---
 
 ## 9. Why This Version Is the Resume Piece
