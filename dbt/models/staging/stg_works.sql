@@ -8,6 +8,10 @@ select
     cast(gutenberg_id as {{ dbt.type_bigint() }})   as gutenberg_id,
     cast(title as {{ dbt.type_string() }})          as title,
     cast(authors as {{ dbt.type_string() }})        as authors,
+    -- primary author; parse rule lives in macros/parse_primary_author.sql.
+    -- Blank -> 'Unknown' member so author_key never goes null downstream.
+    coalesce(nullif({{ parse_primary_author('authors') }}, ''), 'Unknown')
+                                                    as author_name,
     cast(nullif(issued, '') as date)                as issued,
     cast(subjects as {{ dbt.type_string() }})       as subjects,
     cast(bookshelves as {{ dbt.type_string() }})    as bookshelves,

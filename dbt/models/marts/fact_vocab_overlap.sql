@@ -1,7 +1,7 @@
 -- fact_vocab_overlap
 -- Metric 15 promoted to author-PAIR grain: stamps your author_key as the fixed left
 -- side so each row reads as an edge, author_key_a (you) <-> author_key_b (other).
--- Grain: one row per OTHER author (9).
+-- Grain: one row per OTHER author with vocab.
 
 with overlap as (
 
