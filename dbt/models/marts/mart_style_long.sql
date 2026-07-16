@@ -19,8 +19,6 @@ select
     -- author
     f.author_key,
     a.name as author,
-    a.tradition,
-    a.era,
     a.is_self,
 
     -- metric

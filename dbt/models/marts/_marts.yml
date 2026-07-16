@@ -34,7 +34,7 @@ models:
           - unique
           - not_null
       - name: word_count
-        description: "Null until the measurement pipeline lands; column kept for the dim contract."
+        description: "Alpha-token count off raw_measurements' word_count series; null for works the measure notebook hasn't landed."
         data_tests:
           - not_null: # warn keeps the gap visible without failing the build
               config:
@@ -48,7 +48,7 @@ models:
                 to: ref('dim_author')
                 field: author_key
       - name: prose_type
-        description: "Derived size band from word_count thresholds; null until word_count returns."
+        description: "Size band off word_count (<10k short-story, <40k novella, else novel); null when unmeasured."
         data_tests:
           - accepted_values:
               arguments:
