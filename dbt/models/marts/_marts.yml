@@ -17,16 +17,16 @@ models:
                 values: ["additive", "semi-additive", "non-additive"]
 
   - name: dim_author
-    description: "One row per author, deduped from the work-grain seed."
+    description: "One row per author: catalog primary authors (stg_works.author_name) plus the self row off the seed."
     columns:
       - name: author_key
         description: "Surrogate hash of author name."
         data_tests:
-          - unique # fails loudly if an author's works disagree on tradition/era
+          - unique # fails loudly if a catalog name collides with the seed self row
           - not_null
 
   - name: dim_work
-    description: "One row per work: self corpus (seed_authors) + catalog works (stg_works). Catalog rows get author_key at the dim_author rework."
+    description: "One row per work: catalog works (stg_works) + self corpus (seed_authors)."
     columns:
       - name: work_key
         description: "Surrogate hash of work_id."
@@ -42,6 +42,7 @@ models:
       - name: author_key
         description: "FK to dim_author."
         data_tests:
+          - not_null
           - relationships: # every work's author must exist in dim_author
               arguments:
                 to: ref('dim_author')
@@ -54,7 +55,7 @@ models:
                 values: ["short-story", "novella", "novel"]
 
   - name: fact_style_measurement
-    description: "Central fact: one row per work x metric series (8,505). Carries value + z-score, FKs to dim_work, dim_author, and dim_metric."
+    description: "Central fact: one row per work x metric series. Carries value + z-score, FKs to dim_work, dim_author, and dim_metric."
     columns:
       - name: measurement_key
         description: "Surrogate hash of (work_id, metric_name). PK + grain guard."
@@ -87,7 +88,7 @@ models:
                 field: metric_key
 
   - name: fact_vocab_overlap
-    description: "Author-pair fact (9): you (author_key_a) vs each other author (author_key_b), with Jaccard vocabulary overlap."
+    description: "Author-pair fact: you (author_key_a) vs each other author (author_key_b), with Jaccard vocabulary overlap. Jaccard reads 0 until the self corpus lands in the lakehouse."
     columns:
       - name: overlap_key
         description: "Surrogate hash of (author_key_a, author_key_b). PK + grain guard."
@@ -137,7 +138,7 @@ models:
                 field: author_key
 
   - name: mart_style_long
-    description: "Report-serving OBT (8,505): fact_style_measurement denormalized against its dims, kept long, with a precomputed series_label. Feeds the Evidence pages so they don't re-join the star."
+    description: "Report-serving OBT: fact_style_measurement denormalized against its dims, kept long, with a precomputed series_label. Feeds the Evidence pages so they don't re-join the star."
     data_tests:
       - dbt_utils.unique_combination_of_columns: # grain = work x child series
           arguments:

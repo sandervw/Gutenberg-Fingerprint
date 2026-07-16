@@ -17,7 +17,9 @@ RAW_WORKS_TABLE: str = f"{SILVER_LAKEHOUSE}/Tables/dbo/raw_works"
 STRIP_AUDIT_TABLE: str = f"{ONELAKE}/lh_bronze.Lakehouse/Tables/strip_audit"
 
 TEXTS_ROOT: Path = Path("/lakehouse/default/Files/texts")  # default lakehouse = lh_bronze
+SELF_ROOT: Path = Path("/lakehouse/default/Files/self")
 CORPUS_SUBDIR: str = "Files/corpus"
+SELF_FOLDER: str = "Sander-VanWilligen"
 
 # %% Boilerplate span - modern *** markers, pre-2002 fallbacks
 
@@ -288,6 +290,15 @@ if __name__ == "__main__":  # Jupyter sets __main__, so this runs in Fabric but 
         dest.write_text(md, encoding="utf-8", newline="\n")
         stripped += 1
 
+    # Self corpus is already clean markdown: promote bronze Files/self as-is.
+    promoted = 0
+    if SELF_ROOT.exists():
+        self_dest = corpus_root / SELF_FOLDER
+        self_dest.mkdir(exist_ok=True)
+        for src in sorted(SELF_ROOT.glob("*.md")):
+            shutil.copyfile(src, self_dest / src.name)
+            promoted += 1
+
     audit = pl.DataFrame(
         [(run_ts, roster.height, stripped, failed, missing)],
         schema={
@@ -297,4 +308,4 @@ if __name__ == "__main__":  # Jupyter sets __main__, so this runs in Fabric but 
         orient="row",
     )
     write_deltalake(STRIP_AUDIT_TABLE, audit.to_arrow(), mode="append", storage_options=storage_options())
-    print(f"corpus: {stripped:,} written, {failed:,} failed, {missing:,} missing -> lh_silver/{CORPUS_SUBDIR}")
+    print(f"corpus: {stripped:,} written, {failed:,} failed, {missing:,} missing, {promoted} self -> lh_silver/{CORPUS_SUBDIR}")

@@ -39,6 +39,7 @@ SILVER_LAKEHOUSE: str = f"{ONELAKE}/lh_silver.Lakehouse"
 MEASUREMENTS_TABLE: str = f"{SILVER_LAKEHOUSE}/Tables/dbo/raw_measurements"
 VOCAB_TABLE: str = f"{SILVER_LAKEHOUSE}/Tables/dbo/raw_vocab"
 CORPUS_SUBDIR: str = "Files/corpus"
+SELF_FOLDER: str = "Sander-VanWilligen"
 
 # Chunk size for parsing long works, kept under spaCy's 1M-char limit.
 MAX_CHUNK_CHARS = 100_000
@@ -127,12 +128,12 @@ corpus_root = Path(notebookutils.fs.getMountPath("/silver")) / CORPUS_SUBDIR
 nlp = spacy.load("en_core_web_sm", disable=["ner"])
 
 # One parse per work yields its measurement rows and vocab rows; work_id is the
-# gutenberg_id filename prefix, matching dim_work's cast of the catalog id.
+# gutenberg_id filename prefix, or the full stem (= seed work_id) for self works.
 measurement_rows: list[tuple[str, str, float]] = []
 vocab_rows: list[tuple[str, str, int]] = []
 sources = sorted(corpus_root.rglob("*.md"))
 for done, source in enumerate(sources, start=1):
-    work_id = source.name.split("-", 1)[0]
+    work_id = source.stem if source.parent.name == SELF_FOLDER else source.name.split("-", 1)[0]
     doc = build_work_doc(nlp, clean_markdown(source.read_text(encoding="utf-8")))
     measurement_rows.extend(measure_metrics(work_id, doc))
     # word_count rides raw_measurements for dim_work; the int model keeps it

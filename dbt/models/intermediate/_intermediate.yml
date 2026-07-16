@@ -5,8 +5,8 @@ models:
     description: >
       Every measurement (work x metric series) with a per-metric z-score
       (population stddev, via the zscore macro). Grain: one row per work x
-      measured series (8,505 = 135 works x 63 series). metric_key is bridged
-      from each child series to its concept row in dim_metric by prefix.
+      measured series. metric_key is bridged from each child series to its
+      concept row in dim_metric by prefix.
     columns:
       - name: metric_key
         description: "FK to dim_metric (concept grain). NULL only if a child prefix is left unmapped."
@@ -20,8 +20,8 @@ models:
   - name: int_vocab_jaccard
     description: >
       Metric 15: Jaccard vocabulary overlap between you (is_self) and every other
-      author. Grain: one row per other author (9). jaccard = shared / combined
-      unique terms, presence-based (term_count ignored).
+      author. Grain: one row per other author with vocab. jaccard = shared /
+      combined unique terms, presence-based (term_count ignored).
     columns:
       - name: author_key
         description: "The OTHER author measured against you. FK to dim_author; one row per author (grain)."
