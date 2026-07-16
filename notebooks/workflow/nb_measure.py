@@ -3,6 +3,9 @@
 # + raw_vocab: clean markdown, parse with spaCy (chunked for long novels), run
 # every metric, land tidy Delta rows. Cleaning comes from nb_clean; lexicons,
 # metrics, and vocab from their notebooks (%run pulls definitions into this session).
+# Incremental: only new works, works whose watermark row changed after their rows
+# landed, and self works re-parse; replaced rows are swapped in place and works
+# gone from the corpus are dropped.
 
 # %% Dependencies - model wheels declare no dependencies, so spacy is explicit
 %pip install spacy==3.8.14 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
@@ -30,7 +33,8 @@ from pathlib import Path
 import notebookutils
 import polars as pl
 import spacy
-from deltalake import write_deltalake
+from deltalake import DeltaTable, write_deltalake
+from deltalake.exceptions import TableNotFoundError
 from spacy.language import Language
 from spacy.tokens import Doc
 
@@ -38,6 +42,7 @@ ONELAKE: str = "abfss://gutenberg-fingerprint@onelake.dfs.fabric.microsoft.com"
 SILVER_LAKEHOUSE: str = f"{ONELAKE}/lh_silver.Lakehouse"
 MEASUREMENTS_TABLE: str = f"{SILVER_LAKEHOUSE}/Tables/dbo/raw_measurements"
 VOCAB_TABLE: str = f"{SILVER_LAKEHOUSE}/Tables/dbo/raw_vocab"
+WATERMARK_TABLE: str = f"{ONELAKE}/lh_bronze.Lakehouse/Tables/watermark"
 CORPUS_SUBDIR: str = "Files/corpus"
 SELF_FOLDER: str = "Sander-VanWilligen"
 
@@ -124,16 +129,54 @@ def storage_options() -> dict[str, str]:
 notebookutils.fs.mount(SILVER_LAKEHOUSE, "/silver")
 corpus_root = Path(notebookutils.fs.getMountPath("/silver")) / CORPUS_SUBDIR
 
+# work_id is the gutenberg_id filename prefix, or the full stem (= seed work_id)
+# for self works.
+def source_work_id(source: Path) -> str:
+    return source.stem if source.parent.name == SELF_FOLDER else source.name.split("-", 1)[0]
+
+sources = {source_work_id(p): p for p in sorted(corpus_root.rglob("*.md"))}
+
+# Diff against what's already measured: per-work high-water mark of loaded_at.
+try:
+    loaded_at_by_id: dict[str, datetime] = dict(
+        pl.from_arrow(
+            DeltaTable(MEASUREMENTS_TABLE, storage_options=storage_options())
+            .to_pyarrow_table(columns=["work_id", "loaded_at"])
+        )
+        .group_by("work_id")
+        .agg(pl.col("loaded_at").max())
+        .iter_rows()
+    )
+except TableNotFoundError:
+    loaded_at_by_id = {}
+
+changed_at: dict[str, datetime] = {
+    str(gid): ts
+    for gid, ts in pl.from_arrow(
+        DeltaTable(WATERMARK_TABLE, storage_options=storage_options())
+        .to_pyarrow_table(columns=["gutenberg_id", "last_changed"])
+    ).iter_rows()
+}
+
+# A work re-parses when it has no rows yet, its watermark row changed after those
+# rows landed, or it's a self work (no watermark entry; seconds to parse).
+def needs_measure(work_id: str, source: Path) -> bool:
+    if source.parent.name == SELF_FOLDER or work_id not in loaded_at_by_id:
+        return True
+    last_changed = changed_at.get(work_id)
+    return last_changed is not None and last_changed > loaded_at_by_id[work_id]
+
+todo = {wid: p for wid, p in sources.items() if needs_measure(wid, p)}
+stale_ids = sorted(set(loaded_at_by_id) - set(sources))
+print(f"corpus {len(sources)}: {len(todo)} to measure, {len(stale_ids)} stale to drop")
+
 # Disable NER: no metric uses named entities, and skipping it speeds parsing.
 nlp = spacy.load("en_core_web_sm", disable=["ner"])
 
-# One parse per work yields its measurement rows and vocab rows; work_id is the
-# gutenberg_id filename prefix, or the full stem (= seed work_id) for self works.
+# One parse per work yields its measurement rows and vocab rows.
 measurement_rows: list[tuple[str, str, float]] = []
 vocab_rows: list[tuple[str, str, int]] = []
-sources = sorted(corpus_root.rglob("*.md"))
-for done, source in enumerate(sources, start=1):
-    work_id = source.stem if source.parent.name == SELF_FOLDER else source.name.split("-", 1)[0]
+for done, (work_id, source) in enumerate(todo.items(), start=1):
     doc = build_work_doc(nlp, clean_markdown(source.read_text(encoding="utf-8")))
     measurement_rows.extend(measure_metrics(work_id, doc))
     # word_count rides raw_measurements for dim_work; the int model keeps it
@@ -141,8 +184,8 @@ for done, source in enumerate(sources, start=1):
     word_count = sum(1 for token in doc if token.is_alpha)
     measurement_rows.append((work_id, "word_count", float(word_count)))
     vocab_rows.extend(collect_vocab(work_id, doc))
-    if done % 50 == 0 or done == len(sources):
-        print(f"{done}/{len(sources)} works parsed")
+    if done % 50 == 0 or done == len(todo):
+        print(f"{done}/{len(todo)} works parsed")
 
 # One batch timestamp shared by both tables, tz-aware so the SQL endpoint
 # surfaces the column (naive datetimes land as invisible timestamp_ntz).
@@ -159,10 +202,22 @@ vocab = pl.DataFrame(
     orient="row",
 ).with_columns(loaded_at=pl.lit(loaded_at, dtype=pl.Datetime("us", "UTC")))
 
-# Derived layer: full overwrite keeps both tables corpus-shaped.
-write_deltalake(MEASUREMENTS_TABLE, measurements.to_arrow(), mode="overwrite", storage_options=storage_options())
-write_deltalake(VOCAB_TABLE, vocab.to_arrow(), mode="overwrite", storage_options=storage_options())
+def sync_table(table_uri: str, frame: pl.DataFrame) -> None:
+    """Swap re-measured works' rows in place, drop stale ones, keep the rest."""
+    if not loaded_at_by_id:  # first fill
+        write_deltalake(table_uri, frame.to_arrow(), mode="overwrite", storage_options=storage_options())
+        return
+    doomed = sorted(set(todo) | set(stale_ids))
+    if doomed:
+        id_list = ", ".join(f"'{i}'" for i in doomed)
+        DeltaTable(table_uri, storage_options=storage_options()).delete(f"work_id IN ({id_list})")
+    if frame.height:
+        write_deltalake(table_uri, frame.to_arrow(), mode="append", storage_options=storage_options())
+
+sync_table(MEASUREMENTS_TABLE, measurements)
+sync_table(VOCAB_TABLE, vocab)
 print(
-    f"Landed {len(sources)} works; {measurements.height:,} rows into raw_measurements "
+    f"Measured {len(todo)} of {len(sources)} works ({len(stale_ids)} stale dropped); "
+    f"{measurements.height:,} rows into raw_measurements "
     f"({len(METRIC_FUNCTIONS)} metrics); {vocab.height:,} rows into raw_vocab."
 )
