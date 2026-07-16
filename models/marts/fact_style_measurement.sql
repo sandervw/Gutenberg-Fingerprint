@@ -3,8 +3,8 @@
 -- raw value and its per-series z-score. Swaps work_id for the conformed work_key and
 -- carries author_key direct off dim_work, so the fact attaches straight to dim_work,
 -- dim_author, and dim_metric (a star) and slices by author without hopping dim_work.
--- Grain: one row per work x measured series (8,505 = 135 x 63), keyed (work_id,
--- metric_name) since multivalue concepts share one metric_key across many series.
+-- Grain: one row per work x measured series, keyed (work_id, metric_name) since
+-- multivalue concepts share one metric_key across many series.
 
 with measurements as (
 
