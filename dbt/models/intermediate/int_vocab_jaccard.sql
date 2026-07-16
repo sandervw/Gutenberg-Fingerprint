@@ -1,7 +1,7 @@
 -- int_vocab_jaccard
 -- Metric 15: vocabulary overlap between YOU and every other author, as a Jaccard
 -- index = |shared| / |combined unique terms| (0 = none, 1 = identical).
--- Grain: one row per OTHER author (9 non-self). term_count ignored; Jaccard is
+-- Grain: one row per OTHER author with vocab. term_count ignored; Jaccard is
 -- presence/absence, with each author's works pooled into one distinct-term set.
 
 with author_vocab as (
