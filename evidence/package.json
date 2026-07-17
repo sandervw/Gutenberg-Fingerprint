@@ -1,0 +1,35 @@
+{
+  "name": "gutenberg-fingerprint-evidence",
+  "version": "0.0.1",
+  "scripts": {
+    "postinstall": "patch-package",
+    "build": "evidence build",
+    "postbuild": "node scripts/cdn-wasm.js && node scripts/copy-404.js",
+    "build:strict": "evidence build:strict",
+    "dev": "evidence dev --open /",
+    "test": "evidence build",
+    "sources": "evidence sources",
+    "sources:strict": "evidence sources --strict",
+    "preview": "evidence preview"
+  },
+  "engines": {
+    "npm": ">=7.0.0",
+    "node": ">=18.0.0"
+  },
+  "type": "module",
+  "dependencies": {
+    "@evidence-dev/core-components": "^5.4.2",
+    "@evidence-dev/evidence": "^40.1.8",
+    "@evidence-dev/mssql": "^1.1.4"
+  },
+  "overrides": {
+    "jsonwebtoken": "9.0.0",
+    "trim@<0.0.3": ">0.0.3",
+    "axios": "^1.7.4",
+    "typescript": "^5.4.2",
+    "mssql": "^12.7.0"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1"
+  }
+}
