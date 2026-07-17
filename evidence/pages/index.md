@@ -3,7 +3,96 @@ title: Prose Fingerprint
 neverShowQueries: true
 ---
 
-How [my prose](https://wordleaves.com) compares to the authors in the measured corpus, (measured as **z-scores**). Positive means I do *more* of something than the typical work; negative, less.
+How [my prose](https://wordleaves.com) compares to the authors in the measured corpus, (measured as **z-scores**). Positive means a work does *more* of something than the typical work; negative, less.
+
+## Largest Outliers
+
+The 25 works furthest from the corpus average on the chosen metric.
+
+```sql metric_options
+select
+    metric_name,
+    display_name
+from warehouse.dim_metric
+where is_multivalue = false
+    and metric_name <> 'jaccard'
+order by display_name
+```
+
+```sql outliers
+select
+    case
+        when length(msl.title) > 48 then left(msl.title, 45) || '…'
+        else msl.title
+    end as work_label,
+    msl.zscore
+from warehouse.mart_style_long msl
+join warehouse.dim_work dw
+    on dw.work_key = msl.work_key
+where msl.is_multivalue = false
+    and msl.metric_name = '${inputs.metric.value}'
+    and case '${inputs.plays.value}'
+        when 'only' then dw.is_play = 1
+        when 'exclude' then dw.is_play = 0
+        else true end
+    and case '${inputs.juvenile.value}'
+        when 'only' then dw.is_juvenile = 1
+        when 'exclude' then dw.is_juvenile = 0
+        else true end
+    and case '${inputs.poetry.value}'
+        when 'only' then dw.is_poetry = 1
+        when 'exclude' then dw.is_poetry = 0
+        else true end
+order by abs(msl.zscore) desc
+limit 25
+```
+
+<Dropdown data={metric_options} name=metric value=metric_name label=display_name title="Metric" defaultValue=mean_sentence_length />
+<Dropdown name=plays title="Plays" defaultValue=all>
+    <DropdownOption value=all valueLabel="Include" />
+    <DropdownOption value=exclude valueLabel="Exclude" />
+    <DropdownOption value=only valueLabel="Only" />
+</Dropdown>
+<Dropdown name=juvenile title="Juvenile" defaultValue=all>
+    <DropdownOption value=all valueLabel="Include" />
+    <DropdownOption value=exclude valueLabel="Exclude" />
+    <DropdownOption value=only valueLabel="Only" />
+</Dropdown>
+<Dropdown name=poetry title="Poetry" defaultValue=all>
+    <DropdownOption value=all valueLabel="Include" />
+    <DropdownOption value=exclude valueLabel="Exclude" />
+    <DropdownOption value=only valueLabel="Only" />
+</Dropdown>
+
+<BarChart
+    data={outliers}
+    x=work_label
+    y=zscore
+    swapXY=true
+    sort=false
+    yFmt=num2
+/>
+
+```sql metric_defs
+select
+    dm.display_name,
+    dm.description
+from warehouse.dim_metric dm
+where dm.is_multivalue = false
+    and dm.metric_name <> 'jaccard'
+order by dm.display_name
+```
+
+<Accordion>
+    <AccordionItem title="Metric definitions">
+
+<DataTable data={metric_defs} rows=11>
+    <Column id=display_name title="Metric" />
+    <Column id=description title="Definition" wrap=true />
+</DataTable>
+
+    </AccordionItem>
+</Accordion>
 
 ## Vocabulary Overlap
 
@@ -27,62 +116,6 @@ limit 25
     swapXY=true
     yFmt=pct2
 />
-
-## Stylometric* Likeness
-
-```sql measured_authors
-select distinct author as name
-from warehouse.mart_style_long
-where is_self = 0
-order by name
-```
-
-```sql comparison
-select
-    display_name,
-    case when is_self = 1 then 'Me' else author end as who,
-    avg(zscore) as zscore
-from warehouse.mart_style_long
-where is_multivalue = false
-    and (is_self = 1 or author = '${inputs.author.value.replaceAll("'", "''")}')
-group by display_name, who
-order by display_name, who
-```
-
-Z-score distance above (+) or below (–) the corpus average: me vs. the chosen author.
-
-<Dropdown data={measured_authors} name=author value=name title="Compare against" />
-
-<BarChart
-    data={comparison}
-    x=display_name
-    y=zscore
-    series=who
-    type=grouped
-    swapXY=true
-    yFmt=num2
-/>
-
-```sql metric_defs
-select
-    dm.display_name,
-    dm.description
-from warehouse.dim_metric dm
-where dm.is_multivalue = false
-    and dm.metric_name <> 'jaccard'
-order by dm.display_name
-```
-
-<Accordion>
-    <AccordionItem title="*Definitions">
-
-<DataTable data={metric_defs} rows=11>
-    <Column id=display_name title="Metric" />
-    <Column id=description title="Definition" wrap=true />
-</DataTable>
-
-    </AccordionItem>
-</Accordion>
 
 ---
 

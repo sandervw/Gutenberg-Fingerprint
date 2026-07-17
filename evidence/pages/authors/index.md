@@ -17,7 +17,7 @@ where dw.work_key in (
     select work_key from warehouse.mart_style_long
 )
 group by da.name
-order by da.name
+order by works desc, da.name
 ```
 
 <DataTable data={authors} link=link rows=25 search=true>
