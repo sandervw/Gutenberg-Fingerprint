@@ -1,0 +1,66 @@
+appearance:
+  default: light
+  switcher: true
+
+# Wordleaves palette: copper-anchored, CVD-validated per mode
+theme:
+  colorPalettes:
+    default:
+      light:
+        - "#b87333"
+        - "#2e6fb0"
+        - "#17997d"
+        - "#8f3d56"
+        - "#74883f"
+        - "#7c6fc0"
+        - "#a8842c"
+        - "#b0565f"
+      dark:
+        - "#c4813f"
+        - "#5b93d6"
+        - "#34a689"
+        - "#aa5480"
+        - "#7f9440"
+        - "#8b7dcf"
+        - "#b28a2e"
+        - "#c96f78"
+  colorScales:
+    default:
+      light:
+        - "#eedcc8"
+        - "#6b3f16"
+      dark:
+        - "#4a3624"
+        - "#eec089"
+  colors:
+    primary:
+      light: "#b87333"
+      dark: "#c4813f"
+    accent:
+      light: "#b87333"
+      dark: "#c4813f"
+    base:
+      light: "#faf9f5"
+      dark: "#262624"
+    info:
+      light: "#3f6f9e"
+      dark: "#5b93d6"
+    positive:
+      light: "#17997d"
+      dark: "#34a689"
+    warning:
+      light: "#a8842c"
+      dark: "#b28a2e"
+    negative:
+      light: "#c41e3a"
+      dark: "#d95870"
+
+plugins:
+  components:
+    # This loads all of evidence's core charts and UI components
+    # You probably don't want to edit this dependency unless you know what you are doing
+    "@evidence-dev/core-components": {}
+
+  datasources:
+    # Add datasources here by adding npm packages (also add to package.json).
+    "@evidence-dev/mssql": { }
