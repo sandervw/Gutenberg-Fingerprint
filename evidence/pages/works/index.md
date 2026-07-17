@@ -1,91 +1,32 @@
 ---
-title: Style by Work
+title: Works
 neverShowQueries: true
 ---
 
-```sql author_list
-select distinct author as name
-from warehouse.mart_style_long
-order by name
-```
+Click a work to see its details.
 
-```sql chosen
-select
-    author as name,
-    count(*) as works,
-    sum(word_count) as total_words
-from (
-    select distinct author, work_key, word_count
+```sql author_list
+select name from (
+    select 'All authors' as name, 0 as ord
+    union all
+    select distinct author, 1
     from warehouse.mart_style_long
-    where author = '${inputs.author.value.replaceAll("'", "''")}'
 )
-group by author
+order by ord, name
 ```
 
 <Dropdown data={author_list} name=author value=name title="Author" defaultValue="Sander VanWilligen" />
-
-**<Value data={chosen} column=works/>** measured works, **<Value data={chosen} column=total_words fmt=num0/>** words.
-
-## Book-to-book Spread*
-
-```sql spread
-select
-    display_name as metric,
-    min(zscore) as min_z,
-    quantile_cont(zscore, 0.25) as q1_z,
-    median(zscore) as median_z,
-    quantile_cont(zscore, 0.75) as q3_z,
-    max(zscore) as max_z
-from warehouse.mart_style_long
-where is_multivalue = false
-    and author = '${inputs.author.value.replaceAll("'", "''")}'
-group by display_name
-order by max(zscore) - min(zscore) desc
-```
-
-<BoxPlot
-    data={spread}
-    name=metric
-    min=min_z
-    intervalBottom=q1_z
-    midpoint=median_z
-    intervalTop=q3_z
-    max=max_z
-    swapXY=true
-    yFmt=num2
-/>
-
-```sql metric_defs
-select
-    dm.display_name,
-    dm.description
-from warehouse.dim_metric dm
-where dm.is_multivalue = false
-    and dm.metric_name <> 'jaccard'
-order by dm.display_name
-```
-
-<Accordion>
-    <AccordionItem title="*Definitions">
-
-<DataTable data={metric_defs} rows=11>
-    <Column id=display_name title="Metric" />
-    <Column id=description title="Definition" wrap=true />
-</DataTable>
-
-    </AccordionItem>
-</Accordion>
-
-## Works
-
-Every measured work in the corpus. Click one to see its details.
+<TextInput name=title_search title="Title contains" />
 
 ```sql works
 select
     dw.title,
     da.name as author,
-    dw.prose_type,
     dw.word_count,
+    case when dw.is_juvenile = 1 then '✓' else '' end as juvenile,
+    case when dw.is_play = 1 then '✓' else '' end as play,
+    case when dw.is_poetry = 1 then '✓' else '' end as poetry,
+    case when dw.is_translation = 1 then '✓' else '' end as translation,
     '/works/' || dw.work_id as link
 from warehouse.dim_work dw
 join warehouse.dim_author da
@@ -93,12 +34,18 @@ join warehouse.dim_author da
 where dw.work_key in (
     select work_key from warehouse.mart_style_long
 )
+    and ('${inputs.author.value.replaceAll("'", "''")}' = 'All authors'
+        or da.name = '${inputs.author.value.replaceAll("'", "''")}')
+    and dw.title ilike '%${String(inputs.title_search).replaceAll("'", "''")}%'
 order by dw.word_count desc nulls last
 ```
 
-<DataTable data={works} link=link rows=25 search=true>
-    <Column id=title title="Title" />
-    <Column id=author title="Author" />
-    <Column id=prose_type title="Type" />
+<DataTable data={works} link=link rows=25>
+    <Column id=title title="Title" wrap=true />
+    <Column id=author title="Author" wrap=true />
     <Column id=word_count title="Words" fmt=num0 />
+    <Column id=juvenile title="Juvenile" align=center />
+    <Column id=play title="Play" align=center />
+    <Column id=poetry title="Poetry" align=center />
+    <Column id=translation title="Translation" align=center />
 </DataTable>
