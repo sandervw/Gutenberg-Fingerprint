@@ -69,6 +69,37 @@ type: duckdb
 
 ---
 
+## Connecting to Fabric Warehouse (MSSQL source)
+
+Verified 2026-07-17 from connector source (`packages/datasources/mssql/index.cjs`); the docs page omits auth. Evidence's `type: mssql` source supports `authenticationType`:
+
+| authenticationType | credentials needed | use |
+|---|---|---|
+| `default` | `user`, `password` (SQL auth) | n/a — Fabric refuses SQL auth |
+| `azure-active-directory-default` | none — DefaultAzureCredential, picks up `az login` | **local dev** |
+| `azure-active-directory-service-principal-secret` | `spclientid`, `spclientsecret`, `sptenantid` | **CI / Cloudflare build** |
+| `azure-active-directory-password` | `pwuname`, `pwpword`, `pwclientid`, `pwtenantid` | avoid (raw password) |
+| `azure-active-directory-access-token` | `attoken` | manual token, expires ~1h |
+
+Common fields: `server` (Warehouse SQL endpoint), `database`, `port`, `encrypt: true` (required by Fabric), and — **snake_case, not camelCase** — `trust_server_certificate`, `connection_timeout`, `request_timeout` (defaults 15000 ms; camelCase keys are silently ignored).
+
+Local↔CI switch without touching yaml: any option can be overridden by env var `EVIDENCE_SOURCE__<source>__<option>`, so connection.yaml holds the local `azure-active-directory-default` config and the CF build injects the service-principal fields.
+
+Capacity must be **running during `npm run sources`** (that's when extraction happens); `npm run dev`/`build` afterward read the cached parquet.
+
+### Two required workarounds (found 2026-07-17, both live in `evidence/`)
+
+1. **tedious < 19.2.1 cannot connect to Fabric at all** ("Connection lost - socket hang up" during the TDS handshake; tediousjs/tedious#1563, fixed by PR #1718 merged 2026-02-09). The connector's mssql@11 pins tedious@18, so package.json overrides `"mssql": "^12.7.0"` (brings tedious 20).
+2. **@evidence-dev/mssql@1.1.4 (latest) never passes `authentication.type` to mssql** for any AAD auth type — AAD default silently falls back to SQL auth, service-principal nukes the encrypt options. Patched via `patch-package` (`patches/@evidence-dev+mssql+1.1.4.patch`, applied by the `postinstall` script — runs on CF builds too). Re-check on any connector upgrade.
+
+## Prerender gotchas (bit us in the port)
+
+- Template pages (`[param].md`) are only prerendered if a **non-parameterized page SSRs a link to them** — the crawler reads server-rendered HTML. Input-filtered tables SSR empty, so their links are invisible to the crawl: the old site silently built only 27 of its work pages. Fix: every `[param]` family needs a full, unfiltered link table somewhere static (`authors/index.md`, `works/index.md` catalog). Paginated DataTables are fine — all rows' links reach the crawler.
+- `'${params.x}'` / `'${inputs.x.value}'` interpolation breaks on values containing `'` (O'Grady). `${}` evaluates JS, so escape inline: `'${params.author.replaceAll("'", "''")}'`.
+- Input-dependent components on non-template pages SSR as "Dataset is empty" errors in the build log and hydrate correctly in the browser — noise, not failures.
+
+---
+
 ## Pages = Markdown + components
 
 A page is prose + fenced SQL blocks + component tags, all in one `.md`. Components are **Svelte** (same idea as MDX = Markdown + React); `<BarChart/>` is a component, not HTML.

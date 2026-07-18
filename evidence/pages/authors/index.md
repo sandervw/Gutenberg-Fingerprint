@@ -1,5 +1,5 @@
 ---
-title: Author Summaries
+title: Authors
 ---
 
 Authors with at least one measured work.
