@@ -15,6 +15,7 @@ Reference the past project for design choices related to dbt, python, or evidenc
 - For a **significant or hard-to-reverse design/tech choice**, call out the options and your recommendation before committing to it.
 - **Never rely on memory for code/tech specs.** Check the local refs in `docs/reference/`. If they don't cover it, fetch current docs (Context7 / Microsoft Learn MCP / official sources), then update the ref files.
 - **Be lean, not clipped.** No filler, no restating known facts, no exhaustive examples — but explanations get full room (see word-cap override above).
+- **Stop suggesting the user "run a quick smoke test" or "worth a check to see".** When something ran and passed, it's done; name the next concrete step instead.
 - **Never add, stage, or GIT commit.**
 - **Checkpoint ritual.** When the user wraps up a session ("done for a while", "add a left-off memory"), overwrite the `project-checkpoint` memory in place.
 - **Never add another memory.** `project-checkpoint` is the only memory; overwrite it in place, never create new memory files.

@@ -1,10 +1,14 @@
 -- fact_style_measurement
--- The central fact: one measured number per work per metric series, carrying the
--- raw value and its per-series z-score. Swaps work_id for the conformed work_key and
--- carries author_key direct off dim_work, so the fact attaches straight to dim_work,
--- dim_author, and dim_metric (a star) and slices by author without hopping dim_work.
--- Grain: one row per work x measured series, keyed (work_id, metric_name) since
--- multivalue concepts share one metric_key across many series.
+-- Central fact: one row per work x measured series, keyed (work_id, metric_name).
+-- Raw value only; z-scores are corpus-relative and live in the marts.
+-- Incremental: loaded_at watermark selects new rows; merge on measurement_key
+-- upserts re-measured works.
+
+{{ config(
+    materialized='incremental',
+    unique_key='measurement_key',
+    on_schema_change='fail'
+) }}
 
 with measurements as (
 
@@ -13,8 +17,12 @@ with measurements as (
         metric_key,
         metric_name,
         value,
-        zscore
+        loaded_at
     from {{ ref('int_measurements_normalized') }}
+
+    {% if is_incremental() %}
+    where loaded_at > (select max(loaded_at) from {{ this }})
+    {% endif %}
 
 ),
 
@@ -30,11 +38,11 @@ works as (  -- conformed work + author keys
 
 select
     {{ dbt_utils.generate_surrogate_key(['measurements.work_id', 'measurements.metric_name']) }} as measurement_key,
-    works.work_key,            -- FK -> dim_work
-    works.author_key,          -- FK -> dim_author (carried direct for slicing)
+    works.work_key,
+    works.author_key,
     measurements.metric_key,   -- FK -> dim_metric (concept grain)
     measurements.metric_name,  -- child series name (metric_key is concept-grain)
     measurements.value,
-    measurements.zscore
+    measurements.loaded_at     -- watermark for incremental runs
 from measurements
 inner join works on works.work_id = measurements.work_id
