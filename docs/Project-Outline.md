@@ -78,7 +78,7 @@ dbt build ──────────> wh_gold: stg_* → dim_*/fact_* → ma
 
 ---
 
-## 3. What Changes in the Dimensional Model
+## 3. Changes in the Dimensional Model
 
 The fact constellation survives intact. Additions, not rewrites:
 
@@ -93,7 +93,7 @@ The fact constellation survives intact. Additions, not rewrites:
 
 ---
 
-## 4. dbt Concepts This Hits (the sequel checklist)
+## 4. dbt Concepts
 
 Last project's checklist was modeling fundamentals. This one is production operation:
 
@@ -101,7 +101,7 @@ Last project's checklist was modeling fundamentals. This one is production opera
 - [ ] **Source freshness** — `dbt source freshness` against `ingested_at`; fail the run if the lakehouse is stale
 - [ ] **Snapshots** — SCD2 on `dim_work` (PG corrections change word counts; capture history)
 - [ ] **dbt job in Fabric** — the managed runtime, its adapter versions, its preview limitations (no build caching yet)
-- [ ] **Environment split** — a `dev` target (your DuckDB local, still alive) and a `fabric` prod target; same repo, the portability promise made real
+- [ ] **Environment split** — a `dev` target (DuckDB local) and a `fabric` prod target
 - [ ] **State-aware runs** — `dbt build --select state:modified+` in CI (needs artifacts; note the Fabric preview gap)
 - [ ] **On-run-end hooks** — write dbt run metadata back to the audit table
 
@@ -109,7 +109,7 @@ Last project's checklist was modeling fundamentals. This one is production opera
 
 ## 5. FinOps
 
-The nightly job means the capacity *must* wake and sleep on its own. There is no built-in Fabric auto-pause schedule — you build the bracket yourself:
+The nightly job means the capacity *must* wake and sleep on its own. There is no built-in Fabric auto-pause schedule.
 
 1. **Resume:** Logic App / Azure Automation runbook POSTs to the capacity's `/resume` management endpoint on schedule (managed identity, Contributor scoped to the capacity resource only).
 2. **Run:** the Data Factory pipeline does its work. A no-op night is minutes; an ingest night maybe 30–45.
@@ -117,13 +117,13 @@ The nightly job means the capacity *must* wake and sleep on its own. There is no
 
 **Cost math (F2 PAYG, US regions, ~$0.18/CU/hr):**
 
-| Item                                          | Estimate               |
-| --------------------------------------------- | ---------------------- |
-| Backfill (one-time, bump to F4 for a weekend) | $2–5                   |
-| Nightly runs (~30 min avg × 30 days on F2)    | $5–10/mo               |
-| OneLake storage (~2 GB text + Delta)          | pennies ($0.023/GB/mo) |
-| Cloudflare Pages nightly builds               | free tier covers it    |
-| **Left running 24/7 by accident**             | **~$263/mo**           |
+| Item                                       | Estimate               |
+| ------------------------------------------ | ---------------------- |
+| Backfill (one-time)                        | $2–5                   |
+| Nightly runs (~30 min avg × 30 days on F2) | $5–10/mo               |
+| OneLake storage (~2 GB text + Delta)       | pennies ($0.023/GB/mo) |
+| Cloudflare Pages nightly builds            | free tier covers it    |
+| **Left running 24/7 by accident**          | **~$263/mo**           |
 
 Do the initial build on the 60-day Fabric trial capacity; move to paid F2 only when the automation bracket is proven.
 
@@ -154,16 +154,16 @@ Evidence extracts data at **build time** into a static site — the deployed Clo
 Trial capacity, workspace, Lakehouse + Warehouse. Budget alert. Port the dbt repo, add the `fabric` target, `dbt debug` green against the Warehouse. **Done when:** existing marts build in Fabric from manually loaded sample data.
 
 ### Phase 2 — Backfill (wk 2–3)
-Catalog ingestion notebook, corpus filter, boilerplate stripper, watermark table. Backfill the full fantasy corpus (rate-limited — let it take days). Stylometrics notebook over the corpus. **Done when:** bronze/silver populated, audit table records the backfill.
+Catalog ingestion notebook, corpus filter, boilerplate stripper, watermark table. Backfill the full fantasy corpus. Stylometrics notebook over the corpus. **Done when:** bronze/silver populated, audit table records the backfill.
 
 ### Phase 3 — Incremental dbt (wk 3–4)
 Convert facts to incremental, add snapshots, source freshness, the expanded tests. **Done when:** a second run with a hand-injected "new book" flows through end-to-end and *only* the delta recomputes.
 
 ### Phase 4 — Orchestration + FinOps (wk 4–5)
-Data Factory pipeline, resume/pause bracket, nightly schedule, failure alerting. **Done when:** you watch it run three consecutive nights without touching it, and the Azure bill graph shows the sawtooth.
+Data Factory pipeline, resume/pause bracket, nightly schedule, failure alerting. **Done when:** it runs three consecutive nights without touching it..
 
 ### Phase 5 — Serve + Polish (wk 5–6)
-Evidence auth or the parquet decouple (§6), new dashboard pages (corpus explorer, "you vs the field," pipeline health from `fact_ingestion_run`), README with the architecture diagram, repo public. **Done when:** a hiring manager can read the repo and a stranger can browse the site.
+Evidence auth or the parquet decouple (§6), new dashboard pages (corpus explorer, "you vs the field," pipeline health from `fact_ingestion_run`), README, repo public. **Done when:** a hiring manager can read the repo and a stranger can browse the site.
 
 **Deferred filter expansion:** after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Need to add flag, both in the gutenberg extracts, and in the manual files (self, select authors) seed.
 
