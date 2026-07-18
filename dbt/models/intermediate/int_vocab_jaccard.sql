@@ -1,8 +1,7 @@
 -- int_vocab_jaccard
 -- Metric 15: vocabulary overlap between YOU and every other author, as a Jaccard
 -- index = |shared| / |combined unique terms| (0 = none, 1 = identical).
--- Grain: one row per OTHER author with vocab. term_count ignored; Jaccard is
--- presence/absence, with each author's works pooled into one distinct-term set.
+-- Grain: one row per OTHER author with vocab
 
 with author_vocab as (
 
@@ -19,8 +18,6 @@ with author_vocab as (
 
 ),
 
--- is_self compared to 1/0, not used bare: T-SQL has no boolean expression
--- type (bit only), and DuckDB casts int literals to boolean cleanly.
 me as (  -- |A|: your vocabulary
     select term from author_vocab where is_self = 1
 ),

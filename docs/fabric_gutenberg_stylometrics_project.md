@@ -39,15 +39,38 @@ The evolution of `prose-fingerprint`: a nightly, change-data-capturing pipeline 
 
 > **The Python-kernel rule is the new "keep messy work in Python."** Fabric notebooks default to a 2-vCore single-node Python kernel that burns 1 CU/second versus 8 CU/second for the default Spark configuration — roughly 8× cheaper. Your corpus is gigabytes of text, not terabytes; Spark buys you nothing here but cost and spin-up ceremony. DuckDB and Polars come pre-installed in Python notebooks, so your local extractor code ports almost directly.
 
+### Run order (script → what it loads → what it needs first)
+
+```
+nb_catalog_ingest ──> bronze: catalog, watermark, ingest_audit, Files/catalog/
+        │
+        ▼
+nb_filter ──────────> silver: raw_works                          needs: catalog
+        │
+        ▼
+nb_text_ingest ─────> bronze: Files/texts/, watermark            needs: raw_works, watermark
+        │
+        ▼
+nb_strip ───────────> silver: Files/corpus/, bronze: strip_audit needs: raw_works, Files/texts, Files/self
+        │
+        ▼
+nb_measure ─────────> silver: raw_measurements, raw_vocab        needs: Files/corpus, watermark
+        │
+        ▼
+dbt build ──────────> wh_gold: stg_* → dim_*/fact_* → mart_*     needs: raw_works, raw_measurements, raw_vocab
+```
+
+(one-off side input: `scripts/upload_self_corpus.py` → bronze `Files/self/`)
+
 ---
 
 ## 2. CDC Design (the new core discipline)
 
 **Catalog source — do not scrape gutenberg.org.** PG actively blocks crawlers. Two sanctioned options:
 
-| Source                     | What                                                                                            | Fit                                                                                                 |
-| -------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| **Official catalog feeds** | `pg_catalog.csv` (zipped) and the RDF/XML dump, both regenerated daily by PG                    | The diff source. One polite download per night, full catalog snapshot                               |
+| Source                     | What                                                                               | Fit                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Official catalog feeds** | `pg_catalog.csv` (zipped) and the RDF/XML dump, both regenerated daily by PG       | The diff source. One polite download per night, full catalog snapshot                               |
 | **Gutendex API**           | Community JSON API over the same nightly RDF data; filters on `topic`, `languages` | Handy for metadata enrichment / backfill queries; best-effort service, so cache and don't hammer it |
 
 **The CDC mechanics** (design these yourself — that's the exercise):
@@ -150,7 +173,7 @@ Evidence auth or the parquet decouple (§6), new dashboard pages (corpus explore
 
 **Deferred filter expansion (noted 2026-07-12):** after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Flag columns plus Evidence-side filtering make it a config change, not a redesign.
 
-**Incremental measure (noted 2026-07-15):** `nb_measure` re-parses the whole corpus every run (~25M words, roughly an hour on the 2-vCore Python kernel). Fine as a backfill; before the Phase 4 nightly schedule, drive it off the bronze `watermark` ledger — re-parse a work when its watermark `last_changed`/`text_hash` is newer than its `raw_measurements.loaded_at`, so both new AND corrected texts recompute and a quiet night parses nothing. Presence-in-`raw_measurements` alone misses updates.
+**Skipped-authors filter:** when the filter widens, add a skip list to the corpus filter (in dbt, via the seed - add a gutenberg author name column) for authors whose works are manually loaded from a better or more reliable source than PG (e.g. Clark Ashton Smith via Eldritch Dark - PG names him `Smith, Clark Ashton`).
 
 ---
 

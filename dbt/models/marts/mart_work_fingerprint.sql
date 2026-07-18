@@ -17,7 +17,7 @@ with measured as (
         f.author_key,
         a.name as author,
         f.metric_name,
-        f.zscore
+        {{ zscore('f.value', 'f.metric_name') }} as zscore
     from {{ ref('fact_style_measurement') }} f
     inner join {{ ref('dim_work') }}   w on w.work_key = f.work_key
     inner join {{ ref('dim_author') }} a on a.author_key = f.author_key

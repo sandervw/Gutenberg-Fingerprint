@@ -55,7 +55,7 @@ models:
                 values: ["short-story", "novella", "novel"]
 
   - name: fact_style_measurement
-    description: "Central fact: one row per work x metric series. Carries value + z-score, FKs to dim_work, dim_author, and dim_metric."
+    description: "Central fact: one row per work x metric series. Incremental on loaded_at; carries the raw value, FKs to dim_work, dim_author, and dim_metric. Z-scores computed in the marts."
     columns:
       - name: measurement_key
         description: "Surrogate hash of (work_id, metric_name). PK + grain guard."
@@ -86,6 +86,10 @@ models:
               arguments:
                 to: ref('dim_metric')
                 field: metric_key
+      - name: loaded_at
+        description: "Ingestion timestamp; the incremental watermark."
+        data_tests:
+          - not_null
 
   - name: fact_vocab_overlap
     description: "Author-pair fact: you (author_key_a) vs each other author (author_key_b), with Jaccard vocabulary overlap. Jaccard reads 0 until the self corpus lands in the lakehouse."
