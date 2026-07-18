@@ -4,7 +4,7 @@
 
 ## Implementation docs
 
-`docs\fabric_gutenberg_stylometrics_project.md` documents the project's finished design. Consult it as the reference.
+`docs\Project-Outline.md` documents the project's finished design. Consult it as the reference.
 
 Reference the past project for design choices related to dbt, python, or evidence: `C:\Users\Sander\OneDrive\Documents\Github\Fiction-Fingerprint`
 
