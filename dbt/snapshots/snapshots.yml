@@ -1,0 +1,7 @@
+snapshots:
+  - name: snap_dim_work
+    relation: ref('dim_work')
+    config:
+      unique_key: work_key
+      strategy: check
+      check_cols: all

@@ -219,6 +219,51 @@ exposures:
 
 ---
 
+## Snapshots (SCD2)
+
+Since dbt 1.9, a snapshot is pure YAML in `snapshots/` — no SQL block:
+
+```yaml
+snapshots:
+  - name: snap_dim_work
+    relation: ref('dim_work')   # or source(...)
+    config:
+      unique_key: work_key
+      strategy: check           # or timestamp (needs updated_at)
+      check_cols: all           # or a list of columns
+```
+
+dbt adds `dbt_valid_from` / `dbt_valid_to` / `dbt_scd_id` / `dbt_updated_at`. Current rows have `dbt_valid_to = NULL`. Changed rows get the old version closed out and a new row inserted. `target_schema` is optional since 1.9 (defaults to normal schema behavior). Runs via `dbt snapshot` or as part of `dbt build`.
+
+---
+
+## Source freshness
+
+Since dbt 1.10, `freshness` + `loaded_at_field` go under `config:` on the source (top-level is deprecated). Runs `SELECT max(loaded_at_field)` per table and compares to thresholds.
+
+```yaml
+sources:
+  - name: raw
+    config:
+      loaded_at_field: loaded_at
+      freshness:
+        warn_after: {count: 12, period: hour}   # either/both
+        error_after: {count: 24, period: hour}
+```
+
+Source-level config is inherited by all tables; override or disable per table with a table-level `config: freshness:`. Runs only via `dbt source freshness` — `dbt build` does not include it.
+
+---
+
+## Hooks
+
+- **Model-level** `pre-hook`/`post-hook`: SQL bookending one model (grants etc.).
+- **Project-level** `on-run-start` / `on-run-end` in dbt_project.yml: run once per invocation. `on-run-end` gets extra context: `results` (list of Result objects — `res.node.name`, `res.node.resource_type`, `res.status`, `res.execution_time`, `res.message`) and `schemas`.
+- Audit pattern: hook calls a macro that does `run_query()` calls itself (create-if-missing + multi-row INSERT) and returns nothing. Guard with `{% if execute and results | length > 0 and flags.WHICH in (...) %}` — hooks also fire on compile/docs generate, where logging is unwanted. `invocation_id` and `run_started_at` are global context vars.
+- Fabric wrinkle: no `CREATE TABLE IF NOT EXISTS` in T-SQL — use `if object_id('...') is null create table ...`.
+
+---
+
 ## CLI commands
 
 | Command | Does |

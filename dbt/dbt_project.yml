@@ -12,6 +12,9 @@ seed-paths: ["seeds"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 
+# Audit log: every run/build/test writes one row per node to dbt_run_log
+on-run-end: "{{ log_run_results(results) }}"
+
 clean-targets: # directories to be removed by `dbt clean`
   - "target"
   - "dbt_packages"
