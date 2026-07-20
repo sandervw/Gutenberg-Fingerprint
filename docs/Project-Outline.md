@@ -29,8 +29,8 @@ A nightly, change-data-capturing pipeline that watches the Project Gutenberg fan
                                         └──────────────┘
 ```
 
-- **Orchestrator:** a Fabric Data Factory pipeline on a nightly schedule. It sequences: CDC check → conditional extract → dbt → BI rebuild → pause. If the CDC step finds nothing new (most nights), the pipeline short-circuits and pauses immediately.
-- **CDC notebook (Python kernel, not Spark):** diffs the PG catalog against a watermark table, downloads only new/changed texts, strips boilerplate, writes bronze Delta.
+- **Orchestrator:** a Fabric Data Factory pipeline on a nightly schedule. It sequences: catalog refresh → filter (CDC gate) → conditional extract → SQL endpoint refresh → dbt → BI rebuild → pause. The gate is an If Condition on `nb_filter`'s exit value; on a no-op night the extract branch is skipped and dbt still runs against unchanged silver.
+- **CDC notebooks (Python kernel, not Spark):** `nb_catalog_ingest` writes the catalog photo; `nb_filter` diffs the fantasy subset against the watermark and emits the gate count. Catalog-wide diffs are meaningless — the ~78k non-fantasy books never enter the watermark, so they read as new forever.
 - **Stylometrics notebook (Python kernel):** existing extractor logic, re-homed. Same tidy `(work, metric, value)` output — silver Delta tables.
 - **Warehouse + dbt:** dbt models materialize gold marts in a Fabric **Warehouse**, reading silver via the Lakehouse's SQL analytics endpoint (three-part naming — the endpoint is read-only, which is why models must land in a Warehouse). Fabric has a native **dbt job** item (preview).
 - **BI:** Evidence, unchanged in spirit. See §6 for one complication.
@@ -38,10 +38,11 @@ A nightly, change-data-capturing pipeline that watches the Project Gutenberg fan
 ### Run order (script → what it loads → what it needs first)
 
 ```
-nb_catalog_ingest ──> bronze: catalog, watermark, ingest_audit, Files/catalog/
+nb_catalog_ingest ──> bronze: catalog, watermark, Files/catalog/
         │
         ▼
-nb_filter ──────────> silver: raw_works                          needs: catalog
+nb_filter ──────────> silver: raw_works, bronze: ingest_audit    needs: catalog, watermark
+                      exits with the CDC gate count
         │
         ▼
 nb_text_ingest ─────> bronze: Files/texts/, watermark            needs: raw_works, watermark
@@ -125,7 +126,7 @@ The nightly job means the capacity *must* wake and sleep on its own. There is no
 | Cloudflare Pages nightly builds            | free tier covers it    |
 | **Left running 24/7 by accident**          | **~$263/mo**           |
 
-Do the initial build on the 60-day Fabric trial capacity; move to paid F2 only when the automation bracket is proven.
+Do the initial build on the 60-day Fabric trial capacity. The bracket cannot be built there: pause/resume are ARM operations on `Microsoft.Fabric/capacities`, and trial capacity is not an ARM resource. Provision paid F2 first, then build the bracket against it.
 
 ---
 
