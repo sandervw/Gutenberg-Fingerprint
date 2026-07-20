@@ -3,9 +3,10 @@
 # + raw_vocab: clean markdown, parse with spaCy (chunked for long novels), run
 # every metric, land tidy Delta rows. Cleaning comes from nb_clean; lexicons,
 # metrics, and vocab from their notebooks (%run pulls definitions into this session).
-# Incremental: only new works, works whose watermark row changed after their rows
-# landed, and self works re-parse; replaced rows are swapped in place and works
-# gone from the corpus are dropped.
+# Incremental: only new works and works whose source changed after their rows
+# landed re-parse (watermark for gutenberg works, the uploaded seed manifest for
+# manual ones); replaced rows are swapped in place and works gone from the
+# corpus are dropped.
 
 # %% Dependencies - model wheels declare no dependencies, so spacy is explicit
 %pip install spacy==3.8.14 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
@@ -45,6 +46,7 @@ VOCAB_TABLE: str = f"{SILVER_LAKEHOUSE}/Tables/dbo/raw_vocab"
 WATERMARK_TABLE: str = f"{ONELAKE}/lh_bronze.Lakehouse/Tables/watermark"
 CORPUS_SUBDIR: str = "Files/corpus"
 SELF_FOLDER: str = "Sander-VanWilligen"
+MANIFEST_PATH: Path = Path("/lakehouse/default/Files/self/_manifest.csv")  # default lakehouse = lh_bronze
 
 # Chunk size for parsing long works, kept under spaCy's 1M-char limit.
 MAX_CHUNK_CHARS = 100_000
@@ -158,13 +160,26 @@ changed_at: dict[str, datetime] = {
     ).iter_rows()
 }
 
-# A work re-parses when it has no rows yet, its watermark row changed after those
-# rows landed, or it's a self work (no watermark entry; seconds to parse).
+# Manual works' watermark: upload_self_corpus.py stamps loaded_at (naive UTC)
+# and ships the seed next to the files it describes.
+manual_changed_at: dict[str, datetime] = dict(
+    pl.read_csv(MANIFEST_PATH, schema_overrides={"loaded_at": pl.String})
+    .select(
+        "work_id",
+        pl.col("loaded_at").str.to_datetime("%Y-%m-%d %H:%M:%S").dt.replace_time_zone("UTC"),
+    )
+    .iter_rows()
+)
+
+# A work re-parses when it has no rows yet or its source changed after those
+# rows landed: watermark last_changed for gutenberg works, manifest loaded_at
+# for manual ones (self folder).
 def needs_measure(work_id: str, source: Path) -> bool:
-    if source.parent.name == SELF_FOLDER or work_id not in loaded_at_by_id:
+    if work_id not in loaded_at_by_id:
         return True
-    last_changed = changed_at.get(work_id)
-    return last_changed is not None and last_changed > loaded_at_by_id[work_id]
+    ledger = manual_changed_at if source.parent.name == SELF_FOLDER else changed_at
+    changed = ledger.get(work_id)
+    return changed is not None and changed > loaded_at_by_id[work_id]
 
 todo = {wid: p for wid, p in sources.items() if needs_measure(wid, p)}
 stale_ids = sorted(set(loaded_at_by_id) - set(sources))

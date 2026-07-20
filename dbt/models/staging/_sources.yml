@@ -12,6 +12,11 @@ sources:
       freshness:
         error_after: { count: 24, period: hour }
     tables:
+      # raw_works is the freshness heartbeat: nb_filter full-overwrites it every
       - name: raw_works # grain: one row per work
       - name: raw_measurements # grain: one row per work × metric (tidy/long)
+        config:
+          freshness: null
       - name: raw_vocab # grain: one row per work × content-word term
+        config:
+          freshness: null
