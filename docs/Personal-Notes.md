@@ -124,6 +124,12 @@ Key point: schema and transformation are the SAME file (the SELECT). The `.yml` 
 3. `dbt_project.yml` - already says marts to table.
 4. Upstream `ref()` targets: `seed_authors`, `stg_works` (already built).
 
+#### SCD2 Tables
+
+Configured via a single yml file in `snapshots`
+- adds valid from/to columns (to is null for active row)
+- Used `check` method to determine row changes
+
 #### Materializations
 
 A materialization answers: when I run this SELECT, what physical thing should exist in the warehouse? It's the build strategy (the DDL wrapper dbt generates).
@@ -137,6 +143,18 @@ A materialization answers: when I run this SELECT, what physical thing should ex
 
 Purpose: it decouples WHAT the data is (the SELECT) from HOW/WHEN it is stored and refreshed.
 Flip a view into a table by changing one config line; the SQL never changes.
+
+#### Freshness Checks
+
+Used to throw warning/errors in the event that source (raw) data is stale
+- Can be configured at source or table level
+- see `staging/_sources.yml`
+
+#### Audit Hooks
+
+See `dbt_project.yml` and `macros/log_run_results.sql`
+- Basically, adds a step at the end of the run to add a row to the audit log table
+- could also configure "on-node-end" if needed
 
 ### Seeds
 
