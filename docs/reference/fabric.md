@@ -87,9 +87,10 @@ gutenberg_fingerprint:
 - Workspace item that runs dbt Core **inside Fabric**: managed runtime V1.0 = dbt Core 1.9, dbt-fabric 1.9.0, Python 3.12.
 - Enable per-tenant: admin portal → tenant settings → **dbt jobs (preview)**.
 - Project source: authored in-UI or **connected to a GitHub repo** (classic PAT, pick branch — pulls fresh each run).
-- Supports `build/run/seed/test/compile/snapshot` + selectors; orchestratable as a **pipeline activity** (operation, select/exclude, full refresh, threads).
+- Supports `build/run/seed/test/compile/snapshot` + selectors; orchestratable as a **pipeline activity** (operation, select/exclude, full refresh, threads). **No `source freshness`** in the supported list.
+- **Profile is UI-configured** ("dbt configurations": adapter, connection, schema) — the repo's `profiles.yml` is ignored, and the generated target's *name* is not ours to control. Branch project logic on `target.type == 'fabric'`, never `target.name`. Warehouse adapter auth: Entra OAuth only.
 - Full logs land in OneLake (`dbt-output-<run_id>.json` → `detailed_monitoring_output_path`).
-- **Limitations**: no build caching — every run compiles fresh, no artifacts from prior runs → **no `state:modified` in-Fabric** (do state-aware runs in CI instead).
+- **Limitations**: no build caching — every run compiles fresh, no artifacts from prior runs → **no `state:modified` in-Fabric** (do state-aware runs in CI instead). GitHub-connected projects are read-only in the UI (run commands only, no editing). Docs show no repo-subfolder setting — whether the wizard finds `dbt_project.yml` below repo root is undocumented.
 
 ## Capacity pause/resume (the FinOps bracket)
 

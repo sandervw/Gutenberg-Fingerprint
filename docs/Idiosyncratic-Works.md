@@ -6,12 +6,12 @@ A data-first hunt through the 779-work Fabric corpus for works as statistically 
 
 ## Calibration: the three favorites in the 779-work corpus
 
-| Work | excess | rank |
-|---|---|---|
-| The Night Land | 17.3 | **#1** |
-| Gormenghast | 0.8 | #124 |
-| The Worm Ouroboros | 0.4 | #151 |
-| Titus Groan | 0.0 | #198 |
+| Work               | excess | rank   |
+| ------------------ | ------ | ------ |
+| The Night Land     | 17.3   | **#1** |
+| Gormenghast        | 0.8    | #124   |
+| The Worm Ouroboros | 0.4    | #151   |
+| Titus Groan        | 0.0    | #198   |
 
 The Night Land is still the single strangest prose work in a corpus 5.5x larger than the original 141. Eddison and Peake collapsed, and that is the real lesson: distinctiveness is corpus-relative. The full PG fantasy shelf is stuffed with Malory, Morris, Bain, and saga translations, so Eddison's archaism is now just the neighborhood register. Peake's variance-over-mean rhythm washes out against pulpier company. Hodgson survives because his weirdness is invented grammar ("did be"), which no genre supplies.
 

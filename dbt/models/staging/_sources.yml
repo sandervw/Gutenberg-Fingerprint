@@ -3,8 +3,8 @@ version: 2
 sources:
   - name: raw
     # Target-aware source location. Fabric: wh_gold reads lh_silver's tables
-    database: "{{ 'lh_silver' if target.name == 'fabric' else 'warehouse' }}"
-    schema: "{{ 'dbo' if target.name == 'fabric' else 'raw' }}"
+    database: "{{ 'lh_silver' if target.type == 'fabric' else 'warehouse' }}"
+    schema: "{{ 'dbo' if target.type == 'fabric' else 'raw' }}"
     loader: "extract/ (Python + spaCy)" # the pipeline that fills these tables; shows in lineage
     description: "Tidy tables landed by the standalone Python extractor (extract/)."
     config:
