@@ -90,7 +90,10 @@ gutenberg_fingerprint:
 - Supports `build/run/seed/test/compile/snapshot` + selectors; orchestratable as a **pipeline activity** (operation, select/exclude, full refresh, threads). **No `source freshness`** in the supported list.
 - **Profile is UI-configured** ("dbt configurations": adapter, connection, schema) — the repo's `profiles.yml` is ignored, and the generated target's *name* is not ours to control. Branch project logic on `target.type == 'fabric'`, never `target.name`. Warehouse adapter auth: Entra OAuth only.
 - Full logs land in OneLake (`dbt-output-<run_id>.json` → `detailed_monitoring_output_path`).
-- **Limitations**: no build caching — every run compiles fresh, no artifacts from prior runs → **no `state:modified` in-Fabric** (do state-aware runs in CI instead). GitHub-connected projects are read-only in the UI (run commands only, no editing). Docs show no repo-subfolder setting — whether the wizard finds `dbt_project.yml` below repo root is undocumented.
+- **Limitations**: no build caching — every run compiles fresh, no artifacts from prior runs → **no `state:modified` in-Fabric** (do state-aware runs in CI instead). GitHub-connected projects are read-only in the UI (run commands only, no editing).
+- **`dbt_project.yml` must be at repo root** (error 20418 otherwise; no path setting). Workaround: derived branch via `git subtree split --prefix=dbt -b fabric-dbt` + push, point the job at that branch, refresh after dbt changes.
+- Observed vs docs (2026-07): runtime auto-runs `dbt deps`; actual adapter dbt-fabric **1.10.0** (docs say 1.9.0). **Wrapper bug**: an exposure's normal `no-op` status in build results makes the wrapper report the run Failed (20402, "No errors" + red X, `results: null` in the output stub) even though dbt logs `Completed successfully`. Workaround: job Advanced Settings → Run settings → Exclude `exposure:<name>` (no `+` prefix — that would also exclude upstream).
+- Log access without OneLake Explorer: `az account get-access-token --resource https://storage.azure.com`, then GET `https://onelake.dfs.fabric.microsoft.com/<workspaceId>/<itemId>/Output/<runGuid>/...` (`logs/dbt.log` has content; root `dbt.log` is 0 bytes; `target/run_results.json` present).
 
 ## Capacity pause/resume (the FinOps bracket)
 
