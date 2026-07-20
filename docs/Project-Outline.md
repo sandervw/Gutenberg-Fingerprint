@@ -50,13 +50,13 @@ nb_text_ingest ─────> bronze: Files/texts/, watermark            needs
 nb_strip ───────────> silver: Files/corpus/, bronze: strip_audit needs: raw_works, Files/texts, Files/self
         │
         ▼
-nb_measure ─────────> silver: raw_measurements, raw_vocab        needs: Files/corpus, watermark
+nb_measure ─────────> silver: raw_measurements, raw_vocab        needs: Files/corpus, watermark, Files/self manifest
         │
         ▼
 dbt build ──────────> wh_gold: stg_* → dim_*/fact_* → mart_*     needs: raw_works, raw_measurements, raw_vocab
 ```
 
-(one-off side input: `scripts/upload_self_corpus.py` → bronze `Files/self/`)
+(one-off side input: `scripts/upload_self_corpus.py` → bronze `Files/self/` + `_manifest.csv`, stamping `loaded_at` in the seed so nb_measure re-parses only re-uploaded manual works)
 
 ---
 
