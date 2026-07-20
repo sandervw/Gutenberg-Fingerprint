@@ -4,13 +4,11 @@
 #   Files/catalog/pg_catalog_<date>.csv  raw feed snapshot, byte-for-byte
 #   Tables/catalog                       full catalog photo, overwritten each run
 #   Tables/watermark                     CDC ledger; created once, filled by backfill
-#   Tables/ingest_audit                  one row per run: diff counts vs the watermark
 
 from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,7 +30,6 @@ ONELAKE_TABLES: str = (
 )
 CATALOG_TABLE: str = f"{ONELAKE_TABLES}/catalog"
 WATERMARK_TABLE: str = f"{ONELAKE_TABLES}/watermark"
-AUDIT_TABLE: str = f"{ONELAKE_TABLES}/ingest_audit"
 
 # OneLake token, roughly one hour of life, plenty for a single run
 STORAGE_OPTIONS: dict[str, str] = {
@@ -136,56 +133,6 @@ def ensure_watermark(table_uri: str) -> DeltaTable:
     )
 
 
-# %% CDC diff - catalog photo vs watermark ledger
-
-
-@dataclass(frozen=True)
-class CdcCounts:
-    books_in_catalog: int
-    candidate_new: int
-    candidate_changed: int
-
-
-def diff_counts(catalog: pl.DataFrame, watermark: DeltaTable) -> CdcCounts:
-    wm = pl.from_arrow(watermark.to_pyarrow_table())
-    wm = wm.select("gutenberg_id", "catalog_row_hash").rename({"catalog_row_hash": "seen_hash"})
-    joined = catalog.select("gutenberg_id", "catalog_row_hash").join(
-        wm, on="gutenberg_id", how="left"
-    )
-    return CdcCounts(
-        books_in_catalog=joined.height,
-        candidate_new=joined.filter(pl.col("seen_hash").is_null()).height,
-        candidate_changed=joined.filter(
-            pl.col("seen_hash").is_not_null()
-            & (pl.col("seen_hash") != pl.col("catalog_row_hash"))
-        ).height,
-    )
-
-
-def write_audit(counts: CdcCounts, run_ts: datetime, table_uri: str) -> None:
-    row = pl.DataFrame(
-        {
-            "run_ts": [run_ts],
-            "run_type": ["catalog_refresh"],
-            "books_in_catalog": [counts.books_in_catalog],
-            "candidate_new": [counts.candidate_new],
-            "candidate_changed": [counts.candidate_changed],
-            "downloaded": [0],  # backfill and CDC runs count real downloads here
-            "failed": [0],
-        },
-        schema={
-            "run_ts": TS_UTC,
-            "run_type": pl.Utf8,
-            "books_in_catalog": pl.Int64,
-            "candidate_new": pl.Int64,
-            "candidate_changed": pl.Int64,
-            "downloaded": pl.Int64,
-            "failed": pl.Int64,
-        },
-    )
-    write_deltalake(table_uri, row.to_arrow(), mode="append", storage_options=STORAGE_OPTIONS)
-
-
 # %% Run
 
 run_ts: datetime = datetime.now(timezone.utc)
@@ -198,11 +145,5 @@ catalog_df: pl.DataFrame = load_catalog(raw_path, run_ts)
 print(f"parsed {catalog_df.height:,} rows, {catalog_df.width} columns")
 
 write_catalog(catalog_df, CATALOG_TABLE)
-watermark: DeltaTable = ensure_watermark(WATERMARK_TABLE)
-counts: CdcCounts = diff_counts(catalog_df, watermark)
-write_audit(counts, run_ts, AUDIT_TABLE)
-
-print(
-    f"catalog: {counts.books_in_catalog:,} books | "
-    f"new vs watermark: {counts.candidate_new:,} | changed: {counts.candidate_changed:,}"
-)
+ensure_watermark(WATERMARK_TABLE)
+print(f"catalog photo written: {catalog_df.height:,} books")
