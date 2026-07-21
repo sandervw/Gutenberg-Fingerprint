@@ -1,1 +1,1 @@
-select * from dbo.dim_metric
+select * from read_parquet('sources/warehouse/dim_metric.parquet')

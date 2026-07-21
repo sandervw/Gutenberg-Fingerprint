@@ -1,1 +1,1 @@
-select * from dbo.fact_vocab_overlap
+select * from read_parquet('sources/warehouse/fact_vocab_overlap.parquet')
