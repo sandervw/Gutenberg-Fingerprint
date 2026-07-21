@@ -1,15 +1,9 @@
-# Fabric Warehouse SQL endpoint (same host as dbt/profiles.yml fabric target).
-# Local: azure-active-directory-default picks up `az login`. CI overrides auth
-# via EVIDENCE_SOURCE__warehouse__* env vars (service principal), no yaml fork.
-# Capacity must be running when `npm run sources` extracts.
-# Option keys are the connector's snake_case names, not mssql's camelCase.
+# DuckDB source over the gold marts. nb_export_gold writes them to parquet in
+# OneLake; the prebuild step (scripts/) downloads those into this folder with a
+# service-principal token. ':memory:' = no persistent db - each query reads the
+# local parquet directly, so the build never touches the Warehouse and rebuilds
+# even while capacity is paused.
 name: warehouse
-type: mssql
+type: duckdb
 options:
-  server: fr7xv35iil4ehegy7wuqkoukpi-ja423pz3n3vu5dxbjbpa6r6ipm.datawarehouse.fabric.microsoft.com
-  database: wh_gold
-  authenticationType: azure-active-directory-default
-  encrypt: true
-  trust_server_certificate: false
-  connection_timeout: 30000
-  request_timeout: 60000
+  filename: ':memory:'
