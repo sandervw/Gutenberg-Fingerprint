@@ -4,6 +4,7 @@ build
 node_modules
 .DS_Store
 static/data
+sources/warehouse/*.parquet
 *.options.yaml
 .vscode/settings.json
 .env
