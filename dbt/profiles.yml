@@ -7,7 +7,7 @@ gutenberg_fingerprint:
       # current working dir (not the project)
       path: C:/Users/Sander/OneDrive/Documents/Github/Gutenberg-Fingerprint/dbt/warehouse.duckdb
       threads: 4
-    fabric: # the portability swap — no model changes (Phase 1)
+    fabric:
       type: fabric
       driver: "ODBC Driver 18 for SQL Server"
       host: fr7xv35iil4ehegy7wuqkoukpi-ja423pz3n3vu5dxbjbpa6r6ipm.datawarehouse.fabric.microsoft.com
