@@ -2,6 +2,8 @@
 
 A nightly, change-data-capturing pipeline that watches the Project Gutenberg fantasy catalog, lands new/updated books in a Fabric Lakehouse, extracts stylometrics, and rebuilds dbt → Evidence.
 
+**NOTE TO SELF:** any dbt changes need to be reflected in the fabric-dbt branch (because, of course, Microsoft can't make a simple working service - it ahs to be some overly-ornate piece of fragile fucking garbage, which they then proceed to update monthly, breaking it more.)
+
 ---
 
 ## 1. Architecture (Medallion + Orchestration)
