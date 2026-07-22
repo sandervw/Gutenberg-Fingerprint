@@ -1,6 +1,6 @@
-// Pulls the gold marts nb_export_gold wrote to OneLake down to
-// sources/warehouse/, so the DuckDB source reads local parquet and the build
-// never touches Fabric.
+// Pulls the gold marts nb_export_gold wrote to OneLake down to data/warehouse/,
+// so the DuckDB source reads local parquet and the build never touches the
+// Warehouse. Needs the capacity running - paused capacities reject OneLake reads.
 //
 // Needs AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET
 import { mkdir, readdir, writeFile } from 'node:fs/promises';

@@ -24,9 +24,10 @@ A nightly, change-data-capturing pipeline that watches the Project Gutenberg fan
                     ┌─────▼─────────┐   ┌──────────────┐   ┌────────────┐  │
                     │ dbt job       │ → │ Deploy hook  │ → │ PAUSE      │──┘
                     │ (Fabric-native│   │ → Cloudflare │   │ capacity   │
-                    │  or CI-run)   │   │ Evidence     │   └────────────┘
-                    └───────────────┘   │ rebuild      │
-                                        └──────────────┘
+                    │  or CI-run)   │   │ Evidence     │   └─────▲──────┘
+                    └───────────────┘   │ rebuild      │         │
+                                        └──────┬───────┘   wait for build
+                                               └─────────────────┘
 ```
 
 - **Orchestrator:** a Fabric Data Factory pipeline on a nightly schedule. It sequences: catalog refresh → filter (CDC gate) → conditional extract → SQL endpoint refresh → dbt → BI rebuild → pause. The gate is an If Condition on `nb_filter`'s exit value; on a no-op night the extract branch is skipped and dbt still runs against unchanged silver.
@@ -135,7 +136,7 @@ Do the initial build on the 60-day Fabric trial capacity. The bracket cannot be 
 Evidence extracts data at **build time** into a static site — the deployed Cloudflare Pages site never touches the Warehouse. Two consequences:
 
 1. **Auth:** Fabric Warehouse refuses SQL auth; Entra ID only. Evidence's MSSQL connector supports service-principal auth — configure `azure-active-directory-service-principal-secret` via env vars in the build environment.
-2. **Sequencing:** the Cloudflare build (triggered by a deploy-hook POST — each hook is a unique URL, no auth header, treat it as a secret) would normally run `npm run sources` against the Warehouse. Sidestep this by having dbt export gold marts to parquet in OneLake / the repo and pointing Evidence's DuckDB source at those files, decoupling BI builds from capacity state.
+2. **Sequencing:** the Cloudflare build (triggered by a deploy-hook POST — each hook is a unique URL, no auth header, treat it as a secret) would normally run `npm run sources` against the Warehouse. `nb_export_gold` writes the gold marts to parquet in OneLake instead, and Evidence's DuckDB source reads those. The pipeline must hold the pause until the Cloudflare build finishes.
 
 ---
 
@@ -166,6 +167,17 @@ Data Factory pipeline, resume/pause bracket, nightly schedule, failure alerting.
 ### Phase 5 — Serve + Polish (wk 5–6)
 Evidence auth or the parquet decouple (§6), new dashboard pages (corpus explorer, "you vs the field," pipeline health from `fact_ingestion_run`), README, repo public. **Done when:** a hiring manager can read the repo and a stranger can browse the site.
 
-**Deferred filter expansion:** after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Need to add flag, both in the gutenberg extracts, and in the manual files (self, select authors) seed.
+**Deferred filter expansion:** after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Need to add flag, both in the gutenberg extracts, and in the manual files (self) seed.
 
-**Skipped-authors filter:** when the filter widens, add a skip list to the corpus filter (in dbt, via the seed - add a gutenberg author name column) for authors whose works are manually loaded from a better or more reliable source than PG (e.g. Clark Ashton Smith via Eldritch Dark - PG names him `Smith, Clark Ashton`).
+---
+
+## Remaining
+
+1. drop the manual uploads of Eddison, Peake, Clark Ashton Smith; seeds, bronze/silver files, tables.
+2. Move to paid F2; build the resume/pause bracket.
+3. Nightly pipeline schedule.
+4. Deploy hook, wait for the Cloudflare build, then pause.
+5. Failure alerting: pipeline and Cloudflare build.
+6. Azure budget alert.
+7. Pipeline-health page from `fact_ingestion_run`.
+8. README; scan git history for secrets; repo public.
