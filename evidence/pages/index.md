@@ -1,13 +1,13 @@
 ---
-title: Prose Fingerprint
+title: Gutenberg Fiction Metrics
 neverShowQueries: true
 ---
 
-How [my prose](https://wordleaves.com) compares to the authors in the measured corpus, (measured as **z-scores**). Positive means a work does *more* of something than the typical work; negative, less.
+A metric-based comparison of authors and works of fantasy and science fiction in [Project Gutenberg](https://www.gutenberg.org/). Measured as **z-scores**. Positive means a work does *more* of something than the typical work; negative, less.
 
-## Largest Outliers
+## Metric Outliers
 
-The 25 works furthest from the corpus average on the chosen metric.
+The works furthest from the corpus average on a chosen metric.
 
 ```sql metric_options
 select
@@ -96,7 +96,7 @@ order by dm.display_name
 
 ## Vocabulary Overlap
 
-Jaccard overlap of vocabulary. Higher = more shared words. Top 25 of the corpus.
+Jaccard overlap of vocabulary. How [my fiction](https://wordleaves.com) compares to other authors in the corpus. Higher = more shared words.
 
 ```sql kinship
 select
