@@ -22,7 +22,7 @@ By <a href={work[0]?.author_link}><Value data={work} column=author/></a> - <Valu
 
 ## Departure from the Author's Norm*
 
-This work's z-score minus the author's average across all their works.
+This work's z-score minus the author's average.
 
 ```sql deviation
 with this_author as (
@@ -81,7 +81,7 @@ order by abs(zscore) desc
 
 ## Sentence Type Mix
 
-Share of simple, compound, and complex sentences in this work.
+Share of simple, compound, and complex sentences.
 
 ```sql sentence_types
 select
@@ -127,7 +127,7 @@ order by zscore desc
 
 ## Function-word Loves/Hates
 
-The work's 12 most unusual function-word rates vs the whole corpus (z-scores).
+The work's 12 most unusual function-word rates vs the whole corpus.
 
 ```sql function_words
 select word, zscore
