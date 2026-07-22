@@ -1,1 +1,1 @@
-select * from read_parquet('sources/warehouse/dim_work.parquet')
+select * from read_parquet('data/warehouse/dim_work.parquet')

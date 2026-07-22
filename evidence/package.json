@@ -2,12 +2,15 @@
   "name": "gutenberg-fingerprint-evidence",
   "version": "0.0.1",
   "scripts": {
-    "postinstall": "patch-package",
+    "fetch-sources": "node scripts/fetch-sources.js",
+    "prebuild": "npm run fetch-sources",
     "build": "evidence build",
     "postbuild": "node scripts/cdn-wasm.js && node scripts/copy-404.js",
     "build:strict": "evidence build:strict",
+    "predev": "npm run fetch-sources",
     "dev": "evidence dev --open /",
     "test": "evidence build",
+    "presources": "npm run fetch-sources",
     "sources": "evidence sources",
     "sources:strict": "evidence sources --strict",
     "preview": "evidence preview"
@@ -27,8 +30,5 @@
     "trim@<0.0.3": ">0.0.3",
     "axios": "^1.7.4",
     "typescript": "^5.4.2"
-  },
-  "devDependencies": {
-    "patch-package": "^8.0.1"
   }
 }
