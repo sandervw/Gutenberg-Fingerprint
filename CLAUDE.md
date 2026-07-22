@@ -22,7 +22,7 @@ Reference the past project for design choices related to dbt, python, or evidenc
 
 ## Deployment
 
-- The Evidence site (`evidence/`) will be published to Cloudflare Pages (URL TBD — record it here at first deploy, Phase 5).
+- The Evidence site (`evidence/`) is published to Cloudflare Pages at **https://gufime.com/** (GUtenberg FIction MEtrics). Pages project root directory `evidence`, build `npm run sources && npm run build`, output `build`. Node pinned by `evidence/.node-version`.
 - Styling mirrors the user's other site, **wordleaves.com** (see `evidence/sparse.css` + `evidence/wordleaves.css`: cream/charcoal, copper accent, iA Writer Quattro font).
 
 ## Environment

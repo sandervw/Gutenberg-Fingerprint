@@ -57,7 +57,7 @@ npm run dev        # dev server on localhost:3000
 
 ## Connecting to the parquet export (DuckDB source) — live since 2026-07-22
 
-The site no longer talks to Fabric at build time. `nb_export_gold` writes the gold marts to `lh_silver/Files/exports/*.parquet`; `scripts/fetch-sources.js` downloads them to `evidence/data/warehouse/` (OneLake DFS REST + client-credentials token, `AZURE_TENANT_ID`/`AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET`), hooked as `prebuild`/`predev`/`presources`. Builds then work with capacity paused.
+The site no longer talks to Fabric at build time. `nb_export_gold` writes the gold marts to `lh_silver/Files/exports/*.parquet`; `scripts/fetch-sources.js` downloads them to `evidence/data/warehouse/` (OneLake DFS REST + client-credentials token, `AZURE_TENANT_ID`/`AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET`), hooked as `prebuild`/`predev`/`presources`. The capacity must be running: paused capacities reject all OneLake transactions.
 
 ```yaml
 name: warehouse
