@@ -34,7 +34,7 @@ A nightly, change-data-capturing pipeline that watches the Project Gutenberg fan
 - **CDC notebooks (Python kernel, not Spark):** `nb_catalog_ingest` writes the catalog photo; `nb_filter` diffs the fantasy subset against the watermark and emits the gate count. Catalog-wide diffs are meaningless — the ~78k non-fantasy books never enter the watermark, so they read as new forever.
 - **Stylometrics notebook (Python kernel):** existing extractor logic, re-homed. Same tidy `(work, metric, value)` output — silver Delta tables.
 - **Warehouse + dbt:** dbt models materialize gold marts in a Fabric **Warehouse**, reading silver via the Lakehouse's SQL analytics endpoint (three-part naming — the endpoint is read-only, which is why models must land in a Warehouse). Fabric has a native **dbt job** item (preview).
-- **BI:** Evidence, unchanged in spirit. See §6 for one complication.
+- **BI:** Evidence. See §6 for one complication.
 
 ### Run order (script → what it loads → what it needs first)
 
@@ -152,32 +152,31 @@ Evidence extracts data at **build time** into a static site — the deployed Clo
 
 ## 8. Phased Plan
 
-### Phase 1 — Foundation (wk 1)
+### (DONE) Phase 1 — Foundation (wk 1)
 Trial capacity, workspace, Lakehouse + Warehouse. Budget alert. Port the dbt repo, add the `fabric` target, `dbt debug` green against the Warehouse. **Done when:** existing marts build in Fabric from manually loaded sample data.
 
-### Phase 2 — Backfill (wk 2–3)
+### (DONE) Phase 2 — Backfill (wk 2–3)
 Catalog ingestion notebook, corpus filter, boilerplate stripper, watermark table. Backfill the full fantasy corpus. Stylometrics notebook over the corpus. **Done when:** bronze/silver populated, audit table records the backfill.
 
-### Phase 3 — Incremental dbt (wk 3–4)
+### (DONE) Phase 3 — Incremental dbt (wk 3–4)
 Convert facts to incremental, add snapshots, source freshness, the expanded tests. **Done when:** a second run with a hand-injected "new book" flows through end-to-end and *only* the delta recomputes.
 
-### Phase 4 — Orchestration + FinOps (wk 4–5)
-Data Factory pipeline, resume/pause bracket, nightly schedule, failure alerting. **Done when:** it runs three consecutive nights without touching it..
+### (Partly DONE) Phase 4 — Orchestration + FinOps (wk 4–5)
+Data Factory pipeline, resume/pause bracket, nightly schedule, failure alerting. **Done when:** it runs three consecutive nights without touching it.
 
 ### Phase 5 — Serve + Polish (wk 5–6)
-Evidence auth or the parquet decouple (§6), new dashboard pages (corpus explorer, "you vs the field," pipeline health from `fact_ingestion_run`), README, repo public. **Done when:** a hiring manager can read the repo and a stranger can browse the site.
-
-**Deferred filter expansion:** after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Need to add flag, both in the gutenberg extracts, and in the manual files (self) seed.
+Evidence auth or the parquet decouple (§6), new dashboard pages (pipeline health from `fact_ingestion_run`), README, repo public. **Done when:** a hiring manager can read the repo and a stranger can browse the site.
 
 ---
 
 ## Remaining
 
-1. drop the manual uploads of Eddison, Peake, Clark Ashton Smith; seeds, bronze/silver files, tables.
-2. Move to paid F2; build the resume/pause bracket.
-3. Nightly pipeline schedule.
-4. Deploy hook, wait for the Cloudflare build, then pause.
-5. Failure alerting: pipeline and Cloudflare build.
-6. Azure budget alert.
-7. Pipeline-health page from `fact_ingestion_run`.
-8. README; scan git history for secrets; repo public.
+1. Move to paid F2; build the resume/pause bracket.
+2. Nightly pipeline schedule.
+3. Deploy hook, wait for the Cloudflare build, then pause.
+4. Failure alerting: pipeline and Cloudflare build.
+5. Azure budget alert.
+6. Expand to SF: after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Need to add flag, both in the gutenberg extracts, and in the manual files (self) seed.
+7. Make CLAUDE erase 75% of the bloated words in its references docs: no 'this, not that', no 'discovered on', no 'X confirmed that' - write down exactly the way a thing is working (without double-checking, again) and absolutely nothing else; if it sounds like a redditer wrote it, erase and rewrite
+8. Pipeline-health page from `fact_ingestion_run`.
+9.  README; scan git history for secrets; repo public.
