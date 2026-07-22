@@ -1,5 +1,5 @@
 # DuckDB source over the gold marts. nb_export_gold writes them to parquet in
-# OneLake; the prebuild step (scripts/) downloads those into this folder with a
+# OneLake; scripts/fetch-sources.js downloads those into data/warehouse/ with a
 # service-principal token. ':memory:' = no persistent db - each query reads the
 # local parquet directly, so the build never touches the Warehouse and rebuilds
 # even while capacity is paused.
