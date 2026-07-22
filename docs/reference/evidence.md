@@ -55,21 +55,26 @@ npm run dev        # dev server on localhost:3000
 
 ---
 
-## Connecting to our DuckDB
+## Connecting to the parquet export (DuckDB source) — live since 2026-07-22
 
-DuckDB connection lives in `sources/<name>/connection.yaml`, `type: duckdb`, pointing at the warehouse file:
+The site no longer talks to Fabric at build time. `nb_export_gold` writes the gold marts to `lh_silver/Files/exports/*.parquet`; `scripts/fetch-sources.js` downloads them to `evidence/data/warehouse/` (OneLake DFS REST + client-credentials token, `AZURE_TENANT_ID`/`AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET`), hooked as `prebuild`/`predev`/`presources`. Builds then work with capacity paused.
 
 ```yaml
 name: warehouse
 type: duckdb
-# DuckDB file path option key — confirm exact name at install (filename/path)
+options:
+  filename: ':memory:'
 ```
 
-> Evidence caches source results to parquet and runs page queries through its own embedded DuckDB. Confirm the exact filename key + whether to point at our existing `prose_fingerprint/warehouse.duckdb` when we wire it up.
+- `filename` is **required** and relative to the source dir; `:memory:` opens READ_WRITE, so each query just `read_parquet`s the local file.
+- Query paths inside the `.sql` files are relative to the **Evidence project root**, not the source dir: `read_parquet('data/warehouse/dim_work.parquet')`.
+- **Keep the parquet out of `sources/`.** Evidence runs `${}` substitution over every file in a source directory; binary parquet in there produces a wall of `Missed substition for ${<garbage>}` warnings.
+- **`evidence.config.yaml` has its own plugin registry** under `plugins.datasources` — swapping the connector means editing package.json *and* that list. Miss it and `evidence sources` dies with `Cannot find module '@evidence-dev/<old>'` while `evidence build` happily serves stale cache.
+- `evidence build` reuses the cached extract in `.evidence/template/static/data/` and does **not** re-run sources. `npm run sources` forces it. A fresh CI clone has no cache, so CI always extracts.
 
 ---
 
-## Connecting to Fabric Warehouse (MSSQL source)
+## Connecting to Fabric Warehouse (MSSQL source) — retired 2026-07-22, kept for reference
 
 Verified 2026-07-17 from connector source (`packages/datasources/mssql/index.cjs`); the docs page omits auth. Evidence's `type: mssql` source supports `authenticationType`:
 
@@ -87,7 +92,7 @@ Local↔CI switch without touching yaml: any option can be overridden by env var
 
 Capacity must be **running during `npm run sources`** (that's when extraction happens); `npm run dev`/`build` afterward read the cached parquet.
 
-### Two required workarounds (found 2026-07-17, both live in `evidence/`)
+### Two required workarounds (found 2026-07-17; both removed with the connector on 2026-07-22)
 
 1. **tedious < 19.2.1 cannot connect to Fabric at all** ("Connection lost - socket hang up" during the TDS handshake; tediousjs/tedious#1563, fixed by PR #1718 merged 2026-02-09). The connector's mssql@11 pins tedious@18, so package.json overrides `"mssql": "^12.7.0"` (brings tedious 20).
 2. **@evidence-dev/mssql@1.1.4 (latest) never passes `authentication.type` to mssql** for any AAD auth type — AAD default silently falls back to SQL auth, service-principal nukes the encrypt options. Patched via `patch-package` (`patches/@evidence-dev+mssql+1.1.4.patch`, applied by the `postinstall` script — runs on CF builds too). Re-check on any connector upgrade.

@@ -63,4 +63,4 @@ plugins:
 
   datasources:
     # Add datasources here by adding npm packages (also add to package.json).
-    "@evidence-dev/mssql": { }
+    "@evidence-dev/duckdb": { }
