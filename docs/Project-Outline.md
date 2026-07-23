@@ -174,8 +174,9 @@ Evidence auth or the parquet decouple (§6), new dashboard pages (pipeline healt
 ## Remaining
 
 1. Failure alerting: pipeline and Cloudflare build.
-2. Azure budget alert.
-3. Expand to SF: after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Need to add flag, both in the gutenberg extracts, and in the manual files (self) seed.
-4. Make CLAUDE erase 75% of the bloated words in its references docs: no 'this, not that', no 'discovered on', no 'X confirmed that' - write down exactly the way a thing is working (without double-checking, again) and absolutely nothing else; if it sounds like a redditer wrote it, erase and rewrite
-5. Pipeline-health page from `fact_ingestion_run`.
-6.  README; scan git history for secrets; repo public.
+2. Azure budget alert (Isn't this done?)
+3. Switch fabric resources to `fabric-cicd` (to store them in the repo; use cli to grab current definitions, ignore formatting/placement, fabric resets it in portal every time anyway).
+4. Expand to SF: after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Need to add flag, both in the gutenberg extracts, and in the manual files (self) seed.
+5. Make CLAUDE erase 75% of the bloated words in its references docs: no 'this, not that', no 'discovered on', no 'X confirmed that' - write down exactly the way a thing is working (without double-checking, again) and absolutely nothing else; if it sounds like a redditer wrote it, erase and rewrite
+6. Pipeline-health page from `fact_ingestion_run`.
+7.  README; scan git history for secrets; repo public.
