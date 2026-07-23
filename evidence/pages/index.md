@@ -5,73 +5,70 @@ neverShowQueries: true
 
 A metric-based comparison of authors and works of fantasy and science fiction in [Project Gutenberg](https://www.gutenberg.org/). Measured as **z-scores**. Positive means a work does *more* of something than the typical work; negative, less.
 
-## Metric Outliers
+## Biggest Outliers
 
-The works furthest from the corpus average on a chosen metric.
+The most statistically distinctive works, ranked by an **excess** index: for each work, the sum of every metric's z-score beyond ±2. This rewards both *how many* extreme scores a work has and *how* extreme they are. Works under 20,000 words are excluded.
 
-```sql metric_options
+Use the grid to filter by category (unselected = include all, **Yes** = only, **No** = exclude).
+
+```sql work_flags
 select
-    metric_name,
-    display_name
-from warehouse.dim_metric
-where is_multivalue = false
-    and metric_name <> 'jaccard'
-order by display_name
+    case when dw.is_poetry = 1 then 'Yes' else 'No' end as poetry,
+    case when dw.is_juvenile = 1 then 'Yes' else 'No' end as juvenile,
+    case when dw.is_play = 1 then 'Yes' else 'No' end as play,
+    case when dw.is_translation = 1 then 'Yes' else 'No' end as translation
+from warehouse.dim_work dw
+where dw.work_key in (select work_key from warehouse.mart_style_long)
+    and dw.word_count >= 20000
 ```
 
 ```sql outliers
-select
-    case
-        when length(msl.title) > 48 then left(msl.title, 45) || '…'
-        else msl.title
-    end as work_label,
-    msl.zscore
-from warehouse.mart_style_long msl
-join warehouse.dim_work dw
-    on dw.work_key = msl.work_key
-where msl.is_multivalue = false
-    and msl.metric_name = '${inputs.metric.value}'
-    and case '${inputs.plays.value}'
-        when 'only' then dw.is_play = 1
-        when 'exclude' then dw.is_play = 0
-        else true end
-    and case '${inputs.juvenile.value}'
-        when 'only' then dw.is_juvenile = 1
-        when 'exclude' then dw.is_juvenile = 0
-        else true end
-    and case '${inputs.poetry.value}'
-        when 'only' then dw.is_poetry = 1
-        when 'exclude' then dw.is_poetry = 0
-        else true end
-order by abs(msl.zscore) desc
+with work_excess as (
+    select
+        work_key,
+        sum(greatest(abs(zscore) - 2.0, 0)) as excess
+    from warehouse.mart_style_long
+    group by work_key
+),
+ranked as (
+    select
+        dw.title,
+        da.name as author,
+        case when dw.is_poetry = 1 then '✓' else '' end as poetry_flag,
+        case when dw.is_juvenile = 1 then '✓' else '' end as juvenile_flag,
+        case when dw.is_play = 1 then '✓' else '' end as play_flag,
+        case when dw.is_translation = 1 then '✓' else '' end as translation_flag,
+        we.excess,
+        '/works/' || dw.work_id as link,
+        case when dw.is_poetry = 1 then 'Yes' else 'No' end as poetry,
+        case when dw.is_juvenile = 1 then 'Yes' else 'No' end as juvenile,
+        case when dw.is_play = 1 then 'Yes' else 'No' end as play,
+        case when dw.is_translation = 1 then 'Yes' else 'No' end as translation
+    from work_excess we
+    join warehouse.dim_work dw
+        on dw.work_key = we.work_key
+    join warehouse.dim_author da
+        on da.author_key = dw.author_key
+    where dw.word_count >= 20000
+)
+select *
+from ranked
+where ${inputs.filters}
+order by excess desc
 limit 25
 ```
 
-<Dropdown data={metric_options} name=metric value=metric_name label=display_name title="Metric" defaultValue=mean_sentence_length />
-<Dropdown name=plays title="Plays" defaultValue=all>
-    <DropdownOption value=all valueLabel="Include" />
-    <DropdownOption value=exclude valueLabel="Exclude" />
-    <DropdownOption value=only valueLabel="Only" />
-</Dropdown>
-<Dropdown name=juvenile title="Juvenile" defaultValue=all>
-    <DropdownOption value=all valueLabel="Include" />
-    <DropdownOption value=exclude valueLabel="Exclude" />
-    <DropdownOption value=only valueLabel="Only" />
-</Dropdown>
-<Dropdown name=poetry title="Poetry" defaultValue=all>
-    <DropdownOption value=all valueLabel="Include" />
-    <DropdownOption value=exclude valueLabel="Exclude" />
-    <DropdownOption value=only valueLabel="Only" />
-</Dropdown>
+<DimensionGrid data={work_flags} name=filters metric="count(*)" metricLabel="Count" fmt=num0 limit=2 />
 
-<BarChart
-    data={outliers}
-    x=work_label
-    y=zscore
-    swapXY=true
-    sort=false
-    yFmt=num2
-/>
+<DataTable data={outliers} link=link rows=25>
+    <Column id=title title="Title" wrap=true />
+    <Column id=author title="Author" wrap=true />
+    <Column id=poetry_flag title="Poetry" align=center />
+    <Column id=juvenile_flag title="Juvenile" align=center />
+    <Column id=play_flag title="Play" align=center />
+    <Column id=translation_flag title="Translation" align=center />
+    <Column id=excess title="Excess" fmt=num1 />
+</DataTable>
 
 ```sql metric_defs
 select

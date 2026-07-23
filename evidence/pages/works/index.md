@@ -15,7 +15,7 @@ select name from (
 order by ord, name
 ```
 
-<Dropdown data={author_list} name=author value=name title="Author" defaultValue="Sander VanWilligen" />
+<Dropdown data={author_list} name=author value=name title="Author" defaultValue="All authors" />
 <TextInput name=title_search title="Title contains" />
 
 ```sql works

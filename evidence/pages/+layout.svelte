@@ -6,6 +6,6 @@
 	export let data;
 </script>
 
-<EvidenceDefaultLayout {data} title="Lucencies">
+<EvidenceDefaultLayout {data} title="Gufime.com">
 	<slot slot="content" />
 </EvidenceDefaultLayout>
