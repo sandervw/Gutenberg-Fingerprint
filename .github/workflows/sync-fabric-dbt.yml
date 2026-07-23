@@ -1,0 +1,23 @@
+name: Sync dbt project to fabric-dbt
+
+# Fabric's dbt job builds a GitHub branch from its root and has no folder-path
+# Fuck fabric
+# Fuck microsoft
+on:
+  push:
+    branches: [main]
+    paths: ["dbt/**"]
+  workflow_dispatch:
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # subtree split replays full history
+
+      - name: Hoist dbt/ to root and publish
+        run: git push --force origin "$(git subtree split --prefix=dbt HEAD):refs/heads/fabric-dbt"
