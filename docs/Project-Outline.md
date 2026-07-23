@@ -163,8 +163,8 @@ Catalog ingestion notebook, corpus filter, boilerplate stripper, watermark table
 ### (DONE) Phase 3 — Incremental dbt (wk 3–4)
 Convert facts to incremental, add snapshots, source freshness, the expanded tests. **Done when:** a second run with a hand-injected "new book" flows through end-to-end and *only* the delta recomputes.
 
-### (Partly DONE) Phase 4 — Orchestration + FinOps (wk 4–5)
-Data Factory pipeline, resume/pause bracket, nightly schedule, failure alerting. **Done when:** it runs three consecutive nights without touching it.
+### (DONE) Phase 4 — Orchestration + FinOps (wk 4–5)
+Data Factory pipeline, resume/pause bracket, nightly schedule — Logic App `la-gutenberg-nightly` (`infra/pipeline-automation.bicep`) runs the full loop and suspends. Failure alerting deferred (Remaining #1).
 
 ### Phase 5 — Serve + Polish (wk 5–6)
 Evidence auth or the parquet decouple (§6), new dashboard pages (pipeline health from `fact_ingestion_run`), README, repo public. **Done when:** a hiring manager can read the repo and a stranger can browse the site.
@@ -173,12 +173,9 @@ Evidence auth or the parquet decouple (§6), new dashboard pages (pipeline healt
 
 ## Remaining
 
-1. Move to paid F2; build the resume/pause bracket.
-2. Nightly pipeline schedule.
-3. Deploy hook, wait for the Cloudflare build, then pause.
-4. Failure alerting: pipeline and Cloudflare build.
-5. Azure budget alert.
-6. Expand to SF: after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Need to add flag, both in the gutenberg extracts, and in the manual files (self) seed.
-7. Make CLAUDE erase 75% of the bloated words in its references docs: no 'this, not that', no 'discovered on', no 'X confirmed that' - write down exactly the way a thing is working (without double-checking, again) and absolutely nothing else; if it sounds like a redditer wrote it, erase and rewrite
-8. Pipeline-health page from `fact_ingestion_run`.
-9.  README; scan git history for secrets; repo public.
+1. Failure alerting: pipeline and Cloudflare build.
+2. Azure budget alert.
+3. Expand to SF: after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Need to add flag, both in the gutenberg extracts, and in the manual files (self) seed.
+4. Make CLAUDE erase 75% of the bloated words in its references docs: no 'this, not that', no 'discovered on', no 'X confirmed that' - write down exactly the way a thing is working (without double-checking, again) and absolutely nothing else; if it sounds like a redditer wrote it, erase and rewrite
+5. Pipeline-health page from `fact_ingestion_run`.
+6.  README; scan git history for secrets; repo public.

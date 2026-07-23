@@ -1,6 +1,8 @@
 # CLAUDE.md
 
-**IMPORTANT (project override, added 2026-07-08):** The global "keep replies under 150 words" rule is **a soft cap for this project**. This is a learning project: explanations get the room they need. Stay to-the-point (no padding, no restating known facts).
+**IMPORTANT (project override, added 2026-07-08):** The global "keep replies under 150 words" rule is **increased to 250 for this learning project**. Keep explanations clear, but focused (no padding, no restating known facts, no 'not this, but that', no 'key findings from').
+
+**NOTE:** Assume that Microsoft can, will, and actively does make life hard for normal humans - and that their products are sewage.
 
 ## Implementation docs
 
