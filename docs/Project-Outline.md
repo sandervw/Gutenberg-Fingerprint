@@ -166,6 +166,8 @@ Convert facts to incremental, add snapshots, source freshness, the expanded test
 ### (DONE) Phase 4 — Orchestration + FinOps (wk 4–5)
 Data Factory pipeline, resume/pause bracket, nightly schedule — Logic App `la-gutenberg-nightly` (`infra/pipeline-automation.bicep`) runs the full loop and suspends, includes failure alerting.
 
+Workspace items are source-controlled too: `fabric/` holds the item definitions, and `scripts/deploy_fabric.py` publishes them.
+
 ### Phase 5 — Serve + Polish (wk 5–6)
 Evidence auth or the parquet decouple (§6), new dashboard pages (pipeline health from `fact_ingestion_run`), README, repo public. **Done when:** a hiring manager can read the repo and a stranger can browse the site.
 
@@ -173,8 +175,7 @@ Evidence auth or the parquet decouple (§6), new dashboard pages (pipeline healt
 
 ## Remaining
 
-1. Switch fabric resources to `fabric-cicd` (to store them in the repo; use cli to grab current definitions, ignore formatting/placement, fabric resets it in portal every time anyway).
-2. Expand to SF: after the nightly loop is proven, widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Need to add flag, both in the gutenberg extracts, and in the manual files (self) seed.
-3. Make CLAUDE erase 75% of the bloated words in its references docs: no 'this, not that', no 'discovered on', no 'X confirmed that' - write down exactly the way a thing is working (without double-checking, again) and absolutely nothing else; if it sounds like a redditer wrote it, erase and rewrite
-4. Pipeline-health page from `fact_ingestion_run`.
-5. README; scan git history for secrets; repo public.
+1. Expand to SF: widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Need to add flag, both in the gutenberg extracts, and in the manual files (self) seed.
+2. Make CLAUDE erase 75% of the bloated words in its references docs: no 'this, not that', no 'discovered on', no 'X confirmed that' - write down exactly the way a thing is working (without double-checking, again) and absolutely nothing else; if it sounds like a redditer wrote it, erase and rewrite
+3. Pipeline-health page from `fact_ingestion_run`.
+4. README; scan git history for secrets; repo public.
