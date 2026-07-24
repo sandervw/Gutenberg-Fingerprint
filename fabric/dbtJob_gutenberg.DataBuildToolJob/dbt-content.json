@@ -1,0 +1,34 @@
+{
+  "project": {
+    "projectType": "GitHub",
+    "branch": "fabric-dbt",
+    "folderPath": "dbt",
+    "externalReferences": {
+      "connection": "34ff73d5-37f3-475b-98e7-383775ba00ff"
+    }
+  },
+  "profile": {
+    "profileType": "DataWarehouse",
+    "schema": "dbo",
+    "connectionSettings": {
+      "name": "wh_gold",
+      "properties": {
+        "type": "DataWarehouse",
+        "typeProperties": {
+          "workspaceId": "bfad3948-6e3b-4eeb-8ee1-485e0f47c87b",
+          "artifactId": "e062cb7f-a620-4265-a8bf-4a67cfb5440e",
+          "endPoint": "fr7xv35iil4ehegy7wuqkoukpi-ja423pz3n3vu5dxbjbpa6r6ipm.datawarehouse.fabric.microsoft.com"
+        }
+      }
+    }
+  },
+  "command": {
+    "operation": "build",
+    "arguments": {
+      "select": "",
+      "exclude": "exposure:gutenberg_fingerprint_dashboard",
+      "threads": 4,
+      "selectorName": ""
+    }
+  }
+}
