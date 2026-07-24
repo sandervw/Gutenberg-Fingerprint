@@ -4,6 +4,8 @@
 // The Logic App runs the whole nightly bracket:
 //   resume -> wait Active -> run pl_nightly -> wait done -> deploy hook -> poll Pages build -> suspend
 // Suspend runs regardless of upstream outcome, so the capacity is never left on.
+// Also creates the failure alerting: an action group (email) plus a RunsFailed metric
+// alert on this workflow.
 //
 // Deploy into the SAME resource group as the F2 capacity (secrets passed at deploy time):
 //   az deployment group create -g <capacity-rg> --template-file infra/pipeline-automation.bicep \
@@ -32,6 +34,11 @@ param fabricWorkspaceId string = 'bfad3948-6e3b-4eeb-8ee1-485e0f47c87b'
 param pipelineItemId string = 'e5d7c062-78d2-441d-b274-0329cacab9be'
 param cloudflareAccountId string = '954c30f428e0a61f4c66e6a679f51ec0'
 param pagesProjectName string = 'gutenberg-fingerprint'
+
+param actionGroupName string = 'ag-gutenberg-nightly'
+
+@description('Where failure alerts land. Whitelist azure-noreply@microsoft.com or they go to junk.')
+param alertEmail string = 'sam.vanwilligen@gmail.com'
 
 @description('Cloudflare Pages deploy-hook URL. Secret - a POST to it triggers the site rebuild.')
 @secure()
@@ -323,6 +330,44 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
             }
           }
         }
+        // 7. Report the night's real outcome. Everything above swallows failure so the
+        // capacity always gets suspended, which means the run would otherwise end
+        // "Succeeded" on a broken night and the RunsFailed alert would never fire.
+        // Terminate must come after Suspend - it skips whatever hasn't run yet.
+        // runAfter is Succeeded only: a failed Suspend is then unhandled, so the run
+        // fails on its own and still alerts.
+        Condition_night_ok: {
+          type: 'If'
+          runAfter: {
+            Suspend_capacity: [ 'Succeeded' ]
+          }
+          expression: {
+            and: [
+              {
+                equals: [ '@body(\'Get_job_status_final\')?[\'status\']', 'Completed' ]
+              }
+              {
+                // '' when the build never ran (pipeline failed, so Get_deployment was skipped).
+                equals: [ '@coalesce(first(body(\'Get_deployment\')?[\'result\'])?[\'latest_stage\']?[\'status\'], \'\')', 'success' ]
+              }
+            ]
+          }
+          actions: {}
+          else: {
+            actions: {
+              Terminate_failed: {
+                type: 'Terminate'
+                inputs: {
+                  runStatus: 'Failed'
+                  runError: {
+                    code: 'NightlyRunFailed'
+                    message: '@{concat(\'pipeline=\', coalesce(body(\'Get_job_status_final\')?[\'status\'], \'unknown\'), \' build=\', coalesce(first(body(\'Get_deployment\')?[\'result\'])?[\'latest_stage\']?[\'status\'], \'not-run\'))}'
+                  }
+                }
+              }
+            }
+          }
+        }
       }
       outputs: {}
     }
@@ -348,5 +393,60 @@ resource assignRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+// Where alerts go. Action groups and metric alerts are always 'global'.
+resource actionGroup 'Microsoft.Insights/actionGroups@2023-01-01' = {
+  name: actionGroupName
+  location: 'global'
+  properties: {
+    groupShortName: 'gutenberg'
+    enabled: true
+    emailReceivers: [
+      {
+        name: 'owner'
+        emailAddress: alertEmail
+        useCommonAlertSchema: true
+      }
+    ]
+  }
+}
+
+// Fires on any Failed run: a failed pipeline, a failed Pages build (both via the
+// Terminate above), a failed Suspend, or an unhandled error anywhere in the bracket.
+resource runsFailedAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
+  name: 'alert-${logicAppName}-runs-failed'
+  location: 'global'
+  properties: {
+    description: 'The nightly Gutenberg bracket did not complete cleanly. Check the Logic App run history.'
+    severity: 1
+    enabled: true
+    scopes: [
+      logicApp.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT1H'
+    autoMitigate: true
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'RunsFailed'
+          metricNamespace: 'Microsoft.Logic/workflows'
+          metricName: 'RunsFailed'
+          operator: 'GreaterThanOrEqual'
+          threshold: 1
+          timeAggregation: 'Total'
+          criterionType: 'StaticThresholdCriterion'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: actionGroup.id
+      }
+    ]
+  }
+}
+
 output logicAppPrincipalId string = logicApp.identity.principalId
 output roleDefinitionId string = pauseResumeRole.id
+output actionGroupId string = actionGroup.id
