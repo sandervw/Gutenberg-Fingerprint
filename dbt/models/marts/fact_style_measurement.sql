@@ -4,10 +4,19 @@
 -- Incremental: loaded_at watermark selects new rows; merge on measurement_key
 -- upserts re-measured works.
 
+-- post_hook: nb_filter overwrites raw_works, so a roster change drops works out
+-- of the dims while their old fact rows survive the incremental merge. Sweep the
+-- rows whose keys no longer resolve; dim_work builds first, so it reads current.
+
 {{ config(
     materialized='incremental',
     unique_key='measurement_key',
-    on_schema_change='fail'
+    on_schema_change='fail',
+    post_hook="
+        delete from {{ this }}
+        where work_key not in (select work_key from {{ ref('dim_work') }})
+           or author_key not in (select author_key from {{ ref('dim_author') }})
+    "
 ) }}
 
 with measurements as (

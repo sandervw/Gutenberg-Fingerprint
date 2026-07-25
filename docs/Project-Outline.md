@@ -179,3 +179,4 @@ Evidence auth or the parquet decouple (§6), new dashboard pages (pipeline healt
 2. Pipeline-health page from `fact_ingestion_run`.
 3. Make CLAUDE erase 75% of the bloated words in its references docs: no 'this, not that', no 'discovered on', no 'X confirmed that' - write down exactly the way a thing is working (without double-checking, again) and absolutely nothing else; if it sounds like a redditer wrote it, erase and rewrite
 4. README; remove memory, and any other CLAUDE garbage.
+5. **Next Phase:** Replace every part of this project owned by microsoft (Fabric, Azure) with something that isn't an overly complicated piece of fucking sewage, designed to make normal humans' lives hard. ('Enterprisey' doesn't mean shit if it makes me hate the project).
