@@ -101,6 +101,12 @@ The Full stack
 - ODBC Driver 18 — speaks TDS on our wire (our fresh install)
 - Warehouse SQL endpoint — Azure, where all real work happens
 
+### Commands
+
+`az resource invoke-action --action resume --resource-group DefaultResourceGroup-CUS --name gbfabric --resource-type Microsoft.Fabric/capacities` # resume fabric capacity
+
+`uv run python scripts/deploy_fabric.py` # Deploy fabric objects
+
 ## dbt
 
 ### Models
