@@ -47,6 +47,13 @@ models:
               arguments:
                 to: ref('dim_author')
                 field: author_key
+      - name: genre
+        description: "Sci-Fi / Fantasy / Undetermined, carried off stg_works. The self corpus is seeded as 'speculative fiction' and lands Undetermined, so the 26 self works never skew a genre split."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Sci-Fi", "Fantasy", "Undetermined"]
       - name: prose_type
         description: "Size band off word_count (<10k short-story, <40k novella, else novel); null when unmeasured."
         data_tests:

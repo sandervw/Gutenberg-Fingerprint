@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: stg_works
-    description: "One row per work (689): catalog fields off silver raw_works plus derived corpus flags. Flagged works stay in; Evidence filters at query time."
+    description: "One row per work (4,405)."
     columns:
       - name: gutenberg_id
         description: "PG's natural key. PK + grain guard."
@@ -13,22 +13,29 @@ models:
         data_tests:
           - not_null
       - name: author_name
-        description: "Primary (first-listed) author: role tags and dates stripped by parse_primary_author; blank authors land as 'Unknown'. The hash input for author_key in both dims."
+        description: "Primary (first-listed) author."
         data_tests:
           - not_null
+      - name: genre
+        description: "Sci-Fi (3,224), Fantasy (720), or Undetermined (461)."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Sci-Fi", "Fantasy", "Undetermined"]
       - name: is_translation
-        description: "'[Translator]' author marker, 'Translations into English' subject, or foreign-literature LoC class (PA/PG/PH/PJ/PK/PL/PQ/PT). ~35 works."
+        description: "'[Translator]' author marker."
         data_tests:
           - not_null
       - name: is_juvenile
-        description: "PZ LoC class or 'juvenile' subject keyword. ~256 works."
+        description: "PZ LoC class or 'juvenile' subject keyword. ~459 works."
         data_tests:
           - not_null
       - name: is_play
-        description: "'drama'/'plays' subject keyword or Plays/Films/Dramas bookshelf. Script formatting poisons prose stylometrics. ~14 works."
+        description: "'drama'/'plays' subject keyword or Plays/Films/Dramas bookshelf."
         data_tests:
           - not_null
       - name: is_poetry
-        description: "'poetry' subject keyword. Bookshelf Category: Poetry deliberately excluded (tags prose Poe/Dunsany collections). Misses verse epics subject-tagged as saga only (13486/18328). ~17 works."
+        description: "'poetry' subject keyword."
         data_tests:
           - not_null

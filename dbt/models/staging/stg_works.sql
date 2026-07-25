@@ -15,6 +15,7 @@ select
     cast(nullif(issued, '') as date)                as issued,
     cast(subjects as {{ dbt.type_string() }})       as subjects,
     cast(bookshelves as {{ dbt.type_string() }})    as bookshelves,
+    cast(genre as {{ dbt.type_string() }})          as genre,
     case
         when lower(authors) like '%translator%'                 then 1
         when lower(subjects) like '%translations into english%' then 1

@@ -25,6 +25,9 @@ No dbt init — that scaffolds an empty project; we're porting a real one.
 `duckdb -ui prose_fingerprint/warehouse.duckdb`      # browser UI (object tree + grid)
 `duckdb prose_fingerprint/warehouse.duckdb `         # SQL shell: .tables, SELECT ... LIMIT 10
 
+`dbt docs generate` # compile metadata
+`dbt docs serve`    # launch local web server to view data lineage
+
 ## Python extract
 
 Run on a notebook in fabric (not a script on my pc)
