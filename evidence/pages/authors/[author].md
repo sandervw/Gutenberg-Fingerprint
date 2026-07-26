@@ -5,15 +5,11 @@ title: Author Summary
 # {params.author}
 
 ```sql summary
-with measured_works as (
-    select distinct work_key, word_count
-    from warehouse.mart_style_long
-    where author = '${params.author.replaceAll("'", "''")}'
-)
 select
-    count(*) as works,
-    sum(word_count) as total_words
-from measured_works
+    works,
+    total_words
+from warehouse.mart_author
+where author = '${params.author.replaceAll("'", "''")}'
 ```
 
 <Grid cols=2>
@@ -138,12 +134,12 @@ order by abs(zscore) desc
 ## Works
 
 ```sql works
-select distinct
+select
     title,
     prose_type,
     word_count,
     '/works/' || work_id as link
-from warehouse.mart_style_long
+from warehouse.mart_work
 where author = '${params.author.replaceAll("'", "''")}'
 order by word_count desc
 ```

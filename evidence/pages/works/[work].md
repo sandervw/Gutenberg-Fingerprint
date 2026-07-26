@@ -4,14 +4,14 @@ neverShowQueries: true
 ---
 
 ```sql work
-select distinct
+select
     title,
     author,
     genre,
     prose_type,
     word_count,
     '/authors/' || author as author_link
-from warehouse.mart_style_long
+from warehouse.mart_work
 where work_id = '${params.work}'
 ```
 
@@ -25,8 +25,8 @@ This work's z-score minus the author's average.
 
 ```sql deviation
 with this_author as (
-    select distinct author_key
-    from warehouse.mart_style_long
+    select author_key
+    from warehouse.mart_work
     where work_id = '${params.work}'
 ),
 author_avg as (

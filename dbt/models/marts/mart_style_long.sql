@@ -1,41 +1,25 @@
--- mart_style_long
--- Report-serving OBT: fact_style_measurement denormalized against its dims, kept
--- LONG (one row per work x child series, 8,505). Pre-joins the dims and precomputes
--- series_label so Evidence pages select-and-filter without re-joining the star.
--- The star schema stays the source of truth; this is the flat serving layer on top.
+-- Report-serving OBT at work x child series grain.
+-- Work and author attributes live in mart_work and mart_author.
 
 with fact as (
     select * from {{ ref('fact_style_measurement') }}
 )
 
 select
-    -- work
+    -- keys the pages filter on
     f.work_key,
     w.work_id,
-    w.title,
-    w.genre,
-    w.prose_type,
-    w.word_count,
-    w.is_translation,
-    w.is_juvenile,
-    w.is_play,
-    w.is_poetry,
-    w.ingested_at,
-
-    -- author
     f.author_key,
     a.name as author,
-    a.is_self,
 
     -- metric
     f.metric_key,
     f.metric_name,                       -- child series, e.g. funcword_the
-    dm.metric_name as concept_name,      -- parent concept, e.g. function_word_frequency
+    dm.metric_name as concept_name,      -- parent concept
     dm.display_name,
-    dm.description,
     dm.category,
     dm.is_multivalue,
-    case dm.metric_name                  -- child label with the family prefix stripped
+    case dm.metric_name                  -- child label, family prefix stripped
         when 'function_word_frequency' then replace(f.metric_name, 'funcword_', '')
         when 'sentence_type_mix'       then replace(f.metric_name, 'senttype_', '')
         when 'punctuation_frequency'   then replace(f.metric_name, 'punct_', '')

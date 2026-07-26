@@ -5,17 +5,12 @@ title: Authors
 Authors with at least one measured work.
 
 ```sql authors
-with measured_works as (
-    select distinct author, work_key, word_count
-    from warehouse.mart_style_long
-)
 select
     author as name,
-    count(*) as works,
-    sum(word_count) as words,
+    works,
+    total_words as words,
     '/authors/' || author as link
-from measured_works
-group by author
+from warehouse.mart_author
 order by works desc, author
 ```
 

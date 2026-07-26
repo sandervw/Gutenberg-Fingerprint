@@ -1,35 +1,28 @@
 # CLAUDE.md
 
-**IMPORTANT (project override, added 2026-07-08):** The global "keep replies under 150 words" rule is **increased to 250 for this learning project**. Keep explanations clear, but focused (no padding, no restating known facts, no 'not this, but that', no 'key findings from').
+Nightly CDC pipeline over the Project Gutenberg sci-fi/fantasy corpus: Fabric (Lakehouse + Warehouse + Data Factory) → dbt → Evidence, published to Cloudflare Pages at https://gufime.com/.
 
-**NOTE:** Treat Fabric and Azure as unreliable by default: assume undocumented behaviour, silent breaking changes, and awkward workarounds. Verify against current docs rather than expectation, and never assume a thing works the way it should.
+`README.md` is the architecture. `docs/Project-Outline.md` is the design and the roadmap. `docs/reference/` holds verified tech notes.
 
-## Implementation docs
+## Rules
 
-`docs\Project-Outline.md` documents the project's finished design. Consult it as the reference.
+- **Never add, stage, or commit to git.**
+- **All comments, descriptions, and other forms of 'in-code documentation', must be 12 words or fewer. No exceptions.**
+- **Never rely on memory for tech specs.** Check `docs/reference/` first; if it isn't covered there, fetch current docs (Context7 / Microsoft Learn MCP / official sources), then update the ref file.
+- **Treat Fabric and Azure as unreliable.** Undocumented behaviour, silent breaking changes, awkward workarounds. Verify against current docs; never assume a thing works the way it should.
+- **No verification nagging.** When something ran and passed, it's done. Name the next concrete step instead.
+- For a significant or hard-to-reverse design choice, give the options and a recommendation before committing to it.
 
-Reference the past project for design choices related to dbt, python, or evidence: `C:\Users\Sander\OneDrive\Documents\Github\Fiction-Fingerprint`
+## Facts that bite
 
-## How we work
-
-- The user is still learning, so **you are also the documentation**: explain what you're doing and why as you go, enough to follow without leaving the editor. dbt/DuckDB basics are known; assume **zero prior Fabric knowledge**.
-- **Build piece-by-piece, pause at boundaries.** Batch closely related steps (multiple edits to one model, a run+test cycle), but **stop and check in before moving to a new type of file or a set of commands serving a different purpose** — e.g. switching from dbt work to pipeline work. Don't gate every individual command or file.
-- For a **significant or hard-to-reverse design/tech choice**, call out the options and your recommendation before committing to it.
-- **Never rely on memory for code/tech specs.** Check the local refs in `docs/reference/`. If they don't cover it, fetch current docs (Context7 / Microsoft Learn MCP / official sources), then update the ref files.
-- **Be lean, not clipped.** No filler, no restating known facts, no exhaustive examples — but explanations get full room (see word-cap override above).
-- **No verification nagging.** Never suggest the user double-check, re-check, rerun, smoke-test, or "prove" something — not at session start, session end, or mid-conversation. When something ran and passed, it's done; name the next concrete step instead.
-- **Never add, stage, or GIT commit.**
-- **Checkpoint ritual.** When the user wraps up a session ("done for a while", "add a left-off memory"), overwrite the `project-checkpoint` memory in place.
-- **Never add another memory.** `project-checkpoint` is the only memory; overwrite it in place, never create new memory files.
-
-## Deployment
-
-- The Evidence site (`evidence/`) is published to Cloudflare Pages at **https://gufime.com/** (GUtenberg FIction MEtrics). Pages project root directory `evidence`, build `npm run sources && npm run build`, output `build`. Node pinned by `evidence/.node-version`.
-- Styling mirrors the user's other site, **wordleaves.com** (see `evidence/sparse.css` + `evidence/wordleaves.css`: cream/charcoal, copper accent, iA Writer Quattro font).
+- dbt models must compile on **both** targets: `duckdb` (local dev) and `fabric` (T-SQL, prod). Cross-db `dbt_utils` macros, or dispatch per adapter.
+- Fabric's dbt job builds a branch **from its root** with no folder-path option, so `dbt/` is subtree-split onto the `fabric-dbt` branch by `.github/workflows/sync-fabric-dbt.yml`. Fabric service updates have broken this path before.
+- Everything in `fabric/` is source-controlled and deployed by `scripts/deploy_fabric.py` (fabric-cicd); `fabric/parameter.yml` maps baked-in GUIDs to variables.
+- The capacity must be **running during the Cloudflare build**: `evidence/scripts/fetch-sources.js` pulls parquet from OneLake, and a paused capacity rejects OneLake calls. Suspend is the last step in the Logic App.
+- Evidence reads parquet from `evidence/data/warehouse/`, not `sources/`. Run `npm run sources` (not just `build`) or the extract comes back cached. `Error in Data Table: Dataset is empty` in the build log is known noise.
+- Reading OneLake Delta from the laptop: `az account get-access-token --resource https://storage.azure.com`, then `deltalake.DeltaTable(uri, storage_options={"bearer_token": tok, "use_fabric_endpoint": "true"})`, with `PYTHONIOENCODING=utf-8`. `az` may default to a tenant-level account showing no subscriptions; `az account list --refresh`, then `az account set`.
+- Site styling mirrors wordleaves.com (`evidence/sparse.css` + `evidence/wordleaves.css`): cream/charcoal, copper accent, iA Writer Quattro.
 
 ## Environment
 
-- Windows 11, bash terminal, VS Code. Python 3.14 and `uv` are installed.
-- Before suggesting any `uv` command, explain how it differs from plain `python`/`pip`.
-
----
+Windows 11, PowerShell, VS Code. Python via `uv` (`uv run ...`), Node 24 for Evidence (pinned in `evidence/.node-version`).
