@@ -279,8 +279,8 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
               }
               expression: '@contains(createArray(\'success\',\'failure\',\'canceled\',\'skipped\'), coalesce(first(body(\'Get_deployment\')?[\'result\'])?[\'latest_stage\']?[\'status\'], \'\'))'
               limit: {
-                count: 40
-                timeout: 'PT20M'
+                count: 120
+                timeout: 'PT30M'
               }
               actions: {
                 Wait_15s: {

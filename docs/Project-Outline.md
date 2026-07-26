@@ -169,7 +169,7 @@ Data Factory pipeline, resume/pause bracket, nightly schedule — Logic App `la-
 Workspace items are source-controlled too: `fabric/` holds the item definitions, and `scripts/deploy_fabric.py` publishes them.
 
 ### Phase 5 — Serve + Polish (wk 5–6)
-Evidence auth or the parquet decouple (§6), new dashboard pages (pipeline health from `fact_ingestion_run`), README, repo public. **Done when:** a hiring manager can read the repo and a stranger can browse the site.
+Pipeline health from `fact_ingestion_run`, README, repo public. **Done when:** a hiring manager can read the repo and a stranger can browse the site.
 
 ---
 
