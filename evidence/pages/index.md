@@ -3,11 +3,11 @@ title: Gutenberg Fiction Metrics
 neverShowQueries: true
 ---
 
-A metric-based comparison of authors and works of fantasy and science fiction in [Project Gutenberg](https://www.gutenberg.org/). Measured as **z-scores**. Positive means a work does *more* of something than the typical work; negative, less.
+A metric-based comparison of fantasy and science fiction in [Project Gutenberg](https://www.gutenberg.org/). Measured as **z-scores**. Positive means a work does *more* of something than the typical work; negative, less.
 
-## Biggest Outliers
+## Wierdest Works
 
-The most statistically distinctive works, ranked by an **excess** index: for each work, the sum of every metric's z-score beyond ±2. This rewards both *how many* extreme scores a work has and *how* extreme they are. Works under 20,000 words are excluded.
+The most statistically distinctive fiction, ranked by an **excess** index: for each work, the sum of every metric's z-score beyond ±2. Works under 20,000 words are excluded.
 
 Use the grid to filter by category (unselected = include all, **Yes** = only, **No** = exclude).
 
@@ -93,7 +93,7 @@ order by dm.display_name
 
 ## Vocabulary Overlap
 
-Jaccard overlap of vocabulary. How [my fiction](https://wordleaves.com) compares to other authors in the corpus. Higher = more shared words.
+Jaccard overlap of vocabulary. How [my fiction](https://wordleaves.com) compares to other authors. Higher = more shared words.
 
 ```sql kinship
 select
