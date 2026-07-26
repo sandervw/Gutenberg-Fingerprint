@@ -175,6 +175,5 @@ Pipeline health from `fact_ingestion_run`, README, repo public. **Done when:** a
 
 ## Remaining
 
-1. Make CLAUDE erase 75% of the bloated words in its references docs: no 'this, not that', no 'discovered on', no 'X confirmed that', no *justification* - write down exactly the way a thing is working (without double-checking, again) and absolutely nothing else; if it sounds like a redditer wrote it, erase and rewrite
-2. README; remove memory, and any other CLAUDE garbage.
-3. **Next Phase:** Replace the Microsoft-owned pieces of this project (Fabric, Azure) with a simpler, more transparent stack. The enterprise tooling costs more time in workarounds than it returns at this scale.
+1. README; remove memory, and any other CLAUDE garbage.
+2. **Next Phase:** Replace the Microsoft-owned pieces of this project (Fabric, Azure) with a simpler, more transparent stack. The enterprise tooling costs more time in workarounds than it returns at this scale.
