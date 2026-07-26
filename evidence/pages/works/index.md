@@ -9,8 +9,8 @@ Click a work to see its details.
 select name from (
     select 'All authors' as name, 0 as ord
     union all
-    select distinct author, 1
-    from warehouse.mart_style_long
+    select author, 1
+    from warehouse.mart_author
 )
 order by ord, name
 ```
@@ -19,7 +19,7 @@ order by ord, name
 <TextInput name=title_search title="Title contains" />
 
 ```sql works
-select distinct
+select
     title,
     author,
     word_count,
@@ -28,7 +28,7 @@ select distinct
     case when is_poetry = 1 then '✓' else '' end as poetry,
     case when is_translation = 1 then '✓' else '' end as translation,
     '/works/' || work_id as link
-from warehouse.mart_style_long
+from warehouse.mart_work
 where ('${inputs.author.value.replaceAll("'", "''")}' = 'All authors'
         or author = '${inputs.author.value.replaceAll("'", "''")}')
     and title ilike '%${String(inputs.title_search).replaceAll("'", "''")}%'

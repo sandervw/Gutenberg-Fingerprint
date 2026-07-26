@@ -128,24 +128,52 @@ models:
                 max_value: 1
                 inclusive: true
 
-  - name: mart_work_fingerprint
-    description: "Wide pivot of fact_style_measurement: one row per work, a z-score column per series (63)."
+  - name: mart_work
+    description: "Work-grain serving mart: dim_work attributes, author name, excess index."
     columns:
       - name: work_key
-        description: "PK + grain guard (one row per work)."
+        description: "PK + grain guard (one row per measured work)."
         data_tests:
           - unique
           - not_null
       - name: author_key
-        description: "FK to dim_author; the handle for rolling works up to author."
+        description: "FK to dim_author."
         data_tests:
+          - not_null
           - relationships:
               arguments:
                 to: ref('dim_author')
                 field: author_key
+      - name: excess
+        description: "Distinctiveness index: summed z-score mass beyond +/-2."
+        data_tests:
+          - not_null
+      - name: series_measured
+        description: "Series measured for this work; guards silent partial loads."
+        data_tests:
+          - not_null
+
+  - name: mart_author
+    description: "Author-grain serving mart: work and word rollups over mart_work."
+    columns:
+      - name: author_key
+        description: "PK + grain guard (one row per author with works)."
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_author')
+                field: author_key
+      - name: works
+        description: "Measured works held by this author."
+        data_tests:
+          - not_null
+      - name: total_words
+        description: "Summed word_count; null when any work is unmeasured."
 
   - name: mart_style_long
-    description: "Report-serving OBT: fact_style_measurement denormalized against its dims, kept long, with a precomputed series_label. Feeds the Evidence pages so they don't re-join the star."
+    description: "Measurement OBT at work x child series grain, with precomputed series_label."
     data_tests:
       - dbt_utils.unique_combination_of_columns: # grain = work x child series
           arguments:
