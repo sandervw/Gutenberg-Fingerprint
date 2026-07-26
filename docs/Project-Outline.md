@@ -2,7 +2,7 @@
 
 A nightly, change-data-capturing pipeline that watches the Project Gutenberg fantasy catalog, lands new/updated books in a Fabric Lakehouse, extracts stylometrics, and rebuilds dbt → Evidence.
 
-**NOTE TO SELF:** any dbt changes need to be reflected in the fabric-dbt branch (because, of course, Microsoft can't make a simple working service - it ahs to be some overly-ornate piece of fragile fucking garbage, which they then proceed to update monthly, breaking it more.)
+**NOTE TO SELF:** any dbt changes need to be reflected in the `fabric-dbt` branch. Fabric's dbt job reads a branch root only, so `dbt/` is republished there by CI; monthly service updates have broken this path before, so check it after a Fabric release.
 
 ---
 
@@ -178,4 +178,4 @@ Pipeline health from `fact_ingestion_run`, README, repo public. **Done when:** a
 1. Pipeline-health page from `fact_ingestion_run`.
 2. Make CLAUDE erase 75% of the bloated words in its references docs: no 'this, not that', no 'discovered on', no 'X confirmed that' - write down exactly the way a thing is working (without double-checking, again) and absolutely nothing else; if it sounds like a redditer wrote it, erase and rewrite
 3. README; remove memory, and any other CLAUDE garbage.
-4. **Next Phase:** Replace every part of this project owned by microsoft (Fabric, Azure) with something that isn't an overly complicated piece of fucking sewage, designed to make normal humans' lives hard. ('Enterprisey' doesn't mean shit if it makes me hate the project).
+4. **Next Phase:** Replace the Microsoft-owned pieces of this project (Fabric, Azure) with a simpler, more transparent stack. The enterprise tooling costs more time in workarounds than it returns at this scale.

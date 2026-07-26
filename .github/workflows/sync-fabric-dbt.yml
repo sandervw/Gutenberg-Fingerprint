@@ -1,8 +1,7 @@
 name: Sync dbt project to fabric-dbt
 
 # Fabric's dbt job builds a GitHub branch from its root and has no folder-path
-# Fuck fabric
-# Fuck microsoft
+# option, so dbt/ has to be hoisted to the root of a branch of its own.
 on:
   push:
     branches: [main]

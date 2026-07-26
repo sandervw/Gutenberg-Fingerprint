@@ -5,7 +5,7 @@ neverShowQueries: true
 
 A metric-based comparison of fantasy and science fiction in [Project Gutenberg](https://www.gutenberg.org/). Measured as **z-scores**. Positive means a work does *more* of something than the typical work; negative, less.
 
-## Wierdest Works
+## Weirdest Works
 
 The most statistically distinctive fiction, ranked by an **excess** index: for each work, the sum of every metric's z-score beyond ±2. Works under 20,000 words are excluded.
 
