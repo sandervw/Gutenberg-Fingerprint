@@ -26,12 +26,16 @@ models:
           - not_null
 
   - name: dim_work
-    description: "One row per work: catalog works (stg_works) + self corpus (seed_authors)."
+    description: "One row per work: catalog works (stg_works) + self corpus (seed_authors). Incremental; post_hook sweeps departed works."
     columns:
       - name: work_key
         description: "Surrogate hash of work_id."
         data_tests:
           - unique
+          - not_null
+      - name: ingested_at
+        description: "When the work first entered the corpus; held across runs."
+        data_tests:
           - not_null
       - name: word_count
         description: "Alpha-token count off raw_measurements' word_count series; null for works the measure notebook hasn't landed."
