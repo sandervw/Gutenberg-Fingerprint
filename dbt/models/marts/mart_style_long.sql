@@ -13,8 +13,14 @@ select
     f.work_key,
     w.work_id,
     w.title,
+    w.genre,
     w.prose_type,
     w.word_count,
+    w.is_translation,
+    w.is_juvenile,
+    w.is_play,
+    w.is_poetry,
+    w.ingested_at,
 
     -- author
     f.author_key,
