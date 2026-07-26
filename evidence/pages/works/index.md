@@ -19,25 +19,20 @@ order by ord, name
 <TextInput name=title_search title="Title contains" />
 
 ```sql works
-select
-    dw.title,
-    da.name as author,
-    dw.word_count,
-    case when dw.is_juvenile = 1 then '✓' else '' end as juvenile,
-    case when dw.is_play = 1 then '✓' else '' end as play,
-    case when dw.is_poetry = 1 then '✓' else '' end as poetry,
-    case when dw.is_translation = 1 then '✓' else '' end as translation,
-    '/works/' || dw.work_id as link
-from warehouse.dim_work dw
-join warehouse.dim_author da
-    on dw.author_key = da.author_key
-where dw.work_key in (
-    select work_key from warehouse.mart_style_long
-)
-    and ('${inputs.author.value.replaceAll("'", "''")}' = 'All authors'
-        or da.name = '${inputs.author.value.replaceAll("'", "''")}')
-    and dw.title ilike '%${String(inputs.title_search).replaceAll("'", "''")}%'
-order by dw.word_count desc nulls last
+select distinct
+    title,
+    author,
+    word_count,
+    case when is_juvenile = 1 then '✓' else '' end as juvenile,
+    case when is_play = 1 then '✓' else '' end as play,
+    case when is_poetry = 1 then '✓' else '' end as poetry,
+    case when is_translation = 1 then '✓' else '' end as translation,
+    '/works/' || work_id as link
+from warehouse.mart_style_long
+where ('${inputs.author.value.replaceAll("'", "''")}' = 'All authors'
+        or author = '${inputs.author.value.replaceAll("'", "''")}')
+    and title ilike '%${String(inputs.title_search).replaceAll("'", "''")}%'
+order by word_count desc nulls last
 ```
 
 <DataTable data={works} link=link rows=25>

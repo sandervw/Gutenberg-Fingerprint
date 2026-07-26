@@ -5,15 +5,15 @@ title: Author Summary
 # {params.author}
 
 ```sql summary
+with measured_works as (
+    select distinct work_key, word_count
+    from warehouse.mart_style_long
+    where author = '${params.author.replaceAll("'", "''")}'
+)
 select
-    da.name,
-    count(distinct dw.work_key) as works,
-    sum(dw.word_count) as total_words
-from warehouse.dim_author da
-join warehouse.dim_work dw
-    on dw.author_key = da.author_key
-where da.name = '${params.author.replaceAll("'", "''")}'
-group by da.name
+    count(*) as works,
+    sum(word_count) as total_words
+from measured_works
 ```
 
 <Grid cols=2>
@@ -138,16 +138,14 @@ order by abs(zscore) desc
 ## Works
 
 ```sql works
-select
-    dw.title,
-    dw.prose_type,
-    dw.word_count,
-    '/works/' || dw.work_id as link
-from warehouse.dim_work dw
-join warehouse.dim_author da
-    on dw.author_key = da.author_key
-where da.name = '${params.author.replaceAll("'", "''")}'
-order by dw.word_count desc
+select distinct
+    title,
+    prose_type,
+    word_count,
+    '/works/' || work_id as link
+from warehouse.mart_style_long
+where author = '${params.author.replaceAll("'", "''")}'
+order by word_count desc
 ```
 
 <DataTable data={works} link=link rows=all>
