@@ -1,116 +1,54 @@
 # Microsoft Fabric reference
 
-Local cheat-sheet from Microsoft Learn. Covers the Fabric pieces this project touches: capacities, Lakehouse/Warehouse, notebooks, dbt-fabric, dbt job, pause/resume.
+## Capacity
 
----
+- Pause/resume: capacity blade, or REST `.../suspend`, `.../resume` (RBAC `suspend/action`, `resume/action`).
+- Pausing settles the smoothed usage backlog as a one-time charge; clears throttling.
+- Pause kills availability mid-run; sequence after all work. OneLake storage bills while paused.
 
-## Core concepts
+## SQL analytics endpoint
 
-- **Capacity** = the compute meter. F SKUs sized in Capacity Units (CU): F2 = 2 CU, F4 = 4, F64 = 64. Trial capacity: starts at **4 CU**, resizable to 64 via Admin portal → Capacity settings → Trial → Change size; 60 days; **doesn't support pause/resume** (paid F SKU only). At trial end: items go inactive, content kept in OneLake 7 days, revive by assigning workspace to a paid F capacity.
-- **Trial sign-in gotcha**: Fabric blocks personal-MSA sign-ins (gmail etc.). Path per Learn `free-trial-account-personal-email`: create a native Entra user in the tenant (Azure portal → Entra ID → Users → New user), sign in at app.fabric.microsoft.com with its UPN, Account manager (profile pic, top-right) → Start/Free trial → pick region → Activate. Region is sticky — moving Fabric items cross-region later means deleting them first; match the region you'd buy paid F2 in.
-- **IaC status**: paid F capacities are ARM resources (`Microsoft.Fabric/capacities`, Bicep-able). Trial capacity is portal-only. Workspaces/items sit on Fabric's own control plane — Fabric REST API / Terraform Fabric provider, not ARM/Bicep.
-- **Workspace** = container for items (Lakehouse, Warehouse, notebooks, pipelines, dbt jobs), assigned to a capacity.
-- Everything stores to **OneLake** as Delta/Parquet; engines share the same files. OneLake is *the* lake (one per tenant); a Lakehouse item is a database-shaped container over it — multiple Lakehouses copy no data.
-- **Medallion deployment**: recommended = one lakehouse per layer (enterprises: one *workspace* per layer for isolation). Alternative = one schema-enabled lakehouse with bronze/silver/gold schemas (used in MS tutorials). Schema-enabled limitations: no workspace-level sharing, no external ADLS table metadata, and **no conversion path** plain↔schema-enabled after creation. Bronze guidance: keep source format (Files/ ok); silver/gold: Delta tables.
-- F2 PAYG ≈ $0.18/CU/hr US regions → ~$263/mo if left running. Pause = step zero of FinOps (see project doc §5).
+- Read-only T-SQL; only Delta tables surface, not `Files/`. dbt materializes into `wh_gold`, reads silver as `<Lakehouse>.dbo.<table>`.
+- Metadata syncs from Delta logs in background; lag hits overwrites too. A full `raw_measurements` overwrite served stale data 6+ min after the write, fresh ~25 min later. Interactive notebook runs report `InProgress` until the session closes.
+- Force a sync: `fab api -X post "workspaces/<ws>/sqlEndpoints/<id>/refreshMetadata?preview=true" -i "{}"`; returns per-table status.
+- Unsupported Delta column types are silently omitted, no error. `TIMESTAMP_NTZ` is unsupported (Lakehouse explorer still shows it). Chain: DuckDB `TIMESTAMP` -> Parquet `isAdjustedToUTC=false` -> Delta `timestamp_ntz` -> dbt "Invalid column name". Fix: export `TIMESTAMPTZ` (`timezone('UTC', col)`) -> `datetime2(6)`.
 
-## Lakehouse vs Warehouse
+## Notebooks, Python kernel
 
-| | Lakehouse | Warehouse |
-|---|---|---|
-| Write path | Spark / Python notebooks, pipelines | T-SQL (full DML/DDL), dbt |
-| Delta | read + write | read + write |
-| T-SQL | via **SQL analytics endpoint — read-only** (views/TVFs ok, no DML) | full |
+- Python 3.12 (Learn says 3.10/3.11). DuckDB, Polars, delta-rs preinstalled.
+- delta-rs cannot write Delta through `/lakehouse/default/`: `DeltaError: Failed to parse parquet: External: Generic LocalFileSystem error: Upload aborted`. Raw CSV over the mount works. Use abfss on every `write_deltalake` / `DeltaTable(...)` / `DeltaTable.create(...)`:
 
-- Every Lakehouse auto-provisions a **SQL analytics endpoint**: read-only T-SQL over its Delta tables, same engine as Warehouse. This is why dbt models must materialize in a Warehouse and read silver via **three-part naming**: `MyLakehouse.dbo.table`.
-- Cross-database queries work within a workspace: `SELECT ... FROM Lakehouse.dbo.t JOIN Warehouse.dbo.u`.
-- Endpoint metadata syncs from Delta logs in the background — new/changed Lakehouse tables can lag before appearing in SQL. **Applies to overwritten data too, not just new tables**: observed 2026-07-16, a full `raw_measurements` overwrite still served the previous version through the endpoint 6+ min after the Delta write (fresh ~25 min later). Job status is equally misleading meanwhile (interactive notebook runs stay "InProgress" until the session closes, long after cells finish). For the nightly loop: dbt must not fire blindly right after nb_measure — gate on `max(loaded_at)` advancing, or force a sync (REST `sqlendpoints/.../refreshmetadata`; verified 2026-07-18: `fab api -X post "workspaces/<ws>/sqlEndpoints/<id>/refreshMetadata?preview=true" -i "{}"` returns per-table sync status and surfaced a fresh `raw_measurements` write instantly).
-- Only Delta tables surface in the endpoint (not raw CSV/Parquet in `Files/`).
-- **Endpoint silently omits columns of unsupported Delta types** (Learn: `data-warehouse/data-types#autogenerated-data-types-in-the-sql-analytics-endpoint`, `fundamentals/delta-lake-interoperability`). No error — the auto-generated T-SQL table just lacks the column. `TIMESTAMP_NTZ` (timestamp *without* time zone) is unsupported at the endpoint, though Lakehouse explorer displays it fine. Failure signature: DuckDB plain `TIMESTAMP` → Parquet `isAdjustedToUTC=false` → Delta `timestamp_ntz` → column invisible to dbt ("Invalid column name"). Fix: export timestamps as `TIMESTAMPTZ` (`timezone('UTC', col)` in DuckDB) → Delta `timestamp` → endpoint `datetime2(6)`.
-
-## Notebooks (Python kernel vs Spark)
-
-- **Python kernel**: single node, default 2 vCores/16 GB = **1 CU**, ~5s start. DuckDB, Polars, delta-rs preinstalled. Our choice — corpus is GBs, not TBs.
-- **Spark starter pool**: ~5s start but 8 CU after scale-up. Use only if data outgrows a single node (~10 GB+ compressed).
-- **Delta-write gotchas on the Python kernel** (matters for bronze/silver):
-  - **delta-rs cannot write Delta through the `/lakehouse/default/` mount**: `DeltaError: Failed to parse parquet: External: Generic LocalFileSystem error: Upload aborted`. The fuse mount handles flat sequential byte streams fine (raw CSV into `Files/` worked) but aborts delta-rs's parquet-upload/commit pattern. Fix (Learn, `onelake/onelake-azure-databricks`): write via `abfss://<ws>@onelake.dfs.fabric.microsoft.com/<lh>.Lakehouse/Tables/<t>` with `storage_options={"bearer_token": notebookutils.credentials.getToken("storage"), "use_fabric_endpoint": "true"}` on **every** `write_deltalake` / `DeltaTable(...)` / `DeltaTable.create(...)`. Token lives ~1 h.
-  - **Schema-enabled lakehouse → schema folder is part of the table path** (lh_silver is schema-enabled, lh_bronze is not). Write `Tables/<schema>/<table>` (e.g. `Tables/dbo/works`); a root-level `Tables/<table>` write lands in the explorer's "Unidentified" area and never surfaces at the SQL endpoint (Learn: `data-engineering/lakehouse-schemas`, `navigate-lakehouse-explorer#tables`). No conversion path plain↔schema-enabled after creation.
-  - No Python engine writes **deletion vectors**; writing to a table with them enabled errors. Create tables without DVs if Python writes them.
-  - **DuckDB INSERT never writes checkpoints** → transaction log grows unbounded. Prefer **delta-rs** (`deltalake` lib) as the writer; DuckDB/Polars for compute.
-  - delta-rs default checkpoint interval is 100 commits (Spark: 10) — set lower; run periodic `optimize`/`vacuum lite` via delta-rs.
-- `notebookutils` data connector lets Python notebooks run T-SQL against Warehouse/endpoints: `conn = notebookutils.data.connect_to_artifact("wh_gold")` (workspace_id/type optional in-workspace) → `df = conn.query("SELECT ...")` returns a pandas frame (preview, Python-kernel only; Learn: `using-python-experience-on-notebook#data-utilities`). Column-mapping-transparent — see next.
-- **Don't read Warehouse tables with delta-rs — use the SQL connector.** Warehouse publishes its OneLake Delta logs with the `columnMapping` reader feature enabled (physical parquet columns are UUIDs, logical names in the log). `deltalake.DeltaTable(<wh table abfss>)` → `DeltaProtocolError: reader features {'columnMapping'} ... not yet supported by the deltalake reader` (hit 2026-07-21 exporting gold marts to parquet). Lakehouse tables don't set it, which is why the silver notebooks read fine over abfss. T-SQL via `notebookutils.data` is blind to column mapping; discover tables through `INFORMATION_SCHEMA.TABLES` (`TABLE_TYPE='BASE TABLE'` excludes the staging/intermediate views).
-- **spaCy model wheels declare NO dependencies** (verified in en_core_web_sm 3.8.0 METADATA, 2026-07-15): installing only the model wheel leaves `import spacy` at ModuleNotFoundError. Install spacy explicitly alongside: `%pip install spacy==3.8.14 <model-wheel-url>`.
-- **Calling one notebook from another** (Learn: `data-engineering/author-execute-notebook#reference-run-a-notebook`, `notebookutils/notebookutils-notebook-run`, `using-python-experience-on-notebook#run-python-notebooks`; both mechanisms work on the Python kernel):
-  - **`%run <NotebookName>`** — executes the referenced notebook **in the current session's context**: its functions and variables become available in the caller, like an import. Same workspace only; params limited to int/float/bool/string (we don't need any — we want the function defs); nesting ≤ 5, no recursion. On Python notebooks `%run` takes notebook *items* only — the `-b` built-in-resource script variant is Spark-kernel-only. **Each `%run` must be alone in its cell** — stacking two `%run` lines (or mixing with other code) throws `MagicUsageError: %run cannot run with other code or magic commands` (hit 2026-07-15).
-  - **`notebookutils.notebook.run("name", timeout_s, {args}, [workspace_id])`** — runs the child as a **separate batch job** with its own snapshot; only a string exit value (`notebookutils.notebook.exit(v)`) comes back, no shared state. For orchestration, not code reuse. `runMultiple()` runs a DAG of notebooks concurrently. Child must use same/inherited default lakehouse (or none), else blocked — `useRootDefaultLakehouse: True` in args bypasses.
-- **Plain-file access to a non-default lakehouse** (Learn: `notebookutils/notebookutils-mount`, `notebookutils-file-system`): `notebookutils.fs.mount("abfss://<ws>@onelake.dfs.fabric.microsoft.com/<lh>.Lakehouse", "/<name>")` (Entra token auth only, global endpoint only), then standard `open()`/pathlib under `notebookutils.fs.getMountPath("/<name>")` — `Files/...` lives under that root. Small sequential writes are the fuse-friendly case (cf. delta-rs gotcha above). NB: in Python notebooks, *relative* `notebookutils.fs.*` paths resolve to the local working dir, not the default lakehouse — use `/lakehouse/default/...` or absolute abfss. `fs.put`/`fs.append` have no concurrent-write atomicity.
-
-## Shipping notebook code: local → workspace
-
-- **Portal import** (manual): workspace → Import → Notebook → From this computer. Accepts `.ipynb` and source files (`.py`, `.sql`, `.scala`). Each import creates a **new** notebook item — no update-in-place. Fine for a first landing, weak for iteration.
-- **Fabric CLI `fab`** (imperative, az-style): `pip install ms-fabric-cli` (Python ≥3.10). `fab auth login` — own auth store, separate from `az login`; methods: interactive browser, SPN secret, SPN cert, managed identity. Filesystem-style commands over workspace items (`ls`, `cd`, `import`, `export`, ...). Command reference lives on the fabric-cli GitHub pages (aka.ms/FabricCLI), not Learn — verify flags with `fab <cmd> --help`.
-- **`fab import` gotchas (fab 1.6.1)**:
-  - `-i` **must point at an item-shaped directory** (e.g. `x.Notebook/` containing `artifact.content.ipynb`), not a bare file. A file path silently packs `"parts": []` into the create-item POST → API 400 `InvalidInput` ("Parts: Must be a non-empty collection"). The console shows only the two-word error; the real detail needs `fab config set debug_enabled true` → full request/response log at `%LOCALAPPDATA%\fabric-cli\Logs\fabcli_debug.log`.
-  - Plain-Python `.py` files are NOT valid `--format .py` input — that format means Fabric's git-source markers (`# Fabric notebook source`, `# CELL ***`, `# META`), documented only for Spark kernels. Ship `.ipynb` instead.
-  - **An imported `.ipynb` without kernel metadata lands on the Spark kernel** (symptom: `ModuleNotFoundError: polars`) — `language_info: python` alone is NOT enough, and Learn's notebook-definition example shows only that. Python-kernel markers, read off a `fab export` of a portal-flipped notebook: top-level `kernel_info: {"name": "jupyter", "jupyter_kernel_name": "python3.12"}` + `kernelspec: {"name": "jupyter"}` + `microsoft: {language: python, language_group: jupyter_python}`, and the same `microsoft` block per cell. Also stamp `dependencies.lakehouse` (default-lakehouse GUID binding) or the import arrives detached and `/lakehouse/default/` never mounts. The exported definitions under `fabric/` already carry all of it. NB: Python kernel is 3.12 in practice; Learn still says 3.10/3.11.
-  - `-f` skips the confirm prompt — interactive prompts crash in non-Windows-console shells: mintty/xterm → "expecting a Windows console", winpty → "stdin is not a tty".
-  - **`fab` silently omits item types it doesn't know.** fab 1.6.1 leaves `DataBuildToolJob` out of both `ls` and `export -a` with no warning — the workspace looked like it had no dbt job at all. `fab api workspaces/<ws>/items` returns it; its definition needs a raw `POST .../items/<id>/getDefinition`.
-  - Superseded for this repo: notebooks now ship via `scripts/deploy_fabric.py` (fabric-cicd) out of `fabric/notebooks/<helpers|workflow>/<nb>.Notebook/`. `workflow/` = job-run notebooks, `helpers/` = definition notebooks they `%run`. `fab import` remains the one-off path for a single item.
-  - fab's console output uses non-cp1252 glyphs (`→`, `∟`) → `[UnexpectedError] charmap` crashes on stock Windows consoles, *after* the API call already ran — a `fab ls` tells the true outcome. `PYTHONUTF8=1` inline suppresses it when needed.
-- **`fab deploy --config config.yml`** (declarative bulk publish): wraps the **fabric-cicd** Python library; publishes a repo folder of item definitions to a workspace and unpublishes items gone from source. Closest analog to Bicep for workspace items (actual Bicep reaches only the capacity ARM resource — see IaC status above).
-- **Workspace Git integration**: workspace ↔ one branch+folder of a GitHub/Azure DevOps repo (GitHub connector = PAT). Notebook serializes as `<Name>.Notebook/notebook-content.py` + `.platform` (+ optional `notebook-settings.json`, `Resources/builtin/`). Cell outputs never sync. Attached-lakehouse ID becomes a logical ID; auto-binding toggle in notebook Git settings — never hand-edit `notebook-settings.json`. Dev loop = commit → push → workspace "Update from Git": built for history/promotion, clunky for tight iteration.
-- **REST Items API**: create/update item with base64 definition parts (`FabricGitSource` format = `notebook-content.py`; or `ipynb`) — the layer every option above wraps. Bulk export/import definitions APIs exist (preview, `?beta=true`).
-
-## dbt-fabric adapter (local dbt Core → Warehouse)
-
-Prereqs: Python ≥3.7, **Microsoft ODBC Driver 18 for SQL Server**, `pip install dbt-fabric`.
-
-```yaml
-gutenberg_fingerprint:
-  target: fabric
-  outputs:
-    fabric:
-      type: fabric
-      driver: ODBC Driver 18 for SQL Server
-      host: <workspace SQL endpoint, from Warehouse settings>
-      database: <warehouse name>
-      schema: dbo
-      authentication: CLI     # az login; use service principal for automation
-      threads: 4
+```
+abfss://<ws>@onelake.dfs.fabric.microsoft.com/<lh>.Lakehouse/Tables/<schema>/<table>
+storage_options={"bearer_token": notebookutils.credentials.getToken("storage"), "use_fabric_endpoint": "true"}
 ```
 
-- **No SQL auth** — Entra ID only. Interactive: `authentication: CLI` after `az login`. Automation: service principal (env-var creds).
-- T-SQL surface limits apply: no engine-specific SQL, check unsupported commands/types. Adapter emulates `ALTER TABLE ADD COLUMN`, `MERGE`, `TRUNCATE`, `sp_rename` via CTAS/DROP/CREATE.
-- Incremental strategies: `merge` (default with `unique_key`), `append`, `delete+insert`, `microbatch` — merge is emulated per above.
-- Docs: learn.microsoft.com/fabric/data-warehouse/tutorial-setup-dbt
+Token lives ~1 h. Same root for `notebookutils.fs.mount`.
 
-## dbt job item (preview, in-Fabric runtime)
+- Schema-enabled lakehouse (`lh_silver`): schema folder is part of the path, `Tables/dbo/works`. Root-level `Tables/<table>` lands in "Unidentified", invisible to the endpoint.
+- Writing to a deletion-vector table errors.
+- DuckDB INSERT never checkpoints; use delta-rs as the writer.
+- Warehouse Delta logs enable `columnMapping`: `deltalake.DeltaTable(<wh abfss>)` -> `DeltaProtocolError: reader features {'columnMapping'} ... not yet supported by the deltalake reader`. Read Warehouse over T-SQL, `notebookutils.data.connect_to_artifact("wh_gold")` -> `conn.query(...)` -> pandas; list tables via `INFORMATION_SCHEMA.TABLES`, `TABLE_TYPE='BASE TABLE'`.
+- `%run <Notebook>` shares the caller's session; alone in its cell, else `MagicUsageError: %run cannot run with other code or magic commands`.
 
-- Workspace item that runs dbt Core **inside Fabric**: managed runtime V1.0 = dbt Core 1.9, dbt-fabric 1.9.0, Python 3.12.
-- Enable per-tenant: admin portal → tenant settings → **dbt jobs (preview)**.
-- Project source: authored in-UI or **connected to a GitHub repo** (classic PAT, pick branch — pulls fresh each run).
-- Supports `build/run/seed/test/compile/snapshot` + selectors; orchestratable as a **pipeline activity** (operation, select/exclude, full refresh, threads). **No `source freshness`** in the supported list.
-- **Profile is UI-configured** ("dbt configurations": adapter, connection, schema) — the repo's `profiles.yml` is ignored, and the generated target's *name* is not ours to control. Branch project logic on `target.type == 'fabric'`, never `target.name`. Warehouse adapter auth: Entra OAuth only.
-- Full logs land in OneLake (`dbt-output-<run_id>.json` → `detailed_monitoring_output_path`).
-- **Limitations**: no build caching — every run compiles fresh, no artifacts from prior runs → **no `state:modified` in-Fabric** (do state-aware runs in CI instead). GitHub-connected projects are read-only in the UI (run commands only, no editing).
-- **`dbt_project.yml` must be at repo root** (error 20418 otherwise; no path setting). Workaround: derived branch via `git subtree split --prefix=dbt -b fabric-dbt` + push, point the job at that branch, refresh after dbt changes.
-- Observed vs docs (2026-07): runtime auto-runs `dbt deps`; actual adapter dbt-fabric **1.10.0** (docs say 1.9.0). **Wrapper bug**: an exposure's normal `no-op` status in build results makes the wrapper report the run Failed (20402, "No errors" + red X, `results: null` in the output stub) even though dbt logs `Completed successfully`. Workaround: job Advanced Settings → Run settings → Exclude `exposure:<name>` (no `+` prefix — that would also exclude upstream). **Same bug for `warn`** (verified 2026-07-25 across 4 runs): one test at `severity: warn` fails the job even with `ERROR=0`, and the surfaced message contains only `[Warn]` lines, so the run looks failed for no stated reason. `run_results.json` shows the truth. Treat `severity: warn` as unusable in-Fabric — a test either errors or doesn't exist.
-- Log access without OneLake Explorer: `az account get-access-token --resource https://storage.azure.com`, then GET `https://onelake.dfs.fabric.microsoft.com/<workspaceId>/<itemId>/Output/<runGuid>/...` (`logs/dbt.log` has content; root `dbt.log` is 0 bytes; `target/run_results.json` present).
+## Shipping code
 
-## Capacity pause/resume (the FinOps bracket)
+- `fab import -i` takes an item-shaped directory (`x.Notebook/` holding `artifact.content.ipynb`); a bare file posts `"parts": []` -> 400 `InvalidInput`, "Parts: Must be a non-empty collection". Detail needs `debug_enabled true`; log at `%LOCALAPPDATA%\fabric-cli\Logs\`. `--format .py` means Fabric git-source markers, Spark-only; ship `.ipynb`.
+- `.ipynb` without kernel metadata lands on Spark (`ModuleNotFoundError: polars`); `language_info` is insufficient. Required top-level and per cell: `kernel_info: {"name": "jupyter", "jupyter_kernel_name": "python3.12"}`, `kernelspec: {"name": "jupyter"}`, `microsoft: {language: python, language_group: jupyter_python}`, plus `dependencies.lakehouse` GUID or `/lakehouse/default/` never mounts.
+- `fab` silently omits unknown item types: 1.6.1 drops `DataBuildToolJob` from `ls` and `export -a`. `fab api workspaces/<ws>/items` returns it; definition via raw `POST .../items/<id>/getDefinition`.
+- fab console glyphs crash cp1252 consoles (`[UnexpectedError] charmap`) after the API call ran; `fab ls` tells the true outcome. Use PowerShell for `fab` writes.
 
-- Azure portal: capacity → Pause/Resume. Programmatic: Fabric capacities REST API `.../suspend` and `.../resume` (Azure management plane, ARM resource).
-- Required RBAC on the capacity resource: `Microsoft.Fabric/capacities/{read,write}`, `.../suspend/action`, `.../resume/action`. Best practice: **custom role** scoped to just these, assigned to the automation's managed identity.
-- Azure Automation runbook gallery has prebuilt Fabric pause/resume runbooks (search "Fabric") — schedulable.
-- **Pausing bills the smoothed backlog**: accumulated/carryforward usage is settled as a one-time charge at pause (shows as a spike in the Capacity Metrics app). Also instantly clears throttling.
-- Pausing kills availability of everything on the capacity mid-run — sequence pause *after* all work (incl. the Evidence build) finishes.
-- OneLake storage billing continues while paused (~$0.023/GB/mo).
+## dbt
 
-## Pipeline (Data Factory) notes
+- In-Fabric dbt job item: dbt Core 1.9, adapter dbt-fabric 1.10.0 in practice, Python 3.12, auto-runs `dbt deps`. No `source freshness`, no build caching, no `state:modified`.
+- Profile is UI-configured; repo `profiles.yml` ignored, target name uncontrollable. Branch on `target.type == 'fabric'`, never `target.name`.
+- `dbt_project.yml` must sit at repo root (error 20418). Ship via `git subtree split --prefix=dbt -b fabric-dbt` + push, point the job at `fabric-dbt`, refresh after dbt changes.
+- Wrapper bug: an exposure's `no-op` status reports the run Failed (20402, "No errors", red X, `results: null`) though dbt logs `Completed successfully`. Exclude `exposure:<name>` in Run settings, no `+` prefix. Same for `severity: warn`: one warn fails the job at `ERROR=0`, message shows only `[Warn]` lines. `run_results.json` shows the truth; `severity: warn` is unusable in-Fabric.
+- Logs: `az account get-access-token --resource https://storage.azure.com`, GET `https://onelake.dfs.fabric.microsoft.com/<workspaceId>/<itemId>/Output/<runGuid>/logs/dbt.log`. Root `dbt.log` is 0 bytes.
 
-- Fabric pipelines ≈ ADF: activities, schedules, conditionals. Relevant limits: **Web activity doesn't support service-principal auth** (matters for the suspend call — route via Logic App or use managed identity options), no tumbling-window triggers.
-- **Notebook → pipeline signalling** (Learn: `notebookutils/notebookutils-notebook-run#exit-a-notebook`, `data-factory/expression-language`): `notebookutils.notebook.exit("<string>")` makes the notebook activity return that value; downstream activities read it off the activity output's `exitValue` property. Exit value is always a **string** — cast with `int()` before numeric comparison in an If Condition. Two hard rules from Learn: never wrap `exit()` in try/except (the NotebookExit exception must propagate or the pipeline gets nothing), and put it in **its own cell** (exit overwrites the current cell's output). `nb_catalog_ingest` exits with `candidate_new + candidate_changed` as the CDC gate.
-- **Refresh SQL Endpoint activity** (Learn: `data-factory/refresh-sql-endpoint-activity`) — the native fix for the endpoint-lag gotcha above; **use this, not a hand-rolled REST notebook** (tried that 2026-07-20, wasted effort). Settings tab: connection + workspace + SQL endpoint. Output status is `Success` / `NotRun` / `Failure`, and **`NotRun` is normal** — it means nothing was unsynced. Learn warns these are the *output* statuses, not the activity status, so a `NotRun` doesn't fail the activity.
-  - **Known issue — lock contention**: refresh fails intermittently when something else is writing the lakehouse concurrently. Documented workaround is exactly our shape: run all ingest/transform first, then **one** refresh activity at the end. Multiple sequential refresh activities raise the failure rate.
-- **Deleting a notebook item can 400**: `fab rm` and both REST deletes (`workspaces/<ws>/items/<id>`, `workspaces/<ws>/notebooks/<id>`) returned `UnknownError` 400, `isRetriable: false`, on a notebook referenced by a pipeline activity. Portal right-click → Delete works. (Separately, `fab rm` in Git Bash dies on a `charmap` encoding error before the API call — use PowerShell for `fab` writes.)
+## Pipelines
+
+- Web activity does not support service-principal auth. No tumbling-window triggers.
+- `notebookutils.notebook.exit("<string>")` sets the activity's `exitValue`; always a string, `int()` before numeric compare. Never inside try/except; own cell only.
+- Refresh SQL Endpoint activity fixes endpoint lag. Output `Success` / `NotRun` / `Failure`; `NotRun` is normal, does not fail the activity. Fails intermittently under concurrent lakehouse writes: run all ingest/transform, then one refresh at the end.
+- Deleting a notebook referenced by a pipeline activity 400s: `fab rm` and REST deletes (`items/<id>`, `notebooks/<id>`) return `UnknownError` 400, `isRetriable: false`. Portal right-click Delete works.
