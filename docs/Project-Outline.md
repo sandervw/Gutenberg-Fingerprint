@@ -175,8 +175,7 @@ Pipeline health from `fact_ingestion_run`, README, repo public. **Done when:** a
 
 ## Remaining
 
-1. Expand to SF: widen the filter to the full "Category: Science-Fiction & Fantasy" shelf (~3,550 more works). Need to add flag, both in the gutenberg extracts, and in the manual files (self) seed.
-2. Pipeline-health page from `fact_ingestion_run`.
-3. Make CLAUDE erase 75% of the bloated words in its references docs: no 'this, not that', no 'discovered on', no 'X confirmed that' - write down exactly the way a thing is working (without double-checking, again) and absolutely nothing else; if it sounds like a redditer wrote it, erase and rewrite
-4. README; remove memory, and any other CLAUDE garbage.
-5. **Next Phase:** Replace every part of this project owned by microsoft (Fabric, Azure) with something that isn't an overly complicated piece of fucking sewage, designed to make normal humans' lives hard. ('Enterprisey' doesn't mean shit if it makes me hate the project).
+1. Pipeline-health page from `fact_ingestion_run`.
+2. Make CLAUDE erase 75% of the bloated words in its references docs: no 'this, not that', no 'discovered on', no 'X confirmed that' - write down exactly the way a thing is working (without double-checking, again) and absolutely nothing else; if it sounds like a redditer wrote it, erase and rewrite
+3. README; remove memory, and any other CLAUDE garbage.
+4. **Next Phase:** Replace every part of this project owned by microsoft (Fabric, Azure) with something that isn't an overly complicated piece of fucking sewage, designed to make normal humans' lives hard. ('Enterprisey' doesn't mean shit if it makes me hate the project).
