@@ -127,10 +127,13 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
           }
         }
         // 2. Poll until it reports Active before doing any Fabric work.
+        // Tolerates a failed resume: an already-Active capacity answers 400
+        // "Service is not ready to be updated". Until_Active is the real gate,
+        // so a genuinely stuck capacity still fails the run here.
         Until_Active: {
           type: 'Until'
           runAfter: {
-            Resume_capacity: [ 'Succeeded' ]
+            Resume_capacity: [ 'Succeeded', 'Failed' ]
           }
           expression: '@equals(body(\'Get_capacity_state\')?[\'properties\']?[\'state\'], \'Active\')'
           limit: {
@@ -347,8 +350,8 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
                 equals: [ '@body(\'Get_job_status_final\')?[\'status\']', 'Completed' ]
               }
               {
-                // '' when the build never ran (pipeline failed, so Get_deployment was skipped).
-                equals: [ '@coalesce(first(body(\'Get_deployment\')?[\'result\'])?[\'latest_stage\']?[\'status\'], \'\')', 'success' ]
+                // createArray() guard: first() throws on null when Get_deployment was skipped.
+                equals: [ '@coalesce(first(coalesce(body(\'Get_deployment\')?[\'result\'], createArray()))?[\'latest_stage\']?[\'status\'], \'\')', 'success' ]
               }
             ]
           }
@@ -361,7 +364,7 @@ resource logicApp 'Microsoft.Logic/workflows@2019-05-01' = {
                   runStatus: 'Failed'
                   runError: {
                     code: 'NightlyRunFailed'
-                    message: '@{concat(\'pipeline=\', coalesce(body(\'Get_job_status_final\')?[\'status\'], \'unknown\'), \' build=\', coalesce(first(body(\'Get_deployment\')?[\'result\'])?[\'latest_stage\']?[\'status\'], \'not-run\'))}'
+                    message: '@{concat(\'pipeline=\', coalesce(body(\'Get_job_status_final\')?[\'status\'], \'unknown\'), \' build=\', coalesce(first(coalesce(body(\'Get_deployment\')?[\'result\'], createArray()))?[\'latest_stage\']?[\'status\'], \'not-run\'))}'
                   }
                 }
               }
