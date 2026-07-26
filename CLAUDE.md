@@ -2,7 +2,7 @@
 
 **IMPORTANT (project override, added 2026-07-08):** The global "keep replies under 150 words" rule is **increased to 250 for this learning project**. Keep explanations clear, but focused (no padding, no restating known facts, no 'not this, but that', no 'key findings from').
 
-**NOTE:** Assume that Microsoft can, will, and actively does make life hard for normal humans - and that their products are sewage.
+**NOTE:** Treat Fabric and Azure as unreliable by default: assume undocumented behaviour, silent breaking changes, and awkward workarounds. Verify against current docs rather than expectation, and never assume a thing works the way it should.
 
 ## Implementation docs
 
