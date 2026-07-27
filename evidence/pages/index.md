@@ -6,11 +6,12 @@ neverShowQueries: true
 A metric-based comparison of fantasy and science fiction in [Project Gutenberg](https://www.gutenberg.org/). Measured as **z-scores**. Positive means a work does *more* of something than the typical work; negative, less.
 
 ```sql last_refreshed
-select max(ingested_at) as refreshed
+select max(ingested_at) as refreshed,
+  count(work_id) as work_count
 from warehouse.mart_work
 ```
 
-*Last refreshed <Value data={last_refreshed} column=refreshed fmt=longdate/>*
+*<Value data={last_refreshed} column=work_count/> works in corpus - Last refreshed <Value data={last_refreshed} column=refreshed fmt=longdate/>.*
 
 ## Weirdest Works
 
@@ -41,27 +42,6 @@ limit 25
     <Column id=word_count title="Words" fmt=num0 />
     <Column id=excess title="Excess" fmt=num1 />
 </DataTable>
-
-```sql metric_defs
-select
-    dm.display_name,
-    dm.description
-from warehouse.dim_metric dm
-where dm.is_multivalue = false
-    and dm.metric_name <> 'jaccard'
-order by dm.display_name
-```
-
-<Accordion>
-    <AccordionItem title="Metric definitions">
-
-<DataTable data={metric_defs} rows=11>
-    <Column id=display_name title="Metric" />
-    <Column id=description title="Definition" wrap=true />
-</DataTable>
-
-    </AccordionItem>
-</Accordion>
 
 ## Vocabulary Overlap
 

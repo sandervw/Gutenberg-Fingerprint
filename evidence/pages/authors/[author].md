@@ -137,6 +137,7 @@ order by abs(zscore) desc
 select
     title,
     prose_type,
+    genre,
     word_count,
     '/works/' || work_id as link
 from warehouse.mart_work
@@ -147,5 +148,6 @@ order by word_count desc
 <DataTable data={works} link=link rows=all>
     <Column id=title title="Title" />
     <Column id=prose_type title="Type" />
+    <Column id=genre title="Genre" />
     <Column id=word_count title="Words" fmt=num0 />
 </DataTable>
