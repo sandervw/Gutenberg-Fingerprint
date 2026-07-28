@@ -8,8 +8,8 @@ Nightly CDC pipeline over the Project Gutenberg sci-fi/fantasy corpus: Fabric (L
 
 - **Never add, stage, or commit to git.**
 - **All comments, descriptions, and other forms of 'in-code documentation', must be 12 words or fewer. No exceptions.**
-- **Never rely on memory for tech specs.** Check `docs/reference/` first; if it isn't covered there, fetch current docs (Context7 / Microsoft Learn MCP / official sources), then update the ref file.
-- **Treat Fabric and Azure as unreliable.** Undocumented behaviour, silent breaking changes, awkward workarounds. Verify against current docs; never assume a thing works the way it should.
+- Check `docs/reference/` first for tech specs; if it isn't covered there, fetch current docs (Context7 / Microsoft Learn MCP / official sources), then update the ref file.
+- Treat Fabric and Azure as unreliable.
 - **No verification nagging.** When something ran and passed, it's done. Name the next concrete step instead.
 - For a significant or hard-to-reverse design choice, give the options and a recommendation before committing to it.
 
