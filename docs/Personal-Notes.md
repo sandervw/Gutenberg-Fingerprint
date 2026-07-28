@@ -2,6 +2,37 @@
 
 *Claude, never touch this file unless I say to.*
 
+## NEW DESIGN
+
+### Terms
+
+**DuckDB-WASM**
+- An in-process sql db compiled to Web-Assembly
+- Allows clients to run queries in their browser
+
+**VPS - Virtual Private Server**
+- Runs the storage and compute
+- Includes an `API token` - allows `OpenTofu` to create/destroy server, firewall, DNS
+
+**Keypair**
+- A form of asymmetric crypto
+- Public key (the padlock) and private key (the key)
+- `OpenTofo` puts the padlock on the VPS; VPS challenges for private key at connection
+- Stored in `$env:USERPROFILE\.ssh`
+
+**OpenTofu**
+- infra-as-code: a file is written for the infrastructure that should exist; opentofu uses API to implement it
+- Replaces AZURE .bicep
+  - **cloudflare** -(`cloudflare.tf`) the R2 backup bucket and DNS
+- `winget install opentofu.tofu`
+
+### Commands
+
+```
+cd infra/tofu
+tofu plan
+```
+
 ## Setup
 
 *`uv` = basically, `npm` for python*
@@ -70,7 +101,7 @@ Python creates a few 'raw' schema tables in duckdb
 - raw_vocab (one row per work per word)
   - USed to claculate vocab overlap between me and others authors (Jaccard)
 
-## Fabric
+## Fabric (OLD - DO NOT READ)
 
 ### Bicep
 
