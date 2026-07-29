@@ -86,7 +86,7 @@ sources (silver)  →  stg_*  →  int_*  →  dim_*/fact_*  →  mart_*
 A fact constellation: `fact_style_measurement` at work × series grain, `fact_vocab_overlap` at author-pair grain, sharing conformed `dim_work`, `dim_author`, and `dim_metric`. The marts on top are split by the grain the charts read at: `mart_style_long` is the measurement OBT kept long at work × series, `mart_work` serves work-grain listings and the outlier ranking, `mart_author` serves author-grain rollups. Every Evidence query selects from the table already at its own grain, rather than deduplicating the OBT down to one.
 
 - **Portability.** Every model compiles against both DuckDB (local dev) and Fabric T-SQL (prod) from one codebase, with macros dispatching per adapter where no portable SQL exists.
-- **Incremental with retention.** `dim_work` is incremental so `ingested_at` survives rebuilds. Fabric's merge updates every column, so the model coalesces against `{{ this }}` to hold the original stamp.
+- **Derived stamps.** `dim_work.ingested_at` is `min(loaded_at)` over the work's measurement rows, so a full rebuild reproduces it. The dimension inner-joins measurements, so unmeasured catalog rows stay out.
 - **Source freshness.** `raw_works` is the heartbeat at `error_after: 24 hours`. Measurement tables are exempt, because a quiet night leaves them untouched.
 - **Snapshots.** SCD2 on `dim_work`, since PG corrections change word counts.
 - **Audit hook.** `on-run-end` writes one row per node into `dbt_run_log`, with a T-SQL branch because Fabric has no `CREATE TABLE IF NOT EXISTS`.
