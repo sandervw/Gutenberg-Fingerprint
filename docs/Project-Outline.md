@@ -97,7 +97,7 @@ The fact constellation from the previous project survives intact. Additions, not
 | Table                    | Change                                                                                                                                                                                                                                |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `dim_author`             | Built from catalog data. `is_self = true` on my own row and on select authors                                                                                                                                                         |
-| `dim_work`               | Adds `gutenberg_id`, `download_count`, `subjects`, `ingested_at`. **Incremental** (`unique_key = work_key`) so the original stamp survives rebuilds; Fabric's merge updates every column, so the model coalesces against `{{ this }}` |
+| `dim_work`               | Adds `gutenberg_id`, `download_count`, `subjects`, `ingested_at` (`min(loaded_at)` over the work's measurement rows, so rebuilds reproduce it). Full rebuild; inner join to measurements keeps unmeasured catalog rows out |
 | `fact_style_measurement` | Full rebuild, not incremental. Rebuilding on an F2 costs seconds, and works withdrawn from the catalog have to disappear from the fact rather than linger                                                                             |
 | `fact_vocab_overlap`     | Author-pair grain, top-N vocab. Full rebuild, same reasoning                                                                                                                                                                          |
 | `snap_dim_work` *(new)*  | SCD2 snapshot, check strategy on all columns — PG corrections change word counts, so history gets captured                                                                                                                            |
@@ -111,7 +111,7 @@ Two planned tables were dropped: `fact_ingestion_run` and `dim_date`. Audit rows
 
 The previous project's checklist was modeling fundamentals. This one is production operation:
 
-- [x] **Incremental models** — `is_incremental()`, `unique_key`, merge behavior on Fabric (`dim_work`)
+- [ ] **Incremental models** — none. Every dim/fact rebuilds in seconds on an F2, and `ingested_at` comes from the data rather than a run clock
 - [x] **Source freshness** — `raw_works` is the heartbeat at `error_after: 24 hours`; the measurement tables are exempt, because a quiet night leaves them untouched
 - [x] **Snapshots** — SCD2 on `dim_work`
 - [x] **dbt job in Fabric** — the managed runtime, its adapter versions, its preview limitations
@@ -175,7 +175,7 @@ Trial capacity, workspace, Lakehouse + Warehouse. Budget alert. Port the dbt rep
 Catalog ingestion notebook, corpus filter, boilerplate stripper, watermark table. Backfill the full corpus. Stylometrics notebook over it. **Done when:** bronze/silver populated, audit table records the backfill.
 
 ### (DONE) Phase 3 — Incremental dbt (wk 3–4)
-Incremental `dim_work`, snapshots, source freshness, the expanded tests. **Done when:** a second run with a hand-injected "new book" flows through end-to-end and only the delta recomputes.
+`dim_work`, snapshots, source freshness, the expanded tests. **Done when:** a second run with a hand-injected "new book" flows through end-to-end.
 
 ### (DONE) Phase 4 — Orchestration + FinOps (wk 4–5)
 Data Factory pipeline, resume/pause bracket, nightly schedule, failure alerting. Workspace items are source-controlled too: `fabric/` holds the item definitions and `scripts/deploy_fabric.py` publishes them with `fabric-cicd`.
