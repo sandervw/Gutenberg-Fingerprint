@@ -34,7 +34,7 @@ models:
           - unique
           - not_null
       - name: ingested_at
-        description: "When nb_measure first measured this work: min(stg_measurements.loaded_at)."
+        description: "When nb_measure last processed this work; re-measured works restamp."
         data_tests:
           - not_null
       - name: word_count

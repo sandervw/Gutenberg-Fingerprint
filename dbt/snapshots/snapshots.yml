@@ -5,3 +5,5 @@ snapshots:
       unique_key: work_key
       strategy: check
       check_cols: all
+      # Works dropped from dim_work close out instead of staying open
+      hard_deletes: invalidate
