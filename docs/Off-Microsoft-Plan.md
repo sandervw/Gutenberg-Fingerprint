@@ -1,23 +1,35 @@
 # Off-Microsoft: Migration Plan
 
+*This is a document SUGGESTED by Claude, not the user. Treat everything as unverified and undecided.*
+
+**IMPORTANT:** When comparing technologies/products, list the pros/cons of each across the following criteria:
+- Is it simple?
+- Is it low cost?
+- Is data, or the interface, accessible without a manual resume/pause step?
+- Is it long-standing, with a solid reputation (this is the microsoft strength)?
+- Is it 'enterprisey? Used by established companies, not startups?
+- Does it intergrate with other technologies easily?
+- Is it standalone?
+- It it a true seperate target versus DuckDB/Fabric?
+
 ---
 
 ## 1. Target stack
 
-| Job           | Now                             | Pick                                                          | *Later:*                                 |
-| ------------- | ------------------------------- | ------------------------------------------------------------- | ---------------------------------------- |
-| Orchestration | `pl_nightly` + Logic App        | GitHub Actions `nightly.yml`, cron + step gating              | Dagster OSS on a VPS, as a separate move |
-| Compute       | Fabric notebooks on an F2       | runner triggers the box over SSH; code in `/code/gufime/`     | —                                        |
-| Files         | OneLake `Files/`                | the VPS's own disk, `/files/gufime/`                          | —                                        |
-| Tables        | OneLake Delta + `wh_gold`       | Postgres on that same VPS (`bronze`/`raw`/`main`)             | —                                        |
-| dbt runtime   | Fabric dbt job off `fabric-dbt` | `uv run dbt build` on the box, `dbt-core` 1.x                 | —                                        |
-| Serving       | deploy hook, capacity held open | Postgres connector; build on box, `wrangler pages deploy`     | Workers Static Assets                    |
-| Infra as code | Bicep + `fabric-cicd`           | OpenTofu (`cloudflare`); cloud-init builds the box            | —                                        |
-| Secrets       | Entra service principal         | one SSH key in Actions, one Cloudflare token on the box       | —                                        |
+| Job           | Now                             | Pick                                                      | *Later:*                                 |
+| ------------- | ------------------------------- | --------------------------------------------------------- | ---------------------------------------- |
+| Orchestration | `pl_nightly` + Logic App        | GitHub Actions `nightly.yml`, cron + step gating          | Dagster OSS on a VPS, as a separate move |
+| Compute       | Fabric notebooks on an F2       | runner triggers the box over SSH; code in `/code/gufime/` | —                                        |
+| Files         | OneLake `Files/`                | the box's own disk, `/files/gufime/`                      | —                                        |
+| Tables        | OneLake Delta + `wh_gold`       | Postgres on the same box (`bronze`/`raw`/`main`)          | —                                        |
+| dbt runtime   | Fabric dbt job off `fabric-dbt` | `uv run dbt build` on the box, `dbt-core` 1.x             | —                                        |
+| Serving       | deploy hook, capacity held open | Postgres connector; build on box, `wrangler pages deploy` | Workers Static Assets                    |
+| Infra as code | Bicep + `fabric-cicd`           | OpenTofu (`cloudflare`); cloud-init builds the box        | —                                        |
+| Secrets       | Entra service principal         | one SSH key in Actions, one Cloudflare token on the box   | —                                        |
 
-**About €5/month, with nothing to remember to switch off.** Two dbt targets stay: `duckdb` for dev, `postgres` for prod.
+**About $5/month, with nothing to remember to switch off.** Two dbt targets stay: `duckdb` for dev, `postgres` for prod.
 
-The nightly run touches **two credentials**: an SSH private key in Actions, and a Cloudflare API token in a file on the box, scoped to `Pages: Edit` plus write on the one R2 bucket. The VPS and Cloudflare tokens OpenTofu needs stay on the laptop.
+The nightly run touches **two credentials**: an SSH private key in Actions, and a Cloudflare API token in a file on the box, scoped to `Pages: Edit` plus write on the one R2 bucket. The OVH and Cloudflare tokens OpenTofu needs stay on the laptop.
 
 ```
 GitHub Actions (cron 03:00 UTC, workflow_dispatch) — every step is `ssh box '...'`
@@ -37,7 +49,7 @@ Four places to check on a failed night become one. The `If Condition` gate becom
 
 ## 2. The database
 
-**Postgres on a rented Linux box.** One small  VPS (~€5/month, 4 GB, 40 GB disk) runs Postgres *and* holds the files, so tables and files stay in one place exactly as the Lakehouse has them today. Always on, no autosuspend, no wake latency, no vendor account to lose. `dbt-postgres` is first-party, and Postgres is near enough to DuckDB that most `target.type == 'fabric'` branching deletes.
+**Postgres on an OVHcloud VPS-1** ($4.54/month listed, 2 vCore, 4 GB, 40 GB NVMe) runs Postgres *and* holds the files, so tables and files stay in one place exactly as the Lakehouse has them today. Always on, no autosuspend, no wake latency, no vendor account to lose. `dbt-postgres` is first-party, and Postgres is near enough to DuckDB that most `target.type == 'fabric'` branching deletes.
 
 **Sizing:** 1,842 works, 116k fact rows, ~790k `raw_vocab` rows — roughly 150-250 MB with indexes, against a 40 GB disk. Headroom is not a concern for years.
 
@@ -82,10 +94,11 @@ Evidence supports PostgreSQL natively, credentials via `EVIDENCE_SOURCE__<source
 
 1. **Pin `dbt-core>=1.10,<2.0`.** dbt Labs say v1.x stays on PyPI, and 1.12 is in beta. A naive `pip install dbt-postgres` still resolves 2.0.0-alpha.1 and fails.
 2. **The box is yours.** Unattended security upgrades, a firewall opening SSH only, Postgres bound to localhost, and a nightly `pg_dump` offsite. **cloud-init runs once, at first boot**, so later changes to it only take effect on a rebuild.
-3. **Scheduled workflows self-disable after 60 days without a commit**, and cron routinely fires 5-30 minutes late.
-4. **The 6-hour job cap.** Nightly deltas are minutes; run any full backfill from the laptop against the same cloud targets.
-5. **Carry `bronze.watermark`, `dim_work.ingested_at` and `snap_dim_work` across** or you lose the SCD2 history, the original stamps, and re-download the whole corpus.
-6. **PG politeness** now lives in `extract/texts.py`. Keep the caps.
+3. **2 GB swap.** The Evidence build peaks near 2 GB and is the first thing to OOM in 4 GB.
+4. **Scheduled workflows self-disable after 60 days without a commit**, and cron routinely fires 5-30 minutes late.
+5. **The 6-hour job cap.** Nightly deltas are minutes; run any full backfill from the laptop against the same cloud targets.
+6. **Carry `bronze.watermark`, `dim_work.ingested_at` and `snap_dim_work` across** or you lose the SCD2 history, the original stamps, and re-download the whole corpus.
+7. **PG politeness** now lives in `extract/texts.py`. Keep the caps.
 
 ---
 
@@ -115,4 +128,4 @@ Fabric keeps running until Phase 6.
 
 ## Sources
 
-[OpenTofu](https://opentofu.org/docs/) · [cloud-init](https://cloudinit.readthedocs.io/en/latest/reference/examples.html) · [dbt Postgres setup](https://docs.getdbt.com/docs/local/connect-data-platform/postgres-setup) · Cloudflare [R2](https://developers.cloudflare.com/r2/pricing/) (backup target) · [Pages→Workers](https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/) · GitHub [Actions billing](https://docs.github.com/en/actions/concepts/billing-and-usage) · [workflow disabling](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows) · dbt [Fusion](https://docs.getdbt.com/docs/fusion/supported-features) · [adapter pin #1992](https://github.com/dbt-labs/dbt-adapters/issues/1992) · [Evidence CLI](https://docs.evidence.dev/reference/cli)
+[OVH VPS](https://www.ovhcloud.com/en/vps/) · [OpenTofu](https://opentofu.org/docs/) · [cloud-init](https://cloudinit.readthedocs.io/en/latest/reference/examples.html) · [dbt Postgres setup](https://docs.getdbt.com/docs/local/connect-data-platform/postgres-setup) · Cloudflare [R2](https://developers.cloudflare.com/r2/pricing/) (backup target) · [Pages→Workers](https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/) · GitHub [Actions billing](https://docs.github.com/en/actions/concepts/billing-and-usage) · [workflow disabling](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows) · dbt [Fusion](https://docs.getdbt.com/docs/fusion/supported-features) · [adapter pin #1992](https://github.com/dbt-labs/dbt-adapters/issues/1992) · [Evidence CLI](https://docs.evidence.dev/reference/cli)
