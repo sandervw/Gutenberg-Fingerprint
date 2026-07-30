@@ -26,7 +26,7 @@ models:
           - not_null
 
   - name: dim_work
-    description: "One row per work: catalog works (stg_works) + self corpus (seed_authors). Incremental; post_hook sweeps departed works."
+    description: "One row per measured work: catalog works (stg_works) + self corpus (seed_authors). Unmeasured catalog rows are excluded."
     columns:
       - name: work_key
         description: "Surrogate hash of work_id."
@@ -34,11 +34,13 @@ models:
           - unique
           - not_null
       - name: ingested_at
-        description: "When the work first entered the corpus; held across runs."
+        description: "When nb_measure last processed this work; re-measured works restamp."
         data_tests:
           - not_null
       - name: word_count
-        description: "Alpha-token count off raw_measurements' word_count series; null for works the measure notebook hasn't landed."
+        description: "Alpha-token count off raw_measurements' word_count series."
+        data_tests:
+          - not_null
       - name: author_key
         description: "FK to dim_author."
         data_tests:
@@ -55,8 +57,9 @@ models:
               arguments:
                 values: ["Sci-Fi", "Fantasy", "Undetermined"]
       - name: prose_type
-        description: "Size band off word_count (<10k short-story, <40k novella, else novel); null when unmeasured."
+        description: "Size band off word_count (<10k short-story, <40k novella, else novel)."
         data_tests:
+          - not_null
           - accepted_values:
               arguments:
                 values: ["short-story", "novella", "novel"]
