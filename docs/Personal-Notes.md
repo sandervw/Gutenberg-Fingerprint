@@ -26,6 +26,16 @@
   - **cloudflare** -(`cloudflare.tf`) the R2 backup bucket and DNS
 - `winget install opentofu.tofu`
 
+### dbt
+
+**Incremental is a cache. A snapshot is a diary.**
+- Incremental can be thrown away and rebuilt
+- Snapshots only show what was written that day
+- Incremental is just an optimization for when a full rebuild is slow/expensive (so worthless on a table like dim_works)
+- Snapshots (SCD2) are for when a soruce overwrites itself, and you want to capture old values
+- Snapshot manufactures information that exists nowhere else; Incremental only saves time
+- *If you need incremental to preserve a value, that value belongs upstream in the data*
+
 ### Commands
 
 ```
