@@ -38,9 +38,14 @@
 
 ### Commands
 
+**Create/Login-to vps box commands**
 ```
-cd infra/tofu
+set -a; source .env; set +a
+cd infra/tofu &&
+tofu init &&
 tofu plan
+tofu apply
+ssh -i ~/.ssh/gufime_rsa ubuntu@15.204.82.199
 ```
 
 ## Setup

@@ -6,11 +6,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/md-style-check.ps1"
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\Users\\Sander\\OneDrive\\Documents\\Github\\Gutenberg-Fingerprint\\.claude\\hooks\\md-style-check.ps1\""
           },
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/code-comment-check.ps1"
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\Users\\Sander\\OneDrive\\Documents\\Github\\Gutenberg-Fingerprint\\.claude\\hooks\\code-comment-check.ps1\""
           }
         ]
       }
