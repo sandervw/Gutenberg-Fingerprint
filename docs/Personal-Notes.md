@@ -66,6 +66,17 @@ Then:
 
 No dbt init — that scaffolds an empty project; we're porting a real one.
 
+```
+# Deploying the logic app
+set -a; source .env; set +a
+az deployment group create \
+  --resource-group DefaultResourceGroup-CUS \
+  --template-file infra/pipeline-automation.bicep \
+  --parameters capacityName=gbfabric \
+  --parameters deployHookUrl="$CloudFlare_Deploy_Hook_URL" \
+  --parameters cfApiToken="$CloudFlare_API_Token"
+```
+
 ## Viewing the data
 
 `duckdb -ui prose_fingerprint/warehouse.duckdb`      # browser UI (object tree + grid)
