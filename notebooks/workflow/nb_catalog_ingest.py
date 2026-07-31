@@ -1,9 +1,4 @@
-# Fabric notebook: nb_catalog_ingest
-#
-# Writes, per run:
-#   Files/catalog/pg_catalog_<date>.csv  raw feed snapshot, byte-for-byte
-#   Tables/catalog                       full catalog photo, overwritten each run
-#   Tables/watermark                     CDC ledger; created once, filled by backfill
+# Catalog ingest: PG feed -> bronze catalog table + raw CSV snapshot.
 
 from __future__ import annotations
 
@@ -13,36 +8,26 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import notebookutils
 import polars as pl
-import pyarrow as pa
 import requests
-from deltalake import DeltaTable, write_deltalake
 
-# PG regenerates this feed weekly
+from notebooks.helpers import storage
+
 CATALOG_URL: str = "https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv"
 USER_AGENT: str = "gutenberg-fingerprint-pipeline/0.1 (contact: samvanwilligen@gmail.com)"
 
-FILES_ROOT: Path = Path("/lakehouse/default/Files")
-
-ONELAKE_TABLES: str = (
-    "abfss://gutenberg-fingerprint@onelake.dfs.fabric.microsoft.com"
-    "/lh_bronze.Lakehouse/Tables"
-)
-CATALOG_TABLE: str = f"{ONELAKE_TABLES}/catalog"
-WATERMARK_TABLE: str = f"{ONELAKE_TABLES}/watermark"
-
-# OneLake token, roughly one hour of life, plenty for a single run
-STORAGE_OPTIONS: dict[str, str] = {
-    "bearer_token": notebookutils.credentials.getToken("storage"),
-    "use_fabric_endpoint": "true",
-}
-
-# Every timestamp tz-aware UTC
 TS_UTC: pl.Datetime = pl.Datetime("us", "UTC")
 
+WATERMARK_SCHEMA: dict[str, pl.DataType] = {
+    "gutenberg_id": pl.Int64,
+    "catalog_row_hash": pl.String,
+    "text_hash": pl.String,
+    "first_seen": TS_UTC,
+    "last_changed": TS_UTC,
+    "status": pl.String,
+}
 
-# %% Download - retries transient 5xx; one blip shouldn't lose the night
+# %% Download - retries transient failures
 
 RETRY_STATUS: frozenset[int] = frozenset({408, 429, 500, 502, 503, 504})
 
@@ -109,7 +94,7 @@ def load_catalog(csv_path: Path, run_ts: datetime) -> pl.DataFrame:
     if "text" not in df.columns:
         raise KeyError(f"expected a 'Text#' column in the feed, got: {df.columns}")
     df = df.rename({"text": "gutenberg_id"}).with_columns(
-        pl.col("gutenberg_id").cast(pl.Int64)  # strict cast: format drift should fail loudly
+        pl.col("gutenberg_id").cast(pl.Int64)  # strict cast: format drift fails loudly
     )
     return df.with_columns(
         row_hashes(df).alias("catalog_row_hash"),
@@ -118,53 +103,18 @@ def load_catalog(csv_path: Path, run_ts: datetime) -> pl.DataFrame:
     )
 
 
-# %% Write - catalog photo via delta-rs
-
-
-def write_catalog(df: pl.DataFrame, table_uri: str) -> None:
-    write_deltalake(
-        table_uri,
-        df.to_arrow(),
-        mode="overwrite",
-        schema_mode="overwrite",
-        storage_options=STORAGE_OPTIONS,
-    )
-    # Manual checkpoint per run keeps the log short
-    DeltaTable(table_uri, storage_options=STORAGE_OPTIONS).create_checkpoint()
-
-
-# %% Watermark - create once, never overwrite
-
-WATERMARK_SCHEMA: pa.Schema = pa.schema(
-    [
-        pa.field("gutenberg_id", pa.int64()),
-        pa.field("catalog_row_hash", pa.string()),  # catalog row as last processed
-        pa.field("text_hash", pa.string()),  # sha256 of downloaded text; backfill fills it
-        pa.field("first_seen", pa.timestamp("us", tz="UTC")),
-        pa.field("last_changed", pa.timestamp("us", tz="UTC")),
-        pa.field("status", pa.string()),  # pending | ingested | failed | excluded
-    ]
-)
-
-
-def ensure_watermark(table_uri: str) -> DeltaTable:
-    # mode="ignore": create only when absent
-    return DeltaTable.create(
-        table_uri, schema=WATERMARK_SCHEMA, mode="ignore", storage_options=STORAGE_OPTIONS
-    )
-
-
 # %% Run
 
-run_ts: datetime = datetime.now(timezone.utc)
-raw_path: Path = FILES_ROOT / "catalog" / f"pg_catalog_{run_ts:%Y-%m-%d}.csv"
+if __name__ == "__main__":
+    run_ts: datetime = datetime.now(timezone.utc)
+    raw_path: Path = storage.file_path(f"bronze/catalog/pg_catalog_{run_ts:%Y-%m-%d}.csv")
 
-raw_bytes: int = download_catalog(CATALOG_URL, raw_path)
-print(f"raw feed -> {raw_path} ({raw_bytes:,} bytes)")
+    raw_bytes: int = download_catalog(CATALOG_URL, raw_path)
+    print(f"raw feed -> {raw_path} ({raw_bytes:,} bytes)")
 
-catalog_df: pl.DataFrame = load_catalog(raw_path, run_ts)
-print(f"parsed {catalog_df.height:,} rows, {catalog_df.width} columns")
+    catalog_df: pl.DataFrame = load_catalog(raw_path, run_ts)
+    print(f"parsed {catalog_df.height:,} rows, {catalog_df.width} columns")
 
-write_catalog(catalog_df, CATALOG_TABLE)
-ensure_watermark(WATERMARK_TABLE)
-print(f"catalog photo written: {catalog_df.height:,} books")
+    storage.write_table("bronze.catalog", catalog_df, mode="overwrite")
+    storage.ensure_table("bronze.watermark", WATERMARK_SCHEMA)
+    print(f"catalog photo written: {catalog_df.height:,} books")

@@ -1,9 +1,4 @@
-# Fabric notebook: nb_stylometrics
-# Stylometric measurement functions. Contract: each metric takes a parsed spaCy
-# Doc and returns a {metric_name: value} dict; a dict lets one metric emit
-# several values. Editable word/punctuation tables live in nb_lexicons (%run
-# before this notebook); metric 15's Python half lives in nb_vocab.
-# Definitions only - nb_measure %runs this notebook, which executes every cell.
+# Stylometric metrics: each takes a Doc, returns {metric_name: value}.
 
 from __future__ import annotations
 
@@ -12,6 +7,16 @@ import statistics
 from collections import Counter
 
 from spacy.tokens import Doc, Span, Token
+
+from notebooks.helpers.nb_lexicons import (
+    ARCHAIC_WORDS,
+    CLOSE_QUOTES,
+    CONTRACTION_CLITICS,
+    FUNCTION_WORDS,
+    OPEN_QUOTES,
+    PUNCTUATION_MARKS,
+    STRAIGHT_QUOTES,
+)
 
 # Dependency labels marking a subordinate clause -> the sentence is "complex".
 SUBORDINATE_DEPS: frozenset[str] = frozenset(
@@ -126,8 +131,7 @@ def mean_parse_tree_depth(doc: Doc) -> dict[str, float]:
 
 
 def _classify_sentence(sent: Span) -> str:
-    """Label a sentence simple/compound/complex from its dependencies; complex
-    (SUBORDINATE_DEPS) > compound (VERB/AUX "conj" off ROOT) > simple."""
+    """Simple/compound/complex by dependencies; complex > compound > simple."""
     if any(token.dep_ in SUBORDINATE_DEPS for token in sent):
         return "complex"
     coordinated = any(
@@ -154,8 +158,7 @@ def sentence_type_mix(doc: Doc) -> dict[str, float]:
 
 
 def punctuation_frequency(doc: Doc) -> dict[str, float]:
-    """Metric 10 (multi-value): per-word rate of each PUNCTUATION_MARKS group,
-    keyed punct_<name>."""
+    """Metric 10 (multi-value): per-word rate per PUNCTUATION_MARKS group."""
     words = _alpha_word_count(doc)
     mark_counts = Counter(token.text for token in doc if token.is_punct)
     result: dict[str, float] = {}
@@ -166,9 +169,7 @@ def punctuation_frequency(doc: Doc) -> dict[str, float]:
 
 
 def contraction_rate(doc: Doc) -> dict[str, float]:
-    """Metric 11: contractions per word. spaCy splits a contraction into a
-    clitic; count those after normalising the apostrophe. "'s" counts only
-    when not possessive (tag POS)."""
+    """Metric 11: contraction clitics per word; possessive 's excluded."""
     words = _alpha_word_count(doc)
     if words == 0:
         return {"contraction_rate": 0.0}
@@ -186,9 +187,7 @@ def contraction_rate(doc: Doc) -> dict[str, float]:
 
 
 def dialogue_narration_ratio(doc: Doc) -> dict[str, float]:
-    """Metric 12: fraction of words inside double quotes. Sweep tokens flipping
-    an "inside quote" switch; words while on are dialogue. The switch resets at
-    paragraph breaks, so an unbalanced quote bleeds one paragraph at most."""
+    """Metric 12: fraction of words inside double quotes; resets each paragraph."""
     total = 0
     dialogue = 0
     inside_quote = False

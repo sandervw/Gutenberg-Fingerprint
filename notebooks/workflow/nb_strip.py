@@ -1,7 +1,4 @@
-# Fabric notebook: nb_strip
-# Bronze Files/texts/<id>.txt -> silver Files/corpus/<Author>/<id>-<slug>.md:
-# strips PG boilerplate, unwraps paragraphs, emits corpus-style markdown.
-# Pure text functions sit above the run cell so scripts/strip_sample.py can import them.
+# Strip: bronze texts -> silver corpus markdown, minus PG boilerplate.
 
 from __future__ import annotations
 
@@ -11,14 +8,10 @@ import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
-ONELAKE: str = "abfss://gutenberg-fingerprint@onelake.dfs.fabric.microsoft.com"
-SILVER_LAKEHOUSE: str = f"{ONELAKE}/lh_silver.Lakehouse"
-RAW_WORKS_TABLE: str = f"{SILVER_LAKEHOUSE}/Tables/dbo/raw_works"
-STRIP_AUDIT_TABLE: str = f"{ONELAKE}/lh_bronze.Lakehouse/Tables/strip_audit"
+from notebooks.helpers import storage
 
-TEXTS_ROOT: Path = Path("/lakehouse/default/Files/texts")  # default lakehouse = lh_bronze
-SELF_ROOT: Path = Path("/lakehouse/default/Files/self")
-CORPUS_SUBDIR: str = "Files/corpus"
+TEXTS_ROOT: Path = storage.file_path("bronze/texts")
+SELF_ROOT: Path = storage.file_path("bronze/self")
 SELF_FOLDER: str = "Sander-VanWilligen"
 
 # %% Boilerplate span - modern *** markers, pre-2002 fallbacks
@@ -35,8 +28,7 @@ def decode(raw: bytes) -> str:
         return raw.decode("cp1252", errors="replace")
 
 def isolate_body(text: str) -> str:
-    """Cut at the EARLIEST end marker of either era: regenerated old files keep
-    their ancient 'End of...' line inside the modern *** span."""
+    """Cut at the earliest end marker of either era."""
     start = _START.search(text) or _OLD_START.search(text)
     if start is None:
         raise ValueError("no start marker")
@@ -168,7 +160,7 @@ def render_blocks(blocks: list[str]) -> str:
         nxt = blocks[i + 1].strip() if i + 1 < len(blocks) else ""
         if len(lines) == 2:
             out.append(f"## {lines[0].rstrip('.:')}: {lines[1]}")
-        elif (  # standalone subtitle block rides along: "CHAPTER I" + "The Castle"
+        elif (  # standalone subtitle rides along: "CHAPTER I" + "The Castle"
             nxt and "\n" not in nxt and len(nxt) <= 60 and not is_heading(nxt)
             and i + 2 < len(blocks) and len(blocks[i + 2]) > 150
         ):
@@ -190,8 +182,7 @@ def has_single_dialogue(body: str) -> bool:
     return singles >= 30 and singles > 3 * (body.count('"') + body.count("“"))
 
 def convert_single_dialogue(par: str) -> str:
-    """Pair-scan straight singles: open after whitespace, close after punctuation.
-    Dialect apostrophes ('em, 'im) skip; an unpaired span dies at the paragraph break."""
+    """Pair-scan straight singles; dialect apostrophes and unpaired spans skip."""
     chars, inside = list(par), False
     for m in re.finditer(r"'", par):
         i = m.start()
@@ -211,7 +202,7 @@ _ROLE = re.compile(r"\[[^\]]*\]")  # catalog role tags: [Illustrator], [Translat
 _DATE_PART = re.compile(r"\d{4}|^[\d? –-]+$|\bcent(?:ury)?\b", re.I)
 
 def display_author(catalog_authors: str) -> str:
-    """'Smith, Clark Ashton, 1893-1961' -> 'Clark Ashton Smith'; role tags dropped unless all entries are tagged."""
+    """'Smith, Clark Ashton, 1893-1961' -> 'Clark Ashton Smith'."""
     entries = [e.strip() for e in catalog_authors.split(";") if e.strip()]
     names: list[str] = []
     for entry in [e for e in entries if not _ROLE.search(e)] or entries:
@@ -248,24 +239,13 @@ def to_markdown(raw: bytes, title: str, author: str) -> str:
 
 # %% Run
 
-if __name__ == "__main__":  # Jupyter sets __main__, so this runs in Fabric but not on import
-    import notebookutils
+if __name__ == "__main__":
     import polars as pl
-    from deltalake import DeltaTable, write_deltalake
-
-    def storage_options() -> dict[str, str]:
-        return {
-            "bearer_token": notebookutils.credentials.getToken("storage"),
-            "use_fabric_endpoint": "true",
-        }
 
     run_ts = datetime.now(timezone.utc)
-    notebookutils.fs.mount(SILVER_LAKEHOUSE, "/silver")
-    corpus_root = Path(notebookutils.fs.getMountPath("/silver")) / CORPUS_SUBDIR
+    corpus_root = storage.file_path("silver/corpus")
 
-    roster = pl.from_arrow(
-        DeltaTable(RAW_WORKS_TABLE, storage_options=storage_options()).to_pyarrow_table()
-    ).select("gutenberg_id", "title", "authors")
+    roster = storage.read_table("raw.raw_works", columns=["gutenberg_id", "title", "authors"])
 
     if corpus_root.exists():
         shutil.rmtree(corpus_root)  # derived layer: full rebuild keeps it roster-shaped
@@ -290,7 +270,7 @@ if __name__ == "__main__":  # Jupyter sets __main__, so this runs in Fabric but 
         dest.write_text(md, encoding="utf-8", newline="\n")
         stripped += 1
 
-    # Self corpus is already clean markdown: promote bronze Files/self as-is.
+    # Self corpus is already clean markdown: promote as-is
     promoted = 0
     if SELF_ROOT.exists():
         self_dest = corpus_root / SELF_FOLDER
@@ -307,5 +287,5 @@ if __name__ == "__main__":  # Jupyter sets __main__, so this runs in Fabric but 
         },
         orient="row",
     )
-    write_deltalake(STRIP_AUDIT_TABLE, audit.to_arrow(), mode="append", storage_options=storage_options())
-    print(f"corpus: {stripped:,} written, {failed:,} failed, {missing:,} missing, {promoted} self -> lh_silver/{CORPUS_SUBDIR}")
+    storage.write_table("bronze.strip_audit", audit, mode="append")
+    print(f"corpus: {stripped:,} written, {failed:,} failed, {missing:,} missing, {promoted} self -> {corpus_root}")

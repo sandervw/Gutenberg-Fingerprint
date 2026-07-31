@@ -1,6 +1,4 @@
-# Fabric notebook: nb_text_ingest
-# Silver raw_works roster -> bronze text files; pulls only new/changed/failed vs watermark.
-# www.gutenberg.org blocks automated clients, so we use PG's own mirror.
+# Text ingest: download new/changed/failed works from PG's mirror into bronze.
 
 from __future__ import annotations
 
@@ -9,42 +7,22 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import notebookutils
 import polars as pl
 import requests
-from deltalake import DeltaTable, write_deltalake
 
-ONELAKE: str = "abfss://gutenberg-fingerprint@onelake.dfs.fabric.microsoft.com"
-RAW_WORKS_TABLE: str = f"{ONELAKE}/lh_silver.Lakehouse/Tables/dbo/raw_works"
-WATERMARK_TABLE: str = f"{ONELAKE}/lh_bronze.Lakehouse/Tables/watermark"
-AUDIT_TABLE: str = f"{ONELAKE}/lh_bronze.Lakehouse/Tables/ingest_audit"
+from notebooks.helpers import storage
 
-TEXTS_ROOT: Path = Path("/lakehouse/default/Files/texts")
+TEXTS_ROOT: Path = storage.file_path("bronze/texts")
 MIRROR: str = "https://gutenberg.pglaf.org"
 USER_AGENT: str = "gutenberg-fingerprint-pipeline/0.1 (contact: samvanwilligen@gmail.com)"
 
 SLEEP_S: float = 2.0  # PG's stated politeness gap
 MAX_CONSECUTIVE_FAILURES: int = 5  # a streak means blocked or mirror down
-MAX_DOWNLOADS_PER_RUN: int = 200  # caps a run so it finishes before the poll ends
+MAX_DOWNLOADS_PER_RUN: int = 200  # caps a run to a predictable length
 
 TS_UTC: pl.Datetime = pl.Datetime("us", "UTC")
 
-
-def storage_options() -> dict[str, str]:
-    # Fetched per call: token lives ~1 h, a backfill outlasts it
-    return {
-        "bearer_token": notebookutils.credentials.getToken("storage"),
-        "use_fabric_endpoint": "true",
-    }
-
-
 # %% Diff - roster vs watermark ledger
-
-
-def read_table(table_uri: str) -> pl.DataFrame:
-    return pl.from_arrow(
-        DeltaTable(table_uri, storage_options=storage_options()).to_pyarrow_table()
-    )
 
 
 def pick_downloads(roster: pl.DataFrame, watermark: pl.DataFrame) -> pl.DataFrame:
@@ -110,7 +88,7 @@ def download_texts(todo: pl.DataFrame) -> pl.DataFrame:
             text_hash = hashlib.sha256(raw).hexdigest()
             rows.append((gid, row["catalog_row_hash"], text_hash, "ingested"))
             consecutive_failures = 0
-        # OSError covers the FileNotFoundError raised when every mirror URL 404s
+        # OSError covers the all-mirrors-404 FileNotFoundError
         except (requests.RequestException, OSError) as exc:
             print(f"{gid}: {exc}")
             rows.append((gid, row["catalog_row_hash"], None, "failed"))
@@ -152,14 +130,6 @@ def update_watermark(
     return pl.concat([carried, updated])
 
 
-def write_watermark(watermark: pl.DataFrame) -> None:
-    # Strict schema on purpose: drift should fail loudly
-    write_deltalake(
-        WATERMARK_TABLE, watermark.to_arrow(), mode="overwrite", storage_options=storage_options()
-    )
-    DeltaTable(WATERMARK_TABLE, storage_options=storage_options()).create_checkpoint()
-
-
 def write_audit(
     roster_size: int, new: int, changed: int, downloaded: int, failed: int, run_ts: datetime
 ) -> None:
@@ -183,39 +153,43 @@ def write_audit(
             "failed": pl.Int64,
         },
     )
-    write_deltalake(AUDIT_TABLE, row.to_arrow(), mode="append", storage_options=storage_options())
+    storage.write_table("bronze.ingest_audit", row, mode="append")
 
 
 # %% Run
 
-run_ts: datetime = datetime.now(timezone.utc)
-roster: pl.DataFrame = read_table(RAW_WORKS_TABLE)
-watermark: pl.DataFrame = read_table(WATERMARK_TABLE)
-backlog: pl.DataFrame = pick_downloads(roster, watermark)
+if __name__ == "__main__":
+    run_ts: datetime = datetime.now(timezone.utc)
+    roster: pl.DataFrame = storage.read_table("raw.raw_works")
+    watermark: pl.DataFrame = storage.read_table("bronze.watermark")
+    backlog: pl.DataFrame = pick_downloads(roster, watermark)
 
-candidate_new: int = backlog.filter(pl.col("seen_hash").is_null()).height
-candidate_changed: int = backlog.filter(
-    pl.col("seen_hash").is_not_null() & (pl.col("seen_hash") != pl.col("catalog_row_hash"))
-).height
+    candidate_new: int = backlog.filter(pl.col("seen_hash").is_null()).height
+    candidate_changed: int = backlog.filter(
+        pl.col("seen_hash").is_not_null()
+        & (pl.col("seen_hash") != pl.col("catalog_row_hash"))
+    ).height
 
-# Sorted slice is deterministic; next run resumes where this one stopped.
-todo: pl.DataFrame = backlog.head(MAX_DOWNLOADS_PER_RUN)
-deferred: int = backlog.height - todo.height
-print(
-    f"roster {roster.height:,} | backlog {backlog.height:,} "
-    f"(new {candidate_new:,}, changed {candidate_changed:,}, "
-    f"retry {backlog.height - candidate_new - candidate_changed:,}) "
-    f"| this run {todo.height:,}, deferred {deferred:,}"
-)
+    # Sorted slice is deterministic; next run resumes there
+    todo: pl.DataFrame = backlog.head(MAX_DOWNLOADS_PER_RUN)
+    deferred: int = backlog.height - todo.height
+    print(
+        f"roster {roster.height:,} | backlog {backlog.height:,} "
+        f"(new {candidate_new:,}, changed {candidate_changed:,}, "
+        f"retry {backlog.height - candidate_new - candidate_changed:,}) "
+        f"| this run {todo.height:,}, deferred {deferred:,}"
+    )
 
-processed: pl.DataFrame = download_texts(todo)
-downloaded: int = processed.filter(pl.col("status") == "ingested").height
-failed: int = processed.height - downloaded
+    processed: pl.DataFrame = download_texts(todo)
+    downloaded: int = processed.filter(pl.col("status") == "ingested").height
+    failed: int = processed.height - downloaded
 
-write_watermark(update_watermark(watermark, processed, run_ts))
-write_audit(roster.height, candidate_new, candidate_changed, downloaded, failed, run_ts)
+    storage.write_table(
+        "bronze.watermark", update_watermark(watermark, processed, run_ts), mode="overwrite"
+    )
+    write_audit(roster.height, candidate_new, candidate_changed, downloaded, failed, run_ts)
 
-print(
-    f"texts: {downloaded:,} downloaded, {failed:,} failed -> Files/texts/"
-    f" | {deferred:,} left for the next run"
-)
+    print(
+        f"texts: {downloaded:,} downloaded, {failed:,} failed -> {TEXTS_ROOT}"
+        f" | {deferred:,} left for the next run"
+    )
