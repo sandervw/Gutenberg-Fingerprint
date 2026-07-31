@@ -1,9 +1,4 @@
-# Fabric notebook: nb_clean
-# Markdown -> plain prose cleanup for the stylometrics extractor. Strips markdown
-# syntax (frontmatter, headings, scene breaks, emphasis, links) while leaving
-# prose punctuation untouched, since it is measured downstream. Rules apply in
-# order: whole-line drops before inline emphasis.
-# Definitions only - nb_measure %runs this notebook, which executes every cell.
+# Markdown -> plain prose cleanup; prose punctuation stays, it is measured.
 
 from __future__ import annotations
 

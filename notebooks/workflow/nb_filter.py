@@ -1,32 +1,12 @@
-# Fabric notebook: nb_filter
-# Bronze Tables/catalog -> silver Tables/dbo/raw_works: keep English science-fiction
-# and fantasy texts, drop the rest.
-# lh_silver is schema-enabled: tables must sit under a schema folder or land "Unidentified".
-# Also holds the pipeline's CDC gate: the diff only means anything against the
-# in-scope subset, since out-of-scope books never enter the watermark.
+# Filter: bronze catalog -> raw_works (English SF/fantasy), plus CDC gate count.
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import notebookutils
 import polars as pl
-from deltalake import DeltaTable, write_deltalake
 
-ONELAKE: str = "abfss://gutenberg-fingerprint@onelake.dfs.fabric.microsoft.com"
-CATALOG_TABLE: str = f"{ONELAKE}/lh_bronze.Lakehouse/Tables/catalog"
-WATERMARK_TABLE: str = f"{ONELAKE}/lh_bronze.Lakehouse/Tables/watermark"
-AUDIT_TABLE: str = f"{ONELAKE}/lh_bronze.Lakehouse/Tables/ingest_audit"
-RAW_WORKS_TABLE: str = f"{ONELAKE}/lh_silver.Lakehouse/Tables/dbo/raw_works"
-
-STORAGE_OPTIONS: dict[str, str] = {
-    "bearer_token": notebookutils.credentials.getToken("storage"),
-    "use_fabric_endpoint": "true",
-}
-
-catalog_df: pl.DataFrame = pl.from_arrow(
-    DeltaTable(CATALOG_TABLE, storage_options=STORAGE_OPTIONS).to_pyarrow_table()
-)
+from notebooks.helpers import storage
 
 # %% Scope + genre - checks both subjects (LCSH) and bookshelves
 
@@ -77,52 +57,48 @@ GENRE: pl.Expr = (
     .otherwise(pl.lit("Undetermined"))
 )
 
-raw_works_df: pl.DataFrame = catalog_df.filter(
-    (pl.col("type") == "Text") & (pl.col("language") == "en") & IN_SCOPE
-).with_columns(GENRE.alias("genre"))
+# %% Run
 
-write_deltalake(
-    RAW_WORKS_TABLE,
-    raw_works_df.to_arrow(),
-    mode="overwrite",
-    schema_mode="overwrite",
-    storage_options=STORAGE_OPTIONS,
-)
-DeltaTable(RAW_WORKS_TABLE, storage_options=STORAGE_OPTIONS).create_checkpoint()
+if __name__ == "__main__":
+    catalog_df: pl.DataFrame = storage.read_table("bronze.catalog")
 
-by_genre: dict[str, int] = dict(
-    raw_works_df.group_by("genre").len().sort("genre").iter_rows()
-)
-print(f"raw_works: kept {raw_works_df.height:,} of {catalog_df.height:,} catalog rows")
-print(f"genre split: {by_genre}")
+    raw_works_df: pl.DataFrame = catalog_df.filter(
+        (pl.col("type") == "Text") & (pl.col("language") == "en") & IN_SCOPE
+    ).with_columns(GENRE.alias("genre"))
 
-# %% CDC diff - fantasy set vs watermark, logged to ingest_audit
+    storage.write_table("raw.raw_works", raw_works_df, mode="overwrite")
 
-joined: pl.DataFrame = raw_works_df.select("gutenberg_id", "catalog_row_hash").join(
-    pl.from_arrow(
-        DeltaTable(WATERMARK_TABLE, storage_options=STORAGE_OPTIONS).to_pyarrow_table()
-    ).select("gutenberg_id", pl.col("catalog_row_hash").alias("seen_hash")),
-    on="gutenberg_id",
-    how="left",
-)
-candidate_new: int = joined.filter(pl.col("seen_hash").is_null()).height
-candidate_changed: int = joined.filter(
-    pl.col("seen_hash").is_not_null() & (pl.col("seen_hash") != pl.col("catalog_row_hash"))
-).height
-audit_row: pl.DataFrame = pl.DataFrame(
-    {
-        "run_ts": [datetime.now(timezone.utc)],
-        "run_type": ["catalog_refresh"],
-        "books_in_catalog": [catalog_df.height],
-        "candidate_new": [candidate_new],
-        "candidate_changed": [candidate_changed],
-        "downloaded": [0],  # nb_text_ingest logs the real downloads
-        "failed": [0],
-    }
-)
-write_deltalake(AUDIT_TABLE, audit_row.to_arrow(), mode="append", storage_options=STORAGE_OPTIONS)
-print(f"new in-scope works: {candidate_new:,} | changed: {candidate_changed:,}")
+    by_genre: dict[str, int] = dict(
+        raw_works_df.group_by("genre").len().sort("genre").iter_rows()
+    )
+    print(f"raw_works: kept {raw_works_df.height:,} of {catalog_df.height:,} catalog rows")
+    print(f"genre split: {by_genre}")
 
-# %% Gate - own cell, exit() overwrites its cell's output
+    # CDC diff - in-scope set vs watermark, logged to ingest_audit
+    joined: pl.DataFrame = raw_works_df.select("gutenberg_id", "catalog_row_hash").join(
+        storage.read_table("bronze.watermark").select(
+            "gutenberg_id", pl.col("catalog_row_hash").alias("seen_hash")
+        ),
+        on="gutenberg_id",
+        how="left",
+    )
+    candidate_new: int = joined.filter(pl.col("seen_hash").is_null()).height
+    candidate_changed: int = joined.filter(
+        pl.col("seen_hash").is_not_null()
+        & (pl.col("seen_hash") != pl.col("catalog_row_hash"))
+    ).height
+    audit_row: pl.DataFrame = pl.DataFrame(
+        {
+            "run_ts": [datetime.now(timezone.utc)],
+            "run_type": ["catalog_refresh"],
+            "books_in_catalog": [catalog_df.height],
+            "candidate_new": [candidate_new],
+            "candidate_changed": [candidate_changed],
+            "downloaded": [0],  # nb_text_ingest logs the real downloads
+            "failed": [0],
+        }
+    )
+    storage.write_table("bronze.ingest_audit", audit_row, mode="append")
+    print(f"new in-scope works: {candidate_new:,} | changed: {candidate_changed:,}")
 
-notebookutils.notebook.exit(str(candidate_new + candidate_changed))
+    storage.emit("new_count", candidate_new + candidate_changed)

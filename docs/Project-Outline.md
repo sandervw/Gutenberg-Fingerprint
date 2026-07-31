@@ -199,16 +199,18 @@ The enterprise tooling costs more time in workarounds than it returns at this sc
 
 ### Target stack
 
-| Job              | Now                                           | Next |
-| ---------------- | --------------------------------------------- | ---- |
-| Orchestration    | Data Factory `pl_nightly` + Logic App bracket | TBD  |
-| Compute          | Fabric notebooks on an F2 capacity            | TBD  |
-| Bronze/silver    | OneLake Delta tables + Files                  | TBD  |
-| Gold warehouse   | `wh_gold` (Fabric Warehouse, T-SQL)           | TBD  |
-| dbt runtime      | Fabric dbt job off `fabric-dbt`               | TBD  |
-| Deploy + serving | Deploy hook, capacity held open               | TBD  |
-| Infra as code    | Bicep + `fabric-cicd`                         | TBD  |
+| Job              | Now                                           | Next                                                  |
+| ---------------- | --------------------------------------------- | ----------------------------------------------------- |
+| Orchestration    | Data Factory `pl_nightly` + Logic App bracket | GitHub Actions `nightly.yml`, each step `ssh` the box |
+| Compute          | Fabric notebooks on an F2 capacity            | OVH VPS; plain Python modules in `notebooks/`         |
+| Bronze/silver    | OneLake Delta tables + Files                  | Box disk `/files/gufime/` + Postgres `bronze`/`raw`   |
+| Gold warehouse   | `wh_gold` (Fabric Warehouse, T-SQL)           | Postgres `main` on the box                            |
+| dbt runtime      | Fabric dbt job off `fabric-dbt`               | `uv run dbt build` on the box (`dbt-postgres`)        |
+| Deploy + serving | Deploy hook, capacity held open               | Evidence Postgres source; `wrangler pages deploy`     |
+| Infra as code    | Bicep + `fabric-cicd`                         | OpenTofu (`infra/tofu/`)                              |
 
-**The goal is to maintain two targets, duckDB and another** - the project must continue to represent enterprise-grade architecture, but without the complexity introduced by fabric/azure's Lockin architecture.
+**The goal is to maintain two targets, `duckdb` (dev) and `postgres` (prod)** - the project must continue to represent enterprise-grade architecture, but without the complexity introduced by fabric/azure's Lockin architecture.
+
+**Status:** Phases 0-2 of `docs/Off-Microsoft-Plan.md` are done. The VPS is live, the notebooks are dual-target modules behind `notebooks/helpers/storage.py`, and all Fabric state is migrated to the box and verified. The deployed Fabric items keep the nightly running until Phase 6; the repo notebook sources run as `uv run python -m notebooks.workflow.nb_<step>`.
 
 **Done when:** a nightly run completes end to end with no Azure subscription attached to the project, and the site shows the same numbers.

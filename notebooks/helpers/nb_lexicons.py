@@ -1,12 +1,8 @@
-# Fabric notebook: nb_lexicons
-# Tunable reference tables the stylometric metrics read: which function words to
-# track, what counts as archaic, which punctuation marks to rate.
-# Definitions only - nb_measure %runs this notebook, which executes every cell.
+# Tunable reference tables read by the stylometric metrics.
 
 from __future__ import annotations
 
-# Metric 5 - function words tracked individually. Their rates are a fingerprint:
-# authors reach for them unconsciously.
+# Metric 5 - function words tracked individually
 FUNCTION_WORDS: tuple[str, ...] = (
     "the", "of", "and", "a", "an", "to", "in", "that", "it", "is",
     "was", "for", "with", "as", "on", "at", "by", "be", "this", "had",
@@ -25,9 +21,7 @@ ARCHAIC_WORDS: frozenset[str] = frozenset({
     "methinks", "prithee", "lo", "behold", "nay", "yea", "spake", "wroth",
 })
 
-# Metric 10 - punctuation marks rated individually (count per word). Maps a
-# metric subkey -> the token strings counting as that mark; dash and ellipsis
-# fold their variants into one rate each. Keyed punct_<name>.
+# Metric 10 - subkey -> token strings counted as that mark
 PUNCTUATION_MARKS: dict[str, frozenset[str]] = {
     "comma": frozenset({","}),
     "semicolon": frozenset({";"}),
@@ -40,14 +34,12 @@ PUNCTUATION_MARKS: dict[str, frozenset[str]] = {
     "parenthesis": frozenset({"(", ")"}),
 }
 
-# Metric 11 - contraction clitics. spaCy splits "don't" -> ["do", "n't"], so a
-# contraction surfaces as one of these. "'s" is handled separately in code.
+# Metric 11 - spaCy contraction clitics; "'s" handled in code
 CONTRACTION_CLITICS: frozenset[str] = frozenset({
     "n't", "'re", "'ve", "'ll", "'m", "'d",
 })
 
-# Metric 12 - double-quote characters bounding dialogue. Smart quotes are
-# directional; the straight quote is ambiguous, so the code toggles on it.
+# Metric 12 - double-quote characters bounding dialogue
 OPEN_QUOTES: frozenset[str] = frozenset({"“"})
 CLOSE_QUOTES: frozenset[str] = frozenset({"”"})
 STRAIGHT_QUOTES: frozenset[str] = frozenset({'"'})

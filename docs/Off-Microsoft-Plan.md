@@ -1,6 +1,6 @@
 # Off-Microsoft: Migration Plan
 
-*This is a document SUGGESTED by Claude, not the user. Treat everything as unverified and undecided.*
+*Phases 0-2 are executed and verified; Phases 3-6 remain proposals.*
 
 **IMPORTANT:** When comparing technologies/products, list the pros/cons of each across the following criteria:
 - Is it simple?
@@ -33,12 +33,12 @@ The nightly run touches **two credentials**: an SSH private key in Actions, and 
 
 ```
 GitHub Actions (cron 03:00 UTC, workflow_dispatch) — every step is `ssh box '...'`
-  ├─ extract catalog   → pg bronze.catalog, bronze.watermark
-  ├─ extract filter    → pg raw.raw_works       [step output: new_count]
+  ├─ nb_catalog_ingest → pg bronze.catalog, bronze.watermark
+  ├─ nb_filter         → pg raw.raw_works       [step output: new_count]
   │     └── if new_count > 0:
-  │           ├─ extract texts         → /files/gufime/bronze/texts/
-  │           ├─ extract strip/clean   → /files/gufime/silver/text/
-  │           └─ extract measure       → pg raw.raw_measurements, raw.raw_vocab
+  │           ├─ nb_text_ingest → /files/gufime/bronze/texts/
+  │           ├─ nb_strip       → /files/gufime/silver/corpus/
+  │           └─ nb_measure     → pg raw.raw_measurements, raw.raw_vocab
   ├─ dbt build         → pg main.*
   └─ npm run sources && build → wrangler pages deploy → gufime.com
 ```
@@ -51,7 +51,7 @@ Four places to check on a failed night become one. The `If Condition` gate becom
 
 **Postgres on an OVHcloud VPS-1** ($4.54/month listed, 2 vCore, 4 GB, 40 GB NVMe) runs Postgres *and* holds the files, so tables and files stay in one place exactly as the Lakehouse has them today. Always on, no autosuspend, no wake latency, no vendor account to lose. `dbt-postgres` is first-party, and Postgres is near enough to DuckDB that most `target.type == 'fabric'` branching deletes.
 
-**Sizing:** 1,842 works, 116k fact rows, ~790k `raw_vocab` rows — roughly 150-250 MB with indexes, against a 40 GB disk. Headroom is not a concern for years.
+**Sizing:** 4,408 in-scope works, 204k `raw_measurements` rows, 7.3M `raw_vocab` rows, against a 40 GB disk. Headroom is not a concern for years.
 
 Postgres listens on the unix socket only and authenticates by peer, so the Linux user *is* the credential and no database password exists anywhere.
 
@@ -70,17 +70,15 @@ The box's own disk, paths instead of Lakehouse `Files/`:
 
 ~2 GB against 40 GB.
 
-Tabular bronze (`catalog`, `watermark`, `ingest_audit`) goes to Postgres, which drops the `deltalake` dependency.
+Tabular bronze (`catalog`, `watermark`, `ingest_audit`, `strip_audit`) lives in Postgres `bronze`; the raw tables in `raw`; `snap_dim_work` and `dbt_run_log` in `main`.
 
 A GitHub-hosted runner cannot see this disk, so the runner orchestrates and the box executes. Every workflow step is `ssh box 'cd /code/gufime && uv run ...'`. Actions keeps the schedule, the gate, the secrets and the logs; files and Postgres stay local to the work.
 
 ---
 
-## 4. Notebooks → `extract/`
+## 4. Notebooks → plain modules *(done)*
 
-Ten notebooks, all plain Python kernel (polars, no Spark): `%run` becomes `import`, `notebookutils.exit()` becomes a printed step output, `abfss://` becomes a local path, `write_deltalake` becomes a Postgres write. `_sources.yml` already credits `extract/ (Python + spaCy)` as the loader.
-
-All of it becomes locally runnable, which none of it is today.
+Workflow steps live in `notebooks/workflow/`, tunables in `notebooks/helpers/`, all storage behind `notebooks/helpers/storage.py`. `GUFIME_TARGET` picks `duckdb` (default) or `postgres`; `GUFIME_FILES_ROOT`, `GUFIME_PG_DSN`, `GUFIME_DUCKDB_PATH` override paths. Steps run from the repo root: `uv run python -m notebooks.workflow.nb_<step>`. The gate count surfaces via `storage.emit("new_count", n)`, which also writes `$GITHUB_OUTPUT`. The deployed Fabric notebook items are frozen copies.
 
 ---
 
@@ -97,8 +95,8 @@ Evidence supports PostgreSQL natively, credentials via `EVIDENCE_SOURCE__<source
 3. **2 GB swap.** The Evidence build peaks near 2 GB and is the first thing to OOM in 4 GB.
 4. **Scheduled workflows self-disable after 60 days without a commit**, and cron routinely fires 5-30 minutes late.
 5. **The 6-hour job cap.** Nightly deltas are minutes; run any full backfill from the laptop against the same cloud targets.
-6. **Carry `bronze.watermark`, `dim_work.ingested_at` and `snap_dim_work` across** or you lose the SCD2 history, the original stamps, and re-download the whole corpus.
-7. **PG politeness** now lives in `extract/texts.py`. Keep the caps.
+6. **(DONE)** All nine stateful tables and both file trees are carried across; `scripts/migrate_fabric_to_vps.py` re-runs safely.
+7. **PG politeness** now lives in `notebooks/workflow/nb_text_ingest.py`. Keep the caps.
 
 ---
 
@@ -106,17 +104,17 @@ Evidence supports PostgreSQL natively, credentials via `EVIDENCE_SOURCE__<source
 
 Fabric keeps running until Phase 6.
 
-**0 — Provision.** An OpenTofu module replaces `infra/*.bicep`: the box, the firewall (SSH only) and the deploy key; `cloudflare` for DNS and the R2 backup bucket. The server's `user_data` is a cloud-init file that installs Postgres (three schemas, localhost-only), `uv`, Node 24, `wrangler` and unattended-upgrades, and creates `/files/gufime/` and `/code/gufime/`. The one Actions secret, the SSH private key, goes in by hand.
+**(DONE) 0 — Provision.** `infra/tofu/` orders the box and runs `scripts/provision.sh` over SSH: Postgres (three schemas, peer auth on the socket), `uv`, Node 24, `wrangler`, unattended-upgrades, `/files/gufime/`, `/code/gufime/`.
 
-**1 — `extract/`.** Convert the ten notebooks behind `storage.py`. *Done when* `catalog` and `filter` write real rows to Postgres from the laptop.
+**(DONE) 1 — Plain modules.** The ten notebooks are modules behind `notebooks/helpers/storage.py` (§4); both targets write real rows.
 
-**2 — Migrate.** Copy `Files/texts/` and `Files/corpus/` to `/files/gufime/` (~2 GB, using the `az` token trick in `CLAUDE.md`); export the four stateful tables and load them. *Done when* a `filter` run reports zero new books.
+**(DONE) 2 — Migrate.** `scripts/migrate_fabric_to_vps.py` carried all files and nine tables; every count verified both sides. Warehouse tables read via `deltalake.query.QueryBuilder` (`columnMapping`). `scripts/seed_duckdb_from_staging.py` seeds the local duckdb from the staging copy at `C:\gufime-migration`, which stays until the first unattended VPS night passes. `nb_filter` on the box matches Fabric's gate count; the backfill backlog drains at ~200 texts/night.
 
 **3 — dbt on Postgres.** Add the target, strip the T-SQL branches (`log_run_results`, the `dim_work` coalesce, the `_sources.yml` database switch). *Done when* both targets build and counts match Fabric.
 
 **4 — Evidence.** Postgres source, delete `fetch-sources.js`. *Done when* the box builds the site with no Azure env vars.
 
-**5 — `nightly.yml`.** Cron, gate, dbt, build, deploy, concurrency guard, `workflow_dispatch`, each step an `ssh` into the box with `git pull` first. Actions is free and unmetered on a public repo. *Done when* a dispatch and one unattended night both pass.
+**5 — `nightly.yml`.** Cron, gate, dbt, build, deploy, concurrency guard, `workflow_dispatch`, each step an `ssh` into the box with `git pull` first. The first push replaces the tar snapshot in `/code/gufime/`. Actions is free and unmetered on a public repo. *Done when* a dispatch and one unattended night both pass. Pause the Logic App here.
 
 *Later, optional:* Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) taking over the schedule, with `dagster-dbt` reading `manifest.json` so extract → dbt → site is one asset graph. Not a prerequisite for anything below.
 
