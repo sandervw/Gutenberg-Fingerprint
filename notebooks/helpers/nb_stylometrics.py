@@ -1,0 +1,230 @@
+# Fabric notebook: nb_stylometrics
+# Stylometric measurement functions. Contract: each metric takes a parsed spaCy
+# Doc and returns a {metric_name: value} dict; a dict lets one metric emit
+# several values. Editable word/punctuation tables live in nb_lexicons (%run
+# before this notebook); metric 15's Python half lives in nb_vocab.
+# Definitions only - nb_measure %runs this notebook, which executes every cell.
+
+from __future__ import annotations
+
+import math
+import statistics
+from collections import Counter
+
+from spacy.tokens import Doc, Span, Token
+
+# Dependency labels marking a subordinate clause -> the sentence is "complex".
+SUBORDINATE_DEPS: frozenset[str] = frozenset(
+    {"advcl", "ccomp", "xcomp", "acl", "relcl", "csubj"}
+)
+
+# %% Shared helpers
+
+
+def _alpha_word_count(doc: Doc) -> int:
+    """Count word tokens (is_alpha) - the project-wide "word"."""
+    return sum(1 for token in doc if token.is_alpha)
+
+
+def _word_frequencies(doc: Doc) -> Counter[str]:
+    """Frequency of each case-folded word type ("The"/"the" fold to one)."""
+    return Counter(token.lower_ for token in doc if token.is_alpha)
+
+
+# %% Lexical
+
+
+def mean_word_length(doc: Doc) -> dict[str, float]:
+    """Metric 1: mean characters per word (is_alpha tokens; len = letters)."""
+    lengths = [len(token.text) for token in doc if token.is_alpha]
+    if not lengths:
+        return {"mean_word_length": 0.0}
+    return {"mean_word_length": sum(lengths) / len(lengths)}
+
+
+def yules_k(doc: Doc) -> dict[str, float]:
+    """Metric 2: Yule's K = length-stable richness (repetition raises K)."""
+    counts = _word_frequencies(doc)
+    total = sum(counts.values())
+    if total == 0:
+        return {"yules_k": 0.0}
+    sum_squares = sum(count * count for count in counts.values())
+    k = 10_000 * (sum_squares - total) / (total * total)
+    return {"yules_k": k}
+
+
+def archaic_word_rate(doc: Doc) -> dict[str, float]:
+    """Metric 3: share of words found in ARCHAIC_WORDS."""
+    words = _alpha_word_count(doc)
+    if words == 0:
+        return {"archaic_word_rate": 0.0}
+    counts = _word_frequencies(doc)
+    archaic = sum(count for word, count in counts.items() if word in ARCHAIC_WORDS)
+    return {"archaic_word_rate": archaic / words}
+
+
+def honore_r(doc: Doc) -> dict[str, float]:
+    """Metric 4: Honoré's R = hapax-based richness (more hapaxes -> larger R)."""
+    counts = _word_frequencies(doc)
+    total = sum(counts.values())
+    vocab_size = len(counts)
+    if total == 0 or vocab_size == 0:
+        return {"honore_r": 0.0}
+    hapaxes = sum(1 for count in counts.values() if count == 1)
+    denominator = 1 - (hapaxes / vocab_size)
+    if denominator == 0:
+        return {"honore_r": 0.0}
+    return {"honore_r": 100 * math.log(total) / denominator}
+
+
+def function_word_frequency(doc: Doc) -> dict[str, float]:
+    """Metric 5 (multi-value): per-word rate of each FUNCTION_WORDS entry."""
+    words = _alpha_word_count(doc)
+    counts = _word_frequencies(doc)
+    if words == 0:
+        return {f"funcword_{word}": 0.0 for word in FUNCTION_WORDS}
+    return {f"funcword_{word}": counts.get(word, 0) / words for word in FUNCTION_WORDS}
+
+
+# %% Syntactic
+
+
+def mean_sentence_length(doc: Doc) -> dict[str, float]:
+    """Metric 6: words (is_alpha) per sentence (doc.sents)."""
+    sentence_count = sum(1 for _ in doc.sents)
+    if sentence_count == 0:
+        return {"mean_sentence_length": 0.0}
+    return {"mean_sentence_length": _alpha_word_count(doc) / sentence_count}
+
+
+def sentence_length_stdev(doc: Doc) -> dict[str, float]:
+    """Metric 7: population stdev of sentence length in words - rhythm burstiness."""
+    lengths = [sum(1 for token in sent if token.is_alpha) for sent in doc.sents]
+    if len(lengths) < 2:
+        return {"sentence_length_stdev": 0.0}
+    return {"sentence_length_stdev": statistics.pstdev(lengths)}
+
+
+def _token_depth(token: Token) -> int:
+    """Hops from a token up to its sentence ROOT (ROOT = depth 0)."""
+    depth = 0
+    while token.head != token:
+        token = token.head
+        depth += 1
+    return depth
+
+
+def mean_parse_tree_depth(doc: Doc) -> dict[str, float]:
+    """Metric 8: mean over sentences of the deepest token's distance to ROOT."""
+    depths = [
+        max((_token_depth(token) for token in sent), default=0)
+        for sent in doc.sents
+    ]
+    if not depths:
+        return {"mean_parse_tree_depth": 0.0}
+    return {"mean_parse_tree_depth": sum(depths) / len(depths)}
+
+
+def _classify_sentence(sent: Span) -> str:
+    """Label a sentence simple/compound/complex from its dependencies; complex
+    (SUBORDINATE_DEPS) > compound (VERB/AUX "conj" off ROOT) > simple."""
+    if any(token.dep_ in SUBORDINATE_DEPS for token in sent):
+        return "complex"
+    coordinated = any(
+        token.dep_ == "conj"
+        and token.head.dep_ == "ROOT"
+        and token.pos_ in {"VERB", "AUX"}
+        for token in sent
+    )
+    return "compound" if coordinated else "simple"
+
+
+def sentence_type_mix(doc: Doc) -> dict[str, float]:
+    """Metric 9 (multi-value): simple/compound/complex shares, keyed senttype_<kind>."""
+    counts = {"simple": 0, "compound": 0, "complex": 0}
+    for sent in doc.sents:
+        counts[_classify_sentence(sent)] += 1
+    total = sum(counts.values())
+    if total == 0:
+        return {f"senttype_{kind}": 0.0 for kind in counts}
+    return {f"senttype_{kind}": count / total for kind, count in counts.items()}
+
+
+# %% Mechanical
+
+
+def punctuation_frequency(doc: Doc) -> dict[str, float]:
+    """Metric 10 (multi-value): per-word rate of each PUNCTUATION_MARKS group,
+    keyed punct_<name>."""
+    words = _alpha_word_count(doc)
+    mark_counts = Counter(token.text for token in doc if token.is_punct)
+    result: dict[str, float] = {}
+    for name, marks in PUNCTUATION_MARKS.items():
+        occurrences = sum(mark_counts.get(mark, 0) for mark in marks)
+        result[f"punct_{name}"] = occurrences / words if words else 0.0
+    return result
+
+
+def contraction_rate(doc: Doc) -> dict[str, float]:
+    """Metric 11: contractions per word. spaCy splits a contraction into a
+    clitic; count those after normalising the apostrophe. "'s" counts only
+    when not possessive (tag POS)."""
+    words = _alpha_word_count(doc)
+    if words == 0:
+        return {"contraction_rate": 0.0}
+    contractions = 0
+    for token in doc:
+        clitic = token.text.replace("’", "'").lower()
+        if clitic in CONTRACTION_CLITICS:
+            contractions += 1
+        elif clitic == "'s" and token.tag_ != "POS":
+            contractions += 1
+    return {"contraction_rate": contractions / words}
+
+
+# %% Structural
+
+
+def dialogue_narration_ratio(doc: Doc) -> dict[str, float]:
+    """Metric 12: fraction of words inside double quotes. Sweep tokens flipping
+    an "inside quote" switch; words while on are dialogue. The switch resets at
+    paragraph breaks, so an unbalanced quote bleeds one paragraph at most."""
+    total = 0
+    dialogue = 0
+    inside_quote = False
+    for token in doc:
+        text = token.text
+        if token.is_space:
+            if "\n" in text:
+                inside_quote = False
+        elif text in OPEN_QUOTES:
+            inside_quote = True
+        elif text in CLOSE_QUOTES:
+            inside_quote = False
+        elif text in STRAIGHT_QUOTES:
+            inside_quote = not inside_quote
+        elif token.is_alpha:
+            total += 1
+            if inside_quote:
+                dialogue += 1
+    if total == 0:
+        return {"dialogue_narration_ratio": 0.0}
+    return {"dialogue_narration_ratio": dialogue / total}
+
+
+def adjective_density(doc: Doc) -> dict[str, float]:
+    """Metric 13: ADJ-tagged tokens as a fraction of all words."""
+    word_count = _alpha_word_count(doc)
+    if word_count == 0:
+        return {"adjective_density": 0.0}
+    adjectives = sum(1 for token in doc if token.pos_ == "ADJ")
+    return {"adjective_density": adjectives / word_count}
+
+
+def adverb_density(doc: Doc) -> dict[str, float]:
+    """Metric 14: ADV-tagged tokens as a fraction of all words."""
+    word_count = _alpha_word_count(doc)
+    if word_count == 0:
+        return {"adverb_density": 0.0}
+    adverbs = sum(1 for token in doc if token.pos_ == "ADV")
+    return {"adverb_density": adverbs / word_count}
