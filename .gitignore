@@ -36,3 +36,6 @@ extract/
 # --- OS noise ---
 Thumbs.db
 desktop.ini
+
+# --- Hook state (runtime counters, not source) ---
+.claude/hooks/.state/
