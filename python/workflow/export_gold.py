@@ -1,4 +1,4 @@
-# Fabric notebook: nb_export_gold
+# Fabric-only step; deployed item is nb_export_gold
 # wh_gold gold marts (dim_*/fact_*/mart_*) -> lh_silver Files/exports/*.parquet.
 
 from __future__ import annotations

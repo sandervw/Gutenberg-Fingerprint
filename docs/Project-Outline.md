@@ -24,7 +24,7 @@ The outline this project was built against, updated to what actually got built. 
    └──────────────┘     └──────────────┘     └─────┬─────┘            │
                                                    │                  │
                         ┌──────────────────────────▼───────────────┐  │
-                        │ nb_export_gold → parquet in OneLake      │  │
+                        │ export_gold.py → parquet in OneLake      │  │
                         └──────────────────────┬───────────────────┘  │
                                                │                      │
    ┌──────────────┐     ┌─────────────────────▼────────────────┐   ┌──▼─────┐
@@ -33,30 +33,30 @@ The outline this project was built against, updated to what actually got built. 
    └──────────────┘     └──────────────────────────────────────┘   └────────┘
 ```
 
-- **Orchestrator:** a Fabric Data Factory pipeline, `pl_nightly`, sequencing catalog refresh → CDC gate → conditional extract → SQL endpoint refresh → dbt → parquet export. The gate is an If Condition on `nb_filter`'s exit value; on a no-op night the extract branch is skipped and dbt still runs against unchanged silver.
+- **Orchestrator:** a Fabric Data Factory pipeline, `pl_nightly`, sequencing catalog refresh → CDC gate → conditional extract → SQL endpoint refresh → dbt → parquet export. The gate is an If Condition on `filter.py`'s exit value; on a no-op night the extract branch is skipped and dbt still runs against unchanged silver.
 - **Bracket:** a single Logic App (`la-gutenberg-nightly`, in `infra/pipeline-automation.bicep`) resumes the capacity, runs the pipeline, fires the Cloudflare deploy hook, polls the Pages build, then suspends. Suspend runs regardless of outcome, so a failure never leaves the meter running.
-- **CDC notebooks (Python kernel, not Spark):** `nb_catalog_ingest` writes the catalog photo; `nb_filter` diffs the in-scope subset against the watermark and emits the gate count. Catalog-wide diffs are meaningless — the ~78k out-of-scope books never enter the watermark, so they read as new forever.
-- **Stylometrics notebooks (Python kernel):** the extractor logic from the previous project, re-homed and split into tunables (`nb_lexicons`, `nb_vocab`, `nb_stylometrics`, `nb_clean`) plus workflow steps. Same tidy `(work, metric, value)` output into silver Delta tables. 15 metric concepts fan out to 63 measured series.
+- **CDC notebooks (Python kernel, not Spark):** `catalog_ingest.py` writes the catalog photo; `filter.py` diffs the in-scope subset against the watermark and emits the gate count. Catalog-wide diffs are meaningless — the ~78k out-of-scope books never enter the watermark, so they read as new forever.
+- **Stylometrics notebooks (Python kernel):** the extractor logic from the previous project, re-homed and split into tunables (`lexicons.py`, `vocab.py`, `stylometrics.py`, `clean.py`) plus workflow steps. Same tidy `(work, metric, value)` output into silver Delta tables. 15 metric concepts fan out to 63 measured series.
 - **Warehouse + dbt:** dbt models materialize gold marts in a Fabric **Warehouse**, reading silver via the Lakehouse's SQL analytics endpoint (three-part naming — the endpoint is read-only, which is why models must land in a Warehouse). Fabric's native **dbt job** item runs them.
 - **BI:** Evidence. See §6 for the complication.
 
 ### Run order (step → what it loads → what it needs first)
 
 ```
-nb_catalog_ingest ──> bronze: catalog, watermark, Files/catalog/
+catalog_ingest.py ──> bronze: catalog, watermark, Files/catalog/
         │
         ▼
-nb_filter ──────────> silver: raw_works, bronze: ingest_audit    needs: catalog, watermark
+filter.py ──────────> silver: raw_works, bronze: ingest_audit    needs: catalog, watermark
                       exits with the CDC gate count
         │
         ▼  (If Condition: gate count > 0, else skip to the export)
-nb_text_ingest ─────> bronze: Files/texts/, watermark            needs: raw_works, watermark
+text_ingest.py ─────> bronze: Files/texts/, watermark            needs: raw_works, watermark
         │
         ▼
-nb_strip ───────────> silver: Files/corpus/, bronze: strip_audit needs: raw_works, Files/texts, Files/self
+strip.py ───────────> silver: Files/corpus/, bronze: strip_audit needs: raw_works, Files/texts, Files/self
         │
         ▼
-nb_measure ─────────> silver: raw_measurements, raw_vocab        needs: Files/corpus, watermark, Files/self manifest
+measure.py ─────────> silver: raw_measurements, raw_vocab        needs: Files/corpus, watermark, Files/self manifest
         │
         ▼
 refresh_silver ─────> forces the Lakehouse SQL endpoint to catch up
@@ -65,13 +65,13 @@ refresh_silver ─────> forces the Lakehouse SQL endpoint to catch up
 dbt build ──────────> wh_gold: stg_* → int_* → dim_*/fact_* → mart_*
         │
         ▼
-nb_export_gold ─────> lh_silver: Files/exports/*.parquet         needs: wh_gold base tables
+export_gold.py ─────> lh_silver: Files/exports/*.parquet         needs: wh_gold base tables
         │
         ▼
 deploy hook ────────> Cloudflare Pages build → gufime.com        needs: the parquet exports
 ```
 
-(one-off side input: `scripts/upload_self_corpus.py` → bronze `Files/self/` + `_manifest.csv`, stamping `loaded_at` in the seed so `nb_measure` re-parses only re-uploaded manual works)
+(one-off side input: `scripts/upload_self_corpus.py` → bronze `Files/self/` + `_manifest.csv`, stamping `loaded_at` in the seed so `measure.py` re-parses only re-uploaded manual works)
 
 ---
 
@@ -149,7 +149,7 @@ The initial build ran on the 60-day trial capacity. The bracket could not be bui
 
 Evidence extracts data at **build time** into a static site — the deployed Cloudflare Pages site never touches the Warehouse. Two consequences:
 
-1. **Auth:** Fabric Warehouse refuses SQL auth; Entra ID only. So `nb_export_gold` writes the gold marts to parquet in OneLake and `evidence/scripts/fetch-sources.js` pulls them over the OneLake DFS REST API with a service principal. DuckDB then runs `:memory:` against local parquet.
+1. **Auth:** Fabric Warehouse refuses SQL auth; Entra ID only. So `export_gold.py` writes the gold marts to parquet in OneLake and `evidence/scripts/fetch-sources.js` pulls them over the OneLake DFS REST API with a service principal. DuckDB then runs `:memory:` against local parquet.
 2. **Sequencing:** the deploy hook is a unique unauthenticated URL, so it's a secret. The Logic App holds the suspend until the Pages build reports success; pausing early kills the OneLake read mid-build.
 
 Three postbuild scripts work around Cloudflare Pages limits on file size, deployment file count, and 404 handling.
@@ -202,7 +202,7 @@ The enterprise tooling costs more time in workarounds than it returns at this sc
 | Job              | Now                                           | Next                                                  |
 | ---------------- | --------------------------------------------- | ----------------------------------------------------- |
 | Orchestration    | Data Factory `pl_nightly` + Logic App bracket | GitHub Actions `nightly.yml`, each step `ssh` the box |
-| Compute          | Fabric notebooks on an F2 capacity            | OVH VPS; plain Python modules in `notebooks/`         |
+| Compute          | Fabric notebooks on an F2 capacity            | OVH VPS; plain Python modules in `python/`            |
 | Bronze/silver    | OneLake Delta tables + Files                  | Box disk `/files/gufime/` + Postgres `bronze`/`raw`   |
 | Gold warehouse   | `wh_gold` (Fabric Warehouse, T-SQL)           | Postgres `main` on the box                            |
 | dbt runtime      | Fabric dbt job off `fabric-dbt`               | `uv run dbt build` on the box (`dbt-postgres`)        |
@@ -211,6 +211,6 @@ The enterprise tooling costs more time in workarounds than it returns at this sc
 
 **The goal is to maintain two targets, `duckdb` (dev) and `postgres` (prod)** - the project must continue to represent enterprise-grade architecture, but without the complexity introduced by fabric/azure's Lockin architecture.
 
-**Status:** Phases 0-2 of `docs/Off-Microsoft-Plan.md` are done. The VPS is live, the notebooks are dual-target modules behind `notebooks/helpers/storage.py`, and all Fabric state is migrated to the box and verified. The deployed Fabric items keep the nightly running until Phase 6; the repo notebook sources run as `uv run python -m notebooks.workflow.nb_<step>`.
+**Status:** Phases 0-2 of `docs/Off-Microsoft-Plan.md` are done. The VPS is live, the notebooks are dual-target modules behind `python/helpers/storage.py`, and all Fabric state is migrated to the box and verified. The deployed Fabric items keep the nightly running until Phase 6; the repo module sources run as `uv run python -m python.workflow.<step>`.
 
 **Done when:** a nightly run completes end to end with no Azure subscription attached to the project, and the site shows the same numbers.

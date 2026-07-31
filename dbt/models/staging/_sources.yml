@@ -12,7 +12,7 @@ sources:
       freshness:
         error_after: { count: 24, period: hour }
     tables:
-      # raw_works is the freshness heartbeat: nb_filter full-overwrites it every
+      # raw_works is the freshness heartbeat: filter.py full-overwrites it every
       - name: raw_works # grain: one row per work
       - name: raw_measurements # grain: one row per work × metric (tidy/long)
         config:

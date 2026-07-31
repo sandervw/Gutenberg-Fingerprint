@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import polars as pl
 
-from notebooks.helpers import storage
+from python.helpers import storage
 
 # %% Scope + genre - checks both subjects (LCSH) and bookshelves
 
@@ -94,7 +94,7 @@ if __name__ == "__main__":
             "books_in_catalog": [catalog_df.height],
             "candidate_new": [candidate_new],
             "candidate_changed": [candidate_changed],
-            "downloaded": [0],  # nb_text_ingest logs the real downloads
+            "downloaded": [0],  # text_ingest.py logs the real downloads
             "failed": [0],
         }
     )

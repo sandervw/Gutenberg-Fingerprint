@@ -8,7 +8,7 @@ from collections import Counter
 
 from spacy.tokens import Doc, Span, Token
 
-from notebooks.helpers.nb_lexicons import (
+from python.helpers.lexicons import (
     ARCHAIC_WORDS,
     CLOSE_QUOTES,
     CONTRACTION_CLITICS,

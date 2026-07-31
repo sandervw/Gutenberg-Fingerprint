@@ -1,7 +1,7 @@
 """Upload manual corpus works to bronze Files/self/<work_id>.md.
 
 Stamps loaded_at on the uploaded rows in the seed, then ships the refreshed
-seed alongside the files as Files/self/_manifest.csv - nb_measure's watermark
+seed alongside the files as Files/self/_manifest.csv - measure.py's watermark
 for manual works.
 
 Usage: python upload_self_corpus.py [work_id ...]   (no args = all works)
