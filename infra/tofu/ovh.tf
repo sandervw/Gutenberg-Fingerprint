@@ -46,6 +46,11 @@ resource "ovh_vps" "gufime" {
       quantity     = 1
     }
   ]
+
+  # Order-time fields; unreadable after creation, don't force replacement.
+  lifecycle {
+    ignore_changes = [image_id, ovh_subsidiary, plan, plan_option, public_ssh_key]
+  }
 }
 
 output "vps_service_name" {

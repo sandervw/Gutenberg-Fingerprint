@@ -2,7 +2,7 @@
 
 *Claude, never touch this file unless I say to.*
 
-## NEW DESIGN
+# NEW DESIGN
 
 ### Terms
 
@@ -23,7 +23,11 @@
 **OpenTofu**
 - infra-as-code: a file is written for the infrastructure that should exist; opentofu uses API to implement it
 - Replaces AZURE .bicep
-  - **cloudflare** -(`cloudflare.tf`) the R2 backup bucket and DNS
+  - **Main** - (`main.tf`) Runs the two below
+  - **cloudflare** -(`cloudflare.tf`) Creates the R2 backup bucket (not on the VPS - seperate resource)
+  - **OVHCloud VPS** - (`ovh.tf`) Creates the VPS
+  - **VPS Resources** - (`provision.sh`) Hands the "user data" to the VM - what to create
+    - (`provision.tf`) - ssh into the VPS, runs the above
 - `winget install opentofu.tofu`
 
 ### dbt
@@ -47,6 +51,8 @@ tofu plan
 tofu apply
 ssh -i ~/.ssh/gufime_rsa ubuntu@15.204.82.199
 ```
+
+# OLD DESIGN
 
 ## Setup
 
