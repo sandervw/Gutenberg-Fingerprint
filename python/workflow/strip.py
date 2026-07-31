@@ -8,7 +8,7 @@ import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
-from notebooks.helpers import storage
+from python.helpers import storage
 
 TEXTS_ROOT: Path = storage.file_path("bronze/texts")
 SELF_ROOT: Path = storage.file_path("bronze/self")

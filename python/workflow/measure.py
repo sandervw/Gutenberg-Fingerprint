@@ -11,9 +11,9 @@ import spacy
 from spacy.language import Language
 from spacy.tokens import Doc
 
-from notebooks.helpers import storage
-from notebooks.helpers.nb_clean import clean_markdown
-from notebooks.helpers.nb_stylometrics import (
+from python.helpers import storage
+from python.helpers.clean import clean_markdown
+from python.helpers.stylometrics import (
     adjective_density,
     adverb_density,
     archaic_word_rate,
@@ -29,7 +29,7 @@ from notebooks.helpers.nb_stylometrics import (
     sentence_type_mix,
     yules_k,
 )
-from notebooks.helpers.nb_vocab import vocab_terms
+from python.helpers.vocab import vocab_terms
 
 SELF_FOLDER: str = "Sander-VanWilligen"
 

@@ -1,4 +1,4 @@
-// Pulls the gold marts nb_export_gold wrote to OneLake down to data/warehouse/,
+// Pulls the gold marts export_gold.py wrote to OneLake down to data/warehouse/,
 // so the DuckDB source reads local parquet and the build never touches the
 // Warehouse. Needs the capacity running - paused capacities reject OneLake reads.
 //

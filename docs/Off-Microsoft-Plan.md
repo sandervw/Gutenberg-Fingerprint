@@ -33,12 +33,12 @@ The nightly run touches **two credentials**: an SSH private key in Actions, and 
 
 ```
 GitHub Actions (cron 03:00 UTC, workflow_dispatch) — every step is `ssh box '...'`
-  ├─ nb_catalog_ingest → pg bronze.catalog, bronze.watermark
-  ├─ nb_filter         → pg raw.raw_works       [step output: new_count]
+  ├─ catalog_ingest.py → pg bronze.catalog, bronze.watermark
+  ├─ filter.py         → pg raw.raw_works       [step output: new_count]
   │     └── if new_count > 0:
-  │           ├─ nb_text_ingest → /files/gufime/bronze/texts/
-  │           ├─ nb_strip       → /files/gufime/silver/corpus/
-  │           └─ nb_measure     → pg raw.raw_measurements, raw.raw_vocab
+  │           ├─ text_ingest.py → /files/gufime/bronze/texts/
+  │           ├─ strip.py       → /files/gufime/silver/corpus/
+  │           └─ measure.py     → pg raw.raw_measurements, raw.raw_vocab
   ├─ dbt build         → pg main.*
   └─ npm run sources && build → wrangler pages deploy → gufime.com
 ```
@@ -78,13 +78,13 @@ A GitHub-hosted runner cannot see this disk, so the runner orchestrates and the 
 
 ## 4. Notebooks → plain modules *(done)*
 
-Workflow steps live in `notebooks/workflow/`, tunables in `notebooks/helpers/`, all storage behind `notebooks/helpers/storage.py`. `GUFIME_TARGET` picks `duckdb` (default) or `postgres`; `GUFIME_FILES_ROOT`, `GUFIME_PG_DSN`, `GUFIME_DUCKDB_PATH` override paths. Steps run from the repo root: `uv run python -m notebooks.workflow.nb_<step>`. The gate count surfaces via `storage.emit("new_count", n)`, which also writes `$GITHUB_OUTPUT`. The deployed Fabric notebook items are frozen copies.
+Workflow steps live in `python/workflow/`, tunables in `python/helpers/`, all storage behind `python/helpers/storage.py`. `GUFIME_TARGET` picks `duckdb` (default) or `postgres`; `GUFIME_FILES_ROOT`, `GUFIME_PG_DSN`, `GUFIME_DUCKDB_PATH` override paths. Steps run from the repo root: `uv run python -m python.workflow.<step>`. The gate count surfaces via `storage.emit("new_count", n)`, which also writes `$GITHUB_OUTPUT`. The deployed Fabric notebook items are frozen copies.
 
 ---
 
 ## 5. The site
 
-Evidence supports PostgreSQL natively, credentials via `EVIDENCE_SOURCE__<source>__<variable>`. `fetch-sources.js` and `nb_export_gold` both delete; the published site stays static DuckDB-WASM over parquet, and the three postbuild scripts stay. Node and Evidence go on the box beside Postgres, which stays bound to localhost; the runner `ssh`s in to build, then `wrangler pages deploy build/` ships it. That retires the deploy-hook secret and the build-polling loop. Cloudflare now steers new projects to Workers Static Assets, but Pages is fully supported, so treat that move as separate.
+Evidence supports PostgreSQL natively, credentials via `EVIDENCE_SOURCE__<source>__<variable>`. `fetch-sources.js` and `export_gold.py` both delete; the published site stays static DuckDB-WASM over parquet, and the three postbuild scripts stay. Node and Evidence go on the box beside Postgres, which stays bound to localhost; the runner `ssh`s in to build, then `wrangler pages deploy build/` ships it. That retires the deploy-hook secret and the build-polling loop. Cloudflare now steers new projects to Workers Static Assets, but Pages is fully supported, so treat that move as separate.
 
 ---
 
@@ -96,7 +96,7 @@ Evidence supports PostgreSQL natively, credentials via `EVIDENCE_SOURCE__<source
 4. **Scheduled workflows self-disable after 60 days without a commit**, and cron routinely fires 5-30 minutes late.
 5. **The 6-hour job cap.** Nightly deltas are minutes; run any full backfill from the laptop against the same cloud targets.
 6. **(DONE)** All nine stateful tables and both file trees are carried across; `scripts/migrate_fabric_to_vps.py` re-runs safely.
-7. **PG politeness** now lives in `notebooks/workflow/nb_text_ingest.py`. Keep the caps.
+7. **PG politeness** now lives in `python/workflow/text_ingest.py`. Keep the caps.
 
 ---
 
@@ -106,9 +106,9 @@ Fabric keeps running until Phase 6.
 
 **(DONE) 0 — Provision.** `infra/tofu/` orders the box and runs `scripts/provision.sh` over SSH: Postgres (three schemas, peer auth on the socket), `uv`, Node 24, `wrangler`, unattended-upgrades, `/files/gufime/`, `/code/gufime/`.
 
-**(DONE) 1 — Plain modules.** The ten notebooks are modules behind `notebooks/helpers/storage.py` (§4); both targets write real rows.
+**(DONE) 1 — Plain modules.** The ten notebooks are modules behind `python/helpers/storage.py` (§4); both targets write real rows.
 
-**(DONE) 2 — Migrate.** `scripts/migrate_fabric_to_vps.py` carried all files and nine tables; every count verified both sides. Warehouse tables read via `deltalake.query.QueryBuilder` (`columnMapping`). `scripts/seed_duckdb_from_staging.py` seeds the local duckdb from the staging copy at `C:\gufime-migration`, which stays until the first unattended VPS night passes. `nb_filter` on the box matches Fabric's gate count; the backfill backlog drains at ~200 texts/night.
+**(DONE) 2 — Migrate.** `scripts/migrate_fabric_to_vps.py` carried all files and nine tables; every count verified both sides. Warehouse tables read via `deltalake.query.QueryBuilder` (`columnMapping`). `scripts/seed_duckdb_from_staging.py` seeds the local duckdb from the staging copy at `C:\gufime-migration`, which stays until the first unattended VPS night passes. `filter.py` on the box matches Fabric's gate count; the backfill backlog drains at ~200 texts/night.
 
 **3 — dbt on Postgres.** Add the target, strip the T-SQL branches (`log_run_results`, the `dim_work` coalesce, the `_sources.yml` database switch). *Done when* both targets build and counts match Fabric.
 

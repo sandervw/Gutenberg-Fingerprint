@@ -11,7 +11,7 @@ from pathlib import Path
 import polars as pl
 import requests
 
-from notebooks.helpers import storage
+from python.helpers import storage
 
 CATALOG_URL: str = "https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv"
 USER_AGENT: str = "gutenberg-fingerprint-pipeline/0.1 (contact: samvanwilligen@gmail.com)"

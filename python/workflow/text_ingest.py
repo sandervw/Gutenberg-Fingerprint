@@ -10,7 +10,7 @@ from pathlib import Path
 import polars as pl
 import requests
 
-from notebooks.helpers import storage
+from python.helpers import storage
 
 TEXTS_ROOT: Path = storage.file_path("bronze/texts")
 MIRROR: str = "https://gutenberg.pglaf.org"
