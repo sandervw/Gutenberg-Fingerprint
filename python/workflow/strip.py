@@ -12,7 +12,6 @@ from python.helpers import storage
 
 TEXTS_ROOT: Path = storage.file_path("bronze/texts")
 SELF_ROOT: Path = storage.file_path("bronze/self")
-SELF_FOLDER: str = "Sander-VanWilligen"
 
 # %% Boilerplate span - modern *** markers, pre-2002 fallbacks
 
@@ -21,11 +20,11 @@ _END = re.compile(r"^\*\*\* ?END OF (?:THE|THIS) PROJECT GUTENBERG EBOOK[^\n]*$"
 _OLD_START = re.compile(r"^\*END\*THE SMALL PRINT![^\n]*$", re.M)
 _OLD_END = re.compile(r"^End of (?:the |this )?Project Gutenberg", re.M | re.I)
 
-def decode(raw: bytes) -> str:
+def decode(raw_bytes: bytes) -> str:
     try:
-        return raw.decode("utf-8-sig")
+        return raw_bytes.decode("utf-8-sig")
     except UnicodeDecodeError:
-        return raw.decode("cp1252", errors="replace")
+        return raw_bytes.decode("cp1252", errors="replace")
 
 def isolate_body(text: str) -> str:
     """Cut at the earliest end marker of either era."""
@@ -33,7 +32,9 @@ def isolate_body(text: str) -> str:
     if start is None:
         raise ValueError("no start marker")
     body = text[start.end() :]
-    ends = [m.start() for m in (_END.search(body), _OLD_END.search(body)) if m]
+    ends = [
+        match.start() for match in (_END.search(body), _OLD_END.search(body)) if match
+    ]
     if not ends:
         raise ValueError("no end marker")
     return body[: min(ends)]
@@ -65,7 +66,9 @@ _DEDICATION = re.compile(r"(?i)\bdedicat")
 _TAIL = re.compile(r"(?i)^[*_\s]*(?:the\s+)?end[.!]?[*_\s]*$|^finis\.?$")
 
 def split_blocks(text: str) -> list[str]:
-    return [b.strip("\n") for b in re.split(r"\n[ \t]*\n", text) if b.strip()]
+    return [
+        block.strip("\n") for block in re.split(r"\n[ \t]*\n", text) if block.strip()
+    ]
 
 def drop_contents(blocks: list[str]) -> list[str]:
     out: list[str] = []
@@ -81,34 +84,38 @@ def drop_contents(blocks: list[str]) -> list[str]:
         out.append(block)
     return out
 
-def _squash(s: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+def _squash(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
 
 def drop_front_matter(blocks: list[str], title: str, author: str) -> list[str]:
     main_title = _squash(re.split(r"[:;\n\r]", title)[0])
-    names = [n for n in (_squash(p) for p in author.split(";")) if len(n) >= 4 and n != "unknown"]
+    names = [
+        name
+        for name in (_squash(part) for part in author.split(";"))
+        if len(name) >= 4 and name != "unknown"
+    ]
     out: list[str] = []
-    for i, block in enumerate(blocks):
-        if i < 8:
-            stripped = block.strip()
-            lines = [line.strip(" \t_*") for line in stripped.splitlines() if line.strip()]
-            sq = _squash(block)
-            line_dirt = len(lines) <= 3 and (
-                ((len(sq) >= 4 or sq == main_title) and sq in _squash(title))
-                or (len(main_title) >= 4 and main_title in sq)
-                or any(n in sq for n in names)
-                or all(_FRONT_CUES.match(line) for line in lines)
-                or any(_FRONT_STRONG.search(line) for line in lines)
-                or bool(_CREDIT.match(lines[0]))
-            )
-            if (
-                _PG_MENTION.search(block)
-                or _BRACKET_BLOCK.match(stripped)
-                or (len(block) <= 300 and (_DEDICATION.search(block) or line_dirt))
-            ):
-                continue
+    # Front matter only ever sits in the opening blocks
+    for block in blocks[:8]:
+        stripped = block.strip()
+        lines = [line.strip(" \t_*") for line in stripped.splitlines() if line.strip()]
+        squashed = _squash(block)
+        line_dirt = len(lines) <= 3 and (
+            ((len(squashed) >= 4 or squashed == main_title) and squashed in _squash(title))
+            or (len(main_title) >= 4 and main_title in squashed)
+            or any(name in squashed for name in names)
+            or all(_FRONT_CUES.match(line) for line in lines)
+            or any(_FRONT_STRONG.search(line) for line in lines)
+            or bool(_CREDIT.match(lines[0]))
+        )
+        if (
+            _PG_MENTION.search(block)
+            or _BRACKET_BLOCK.match(stripped)
+            or (len(block) <= 300 and (_DEDICATION.search(block) or line_dirt))
+        ):
+            continue
         out.append(block)
-    return out
+    return out + blocks[8:]
 
 # %% Structure - chapter headings, paragraph unwrap
 
@@ -149,26 +156,27 @@ def unwrap(block: str) -> str:
 
 def render_blocks(blocks: list[str]) -> str:
     out: list[str] = []
-    i = 0
-    while i < len(blocks):
-        block = blocks[i]
+    index = 0
+    while index < len(blocks):
+        block = blocks[index]
         if not is_heading(block):
             out.append(unwrap(block))
-            i += 1
+            index += 1
             continue
         lines = [line.strip() for line in block.splitlines() if line.strip()]
-        nxt = blocks[i + 1].strip() if i + 1 < len(blocks) else ""
+        next_block = blocks[index + 1].strip() if index + 1 < len(blocks) else ""
         if len(lines) == 2:
             out.append(f"## {lines[0].rstrip('.:')}: {lines[1]}")
         elif (  # standalone subtitle rides along: "CHAPTER I" + "The Castle"
-            nxt and "\n" not in nxt and len(nxt) <= 60 and not is_heading(nxt)
-            and i + 2 < len(blocks) and len(blocks[i + 2]) > 150
+            next_block and "\n" not in next_block and len(next_block) <= 60
+            and not is_heading(next_block)
+            and index + 2 < len(blocks) and len(blocks[index + 2]) > 150
         ):
-            out.append(f"## {lines[0].rstrip('.:')}: {nxt}")
-            i += 1
+            out.append(f"## {lines[0].rstrip('.:')}: {next_block}")
+            index += 1
         else:
             out.append(f"## {lines[0]}")
-        i += 1
+        index += 1
     return "\n\n".join(out) + "\n"
 
 _EMPHASIS = re.compile(r"_([^_\n]{1,300}?)_")
@@ -181,18 +189,21 @@ def has_single_dialogue(body: str) -> bool:
     singles = len(re.findall(r"(?:^|[\s(—-])'\w", body))
     return singles >= 30 and singles > 3 * (body.count('"') + body.count("“"))
 
-def convert_single_dialogue(par: str) -> str:
+def convert_single_dialogue(paragraph: str) -> str:
     """Pair-scan straight singles; dialect apostrophes and unpaired spans skip."""
-    chars, inside = list(par), False
-    for m in re.finditer(r"'", par):
-        i = m.start()
-        prev = par[i - 1] if i else " "
-        nxt = par[i + 1] if i + 1 < len(par) else " "
-        opens = prev in " \t\n(—-_" and (nxt.isalpha() or nxt == "_")
-        if not inside and opens and not _DIALECT.match(par[i + 1 :]):
-            chars[i], inside = "“", True
-        elif inside and (prev in ".,!?;:—-_)" or (prev.isalpha() and i == len(par) - 1)):
-            chars[i], inside = "”", False
+    chars, inside = list(paragraph), False
+    for match in re.finditer(r"'", paragraph):
+        index = match.start()
+        previous_char = paragraph[index - 1] if index else " "
+        next_char = paragraph[index + 1] if index + 1 < len(paragraph) else " "
+        opens = previous_char in " \t\n(—-_" and (next_char.isalpha() or next_char == "_")
+        if not inside and opens and not _DIALECT.match(paragraph[index + 1 :]):
+            chars[index], inside = "“", True
+        elif inside and (
+            previous_char in ".,!?;:—-_)"
+            or (previous_char.isalpha() and index == len(paragraph) - 1)
+        ):
+            chars[index], inside = "”", False
     return "".join(chars)
 
 # %% Naming - display author/title, folder and file slugs
@@ -203,20 +214,22 @@ _DATE_PART = re.compile(r"\d{4}|^[\d? –-]+$|\bcent(?:ury)?\b", re.I)
 
 def display_author(catalog_authors: str) -> str:
     """'Smith, Clark Ashton, 1893-1961' -> 'Clark Ashton Smith'."""
-    entries = [e.strip() for e in catalog_authors.split(";") if e.strip()]
+    entries = [entry.strip() for entry in catalog_authors.split(";") if entry.strip()]
+    primary = [entry for entry in entries if not _ROLE.search(entry)] or entries
     names: list[str] = []
-    for entry in [e for e in entries if not _ROLE.search(e)] or entries:
-        parts = [p.strip() for p in _ROLE.sub("", _PAREN.sub("", entry)).split(",")]
-        parts = [p for p in parts if p and not _DATE_PART.search(p)]
+    for entry in primary:
+        parts = [part.strip() for part in _ROLE.sub("", _PAREN.sub("", entry)).split(",")]
+        parts = [part for part in parts if part and not _DATE_PART.search(part)]
         if parts:
             names.append(" ".join(parts[1:] + parts[:1]) if len(parts) > 1 else parts[0])
     return "; ".join(names) or "Unknown"
 
-def _asciify(s: str) -> str:
-    return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
+def _asciify(text: str) -> str:
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
 
-def author_folder(display: str) -> str:
-    return re.sub(r"[^A-Za-z0-9]+", "-", _asciify(display.split(";")[0])).strip("-") or "Unknown"
+def author_folder(display_name: str) -> str:
+    folder = _asciify(display_name.split(";")[0])
+    return re.sub(r"[^A-Za-z0-9]+", "-", folder).strip("-") or "Unknown"
 
 def display_title(title: str) -> str:
     return re.sub(r"\s*[\r\n]+\s*", ": ", title.strip())
@@ -225,8 +238,8 @@ def title_slug(title: str) -> str:
     head = re.split(r"[:;\n\r]", title)[0]
     return re.sub(r"[^a-z0-9]+", "-", _asciify(head).lower()).strip("-")[:60] or "untitled"
 
-def to_markdown(raw: bytes, title: str, author: str) -> str:
-    text = decode(raw).replace("\r\n", "\n").replace("\r", "\n")
+def to_markdown(raw_bytes: bytes, title: str, author: str) -> str:
+    text = decode(raw_bytes).replace("\r\n", "\n").replace("\r", "\n")
     body = _ETEXT_LINE.sub("", _BRACKET_NOTE.sub("", isolate_body(text)))
     blocks = drop_front_matter(drop_contents(split_blocks(body)), title, author)
     while blocks and _TAIL.match(blocks[-1].strip()):
@@ -253,36 +266,37 @@ if __name__ == "__main__":
 
     stripped = failed = missing = 0
     for row in roster.sort("gutenberg_id").iter_rows(named=True):
-        src = TEXTS_ROOT / f"{row['gutenberg_id']}.txt"
-        if not src.exists():
+        source = TEXTS_ROOT / f"{row['gutenberg_id']}.txt"
+        if not source.exists():
             missing += 1
             continue
         author = display_author(row["authors"] or "")
         title = row["title"] or ""
         try:
-            md = to_markdown(src.read_bytes(), title, author)
+            markdown = to_markdown(source.read_bytes(), title, author)
         except ValueError as exc:
             print(f"{row['gutenberg_id']}: {exc}")
             failed += 1
             continue
-        dest = corpus_root / author_folder(author) / f"{row['gutenberg_id']}-{title_slug(title)}.md"
+        filename = f"{row['gutenberg_id']}-{title_slug(title)}.md"
+        dest = corpus_root / author_folder(author) / filename
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(md, encoding="utf-8", newline="\n")
+        dest.write_text(markdown, encoding="utf-8", newline="\n")
         stripped += 1
 
     # Self corpus is already clean markdown: promote as-is
     promoted = 0
     if SELF_ROOT.exists():
-        self_dest = corpus_root / SELF_FOLDER
+        self_dest = corpus_root / storage.SELF_FOLDER
         self_dest.mkdir(exist_ok=True)
-        for src in sorted(SELF_ROOT.glob("*.md")):
-            shutil.copyfile(src, self_dest / src.name)
+        for source in sorted(SELF_ROOT.glob("*.md")):
+            shutil.copyfile(source, self_dest / source.name)
             promoted += 1
 
     audit = pl.DataFrame(
         [(run_ts, roster.height, stripped, failed, missing)],
         schema={
-            "run_ts": pl.Datetime("us", "UTC"), "roster_size": pl.Int64,
+            "run_ts": storage.TS_UTC, "roster_size": pl.Int64,
             "stripped": pl.Int64, "failed": pl.Int64, "missing_text": pl.Int64,
         },
         orient="row",

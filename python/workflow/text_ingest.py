@@ -14,13 +14,10 @@ from python.helpers import storage
 
 TEXTS_ROOT: Path = storage.file_path("bronze/texts")
 MIRROR: str = "https://gutenberg.pglaf.org"
-USER_AGENT: str = "gutenberg-fingerprint-pipeline/0.1 (contact: samvanwilligen@gmail.com)"
 
 SLEEP_S: float = 2.0  # PG's stated politeness gap
 MAX_CONSECUTIVE_FAILURES: int = 5  # a streak means blocked or mirror down
 MAX_DOWNLOADS_PER_RUN: int = 200  # caps a run to a predictable length
-
-TS_UTC: pl.Datetime = pl.Datetime("us", "UTC")
 
 # %% Diff - roster vs watermark ledger
 
@@ -47,51 +44,51 @@ def pick_downloads(roster: pl.DataFrame, watermark: pl.DataFrame) -> pl.DataFram
 # %% Download - raw bytes, one file per work, rate-limited
 
 
-def text_urls(gid: int) -> list[str]:
-    dirs = "/".join(str(gid)[:-1]) or "0"
+def text_urls(gutenberg_id: int) -> list[str]:
+    digit_path = "/".join(str(gutenberg_id)[:-1]) or "0"
     return [
-        f"{MIRROR}/cache/epub/{gid}/pg{gid}.txt",
-        f"{MIRROR}/{dirs}/{gid}/{gid}-0.txt",
-        f"{MIRROR}/{dirs}/{gid}/{gid}-8.txt",
-        f"{MIRROR}/{dirs}/{gid}/{gid}.txt",
+        f"{MIRROR}/cache/epub/{gutenberg_id}/pg{gutenberg_id}.txt",
+        f"{MIRROR}/{digit_path}/{gutenberg_id}/{gutenberg_id}-0.txt",
+        f"{MIRROR}/{digit_path}/{gutenberg_id}/{gutenberg_id}-8.txt",
+        f"{MIRROR}/{digit_path}/{gutenberg_id}/{gutenberg_id}.txt",
     ]
 
 
-def fetch_text(gid: int, session: requests.Session) -> bytes:
-    for i, url in enumerate(text_urls(gid)):
-        if i:
+def fetch_text(gutenberg_id: int, session: requests.Session) -> bytes:
+    for index, url in enumerate(text_urls(gutenberg_id)):
+        if index:
             time.sleep(SLEEP_S)
-        resp = session.get(url, timeout=60)
-        if resp.status_code == 404:
+        response = session.get(url, timeout=60)
+        if response.status_code == 404:
             continue
-        resp.raise_for_status()
-        return resp.content
-    raise FileNotFoundError(f"no text file for {gid}")
+        response.raise_for_status()
+        return response.content
+    raise FileNotFoundError(f"no text file for {gutenberg_id}")
 
 
 def download_texts(todo: pl.DataFrame) -> pl.DataFrame:
     TEXTS_ROOT.mkdir(parents=True, exist_ok=True)
     session = requests.Session()
-    session.headers["User-Agent"] = USER_AGENT
+    session.headers["User-Agent"] = storage.USER_AGENT
 
     rows: list[tuple[int, str, str | None, str]] = []
     consecutive_failures = 0
-    for i, row in enumerate(todo.iter_rows(named=True)):
-        if i:
+    for index, row in enumerate(todo.iter_rows(named=True)):
+        if index:
             time.sleep(SLEEP_S)
-        if i % 50 == 0:
-            print(f"{i:,}/{todo.height:,}...")
-        gid = row["gutenberg_id"]
+        if index % 50 == 0:
+            print(f"{index:,}/{todo.height:,}...")
+        gutenberg_id = row["gutenberg_id"]
         try:
-            raw = fetch_text(gid, session)
-            (TEXTS_ROOT / f"{gid}.txt").write_bytes(raw)
-            text_hash = hashlib.sha256(raw).hexdigest()
-            rows.append((gid, row["catalog_row_hash"], text_hash, "ingested"))
+            raw_bytes = fetch_text(gutenberg_id, session)
+            (TEXTS_ROOT / f"{gutenberg_id}.txt").write_bytes(raw_bytes)
+            text_hash = hashlib.sha256(raw_bytes).hexdigest()
+            rows.append((gutenberg_id, row["catalog_row_hash"], text_hash, "ingested"))
             consecutive_failures = 0
         # OSError covers the all-mirrors-404 FileNotFoundError
         except (requests.RequestException, OSError) as exc:
-            print(f"{gid}: {exc}")
-            rows.append((gid, row["catalog_row_hash"], None, "failed"))
+            print(f"{gutenberg_id}: {exc}")
+            rows.append((gutenberg_id, row["catalog_row_hash"], None, "failed"))
             consecutive_failures += 1
             if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
                 print(f"{consecutive_failures} failures in a row, stopping early")
@@ -122,8 +119,8 @@ def update_watermark(
             watermark.select("gutenberg_id", "first_seen"), on="gutenberg_id", how="left"
         )
         .with_columns(
-            pl.col("first_seen").fill_null(pl.lit(run_ts, dtype=TS_UTC)),
-            pl.lit(run_ts, dtype=TS_UTC).alias("last_changed"),
+            pl.col("first_seen").fill_null(pl.lit(run_ts, dtype=storage.TS_UTC)),
+            pl.lit(run_ts, dtype=storage.TS_UTC).alias("last_changed"),
         )
         .select(watermark.columns)
     )
@@ -144,7 +141,7 @@ def write_audit(
             "failed": [failed],
         },
         schema={
-            "run_ts": TS_UTC,
+            "run_ts": storage.TS_UTC,
             "run_type": pl.Utf8,
             "books_in_catalog": pl.Int64,
             "candidate_new": pl.Int64,

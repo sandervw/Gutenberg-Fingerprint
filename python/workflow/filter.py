@@ -96,7 +96,16 @@ if __name__ == "__main__":
             "candidate_changed": [candidate_changed],
             "downloaded": [0],  # text_ingest.py logs the real downloads
             "failed": [0],
-        }
+        },
+        schema={
+            "run_ts": storage.TS_UTC,
+            "run_type": pl.Utf8,
+            "books_in_catalog": pl.Int64,
+            "candidate_new": pl.Int64,
+            "candidate_changed": pl.Int64,
+            "downloaded": pl.Int64,
+            "failed": pl.Int64,
+        },
     )
     storage.write_table("bronze.ingest_audit", audit_row, mode="append")
     print(f"new in-scope works: {candidate_new:,} | changed: {candidate_changed:,}")

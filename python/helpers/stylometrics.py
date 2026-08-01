@@ -26,7 +26,7 @@ SUBORDINATE_DEPS: frozenset[str] = frozenset(
 # %% Shared helpers
 
 
-def _alpha_word_count(doc: Doc) -> int:
+def alpha_word_count(doc: Doc) -> int:
     """Count word tokens (is_alpha) - the project-wide "word"."""
     return sum(1 for token in doc if token.is_alpha)
 
@@ -60,7 +60,7 @@ def yules_k(doc: Doc) -> dict[str, float]:
 
 def archaic_word_rate(doc: Doc) -> dict[str, float]:
     """Metric 3: share of words found in ARCHAIC_WORDS."""
-    words = _alpha_word_count(doc)
+    words = alpha_word_count(doc)
     if words == 0:
         return {"archaic_word_rate": 0.0}
     counts = _word_frequencies(doc)
@@ -84,7 +84,7 @@ def honore_r(doc: Doc) -> dict[str, float]:
 
 def function_word_frequency(doc: Doc) -> dict[str, float]:
     """Metric 5 (multi-value): per-word rate of each FUNCTION_WORDS entry."""
-    words = _alpha_word_count(doc)
+    words = alpha_word_count(doc)
     counts = _word_frequencies(doc)
     if words == 0:
         return {f"funcword_{word}": 0.0 for word in FUNCTION_WORDS}
@@ -99,7 +99,7 @@ def mean_sentence_length(doc: Doc) -> dict[str, float]:
     sentence_count = sum(1 for _ in doc.sents)
     if sentence_count == 0:
         return {"mean_sentence_length": 0.0}
-    return {"mean_sentence_length": _alpha_word_count(doc) / sentence_count}
+    return {"mean_sentence_length": alpha_word_count(doc) / sentence_count}
 
 
 def sentence_length_stdev(doc: Doc) -> dict[str, float]:
@@ -159,7 +159,7 @@ def sentence_type_mix(doc: Doc) -> dict[str, float]:
 
 def punctuation_frequency(doc: Doc) -> dict[str, float]:
     """Metric 10 (multi-value): per-word rate per PUNCTUATION_MARKS group."""
-    words = _alpha_word_count(doc)
+    words = alpha_word_count(doc)
     mark_counts = Counter(token.text for token in doc if token.is_punct)
     result: dict[str, float] = {}
     for name, marks in PUNCTUATION_MARKS.items():
@@ -170,7 +170,7 @@ def punctuation_frequency(doc: Doc) -> dict[str, float]:
 
 def contraction_rate(doc: Doc) -> dict[str, float]:
     """Metric 11: contraction clitics per word; possessive 's excluded."""
-    words = _alpha_word_count(doc)
+    words = alpha_word_count(doc)
     if words == 0:
         return {"contraction_rate": 0.0}
     contractions = 0
@@ -213,7 +213,7 @@ def dialogue_narration_ratio(doc: Doc) -> dict[str, float]:
 
 def adjective_density(doc: Doc) -> dict[str, float]:
     """Metric 13: ADJ-tagged tokens as a fraction of all words."""
-    word_count = _alpha_word_count(doc)
+    word_count = alpha_word_count(doc)
     if word_count == 0:
         return {"adjective_density": 0.0}
     adjectives = sum(1 for token in doc if token.pos_ == "ADJ")
@@ -222,7 +222,7 @@ def adjective_density(doc: Doc) -> dict[str, float]:
 
 def adverb_density(doc: Doc) -> dict[str, float]:
     """Metric 14: ADV-tagged tokens as a fraction of all words."""
-    word_count = _alpha_word_count(doc)
+    word_count = alpha_word_count(doc)
     if word_count == 0:
         return {"adverb_density": 0.0}
     adverbs = sum(1 for token in doc if token.pos_ == "ADV")
