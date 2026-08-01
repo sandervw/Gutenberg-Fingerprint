@@ -1,1 +1,1 @@
-select * from read_parquet('data/warehouse/dim_metric.parquet')
+select * from gold.dim_metric

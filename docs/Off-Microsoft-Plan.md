@@ -1,6 +1,6 @@
 # Off-Microsoft: Migration Plan
 
-*Phases 0-3 are executed and verified; Phases 4-6 remain proposals.*
+*Phases 0-4 are executed and verified; Phases 5-6 remain proposals.*
 
 **IMPORTANT:** When comparing technologies/products, list the pros/cons of each across the following criteria:
 - Is it simple?
@@ -24,7 +24,7 @@
 | Tables        | OneLake Delta + `wh_gold`       | Postgres on the same box (`bronze`/`raw`/`main`)          | —                                        |
 | dbt runtime   | Fabric dbt job off `fabric-dbt` | `uv run dbt build` on the box, `dbt-core` 1.x             | —                                        |
 | Serving       | deploy hook, capacity held open | Postgres connector; build on box, `wrangler pages deploy` | Workers Static Assets                    |
-| Infra as code | Bicep + `fabric-cicd`           | OpenTofu (`cloudflare`); cloud-init builds the box        | —                                        |
+| Infra as code | Bicep + `fabric-cicd`           | OpenTofu; custom provision bash builds on the box         | —                                        |
 | Secrets       | Entra service principal         | one SSH key in Actions, one Cloudflare token on the box   | —                                        |
 
 **About $5/month, with nothing to remember to switch off.** Two dbt targets stay: `duckdb` for dev, `postgres` for prod.
@@ -84,7 +84,7 @@ Workflow steps live in `python/workflow/`, tunables in `python/helpers/`, all st
 
 ## 5. The site
 
-Evidence supports PostgreSQL natively, credentials via `EVIDENCE_SOURCE__<source>__<variable>`. `fetch-sources.js` and `export_gold.py` both delete; the published site stays static DuckDB-WASM over parquet, and the three postbuild scripts stay. Node and Evidence go on the box beside Postgres, which stays bound to localhost; the runner `ssh`s in to build, then `wrangler pages deploy build/` ships it. That retires the deploy-hook secret and the build-polling loop. Cloudflare now steers new projects to Workers Static Assets, but Pages is fully supported, so treat that move as separate.
+**(DONE)** Evidence reads Postgres over the unix socket, peer auth, `@evidence-dev/postgres`. `fetch-sources.js` deleted. `export_gold.py` stays until Phase 6. The three postbuild scripts stay. Node and Evidence run on the box beside Postgres, bound to localhost; the runner `ssh`s in to build, then `wrangler pages deploy build/` ships it.
 
 ---
 
@@ -92,7 +92,7 @@ Evidence supports PostgreSQL natively, credentials via `EVIDENCE_SOURCE__<source
 
 1. **Pin `dbt-core>=1.10,<2.0`.** dbt Labs say v1.x stays on PyPI, and 1.12 is in beta. A naive `pip install dbt-postgres` still resolves 2.0.0-alpha.1 and fails.
 2. **The box is yours.** Unattended security upgrades, a firewall opening SSH only, Postgres bound to localhost, and a nightly `pg_dump` offsite. **cloud-init runs once, at first boot**, so later changes to it only take effect on a rebuild.
-3. **2 GB swap.** The Evidence build peaks near 2 GB and is the first thing to OOM in 4 GB.
+3. **(DONE) 2 GB swap.** Set in `provision.sh` and live on the box.
 4. **Scheduled workflows self-disable after 60 days without a commit**, and cron routinely fires 5-30 minutes late.
 5. **The 6-hour job cap.** Nightly deltas are minutes; run any full backfill from the laptop against the same cloud targets.
 6. **(DONE)** All nine stateful tables and both file trees are carried across; `scripts/migrate_fabric_to_vps.py` re-runs safely.
@@ -112,7 +112,7 @@ Fabric keeps running until Phase 6.
 
 **(DONE) 3 — dbt on Postgres.** `postgres` target added (peer auth, unix socket, no password). `log_run_results` and `_sources.yml` needed a postgres branch; `parse_primary_author`/`stddev_pop_expr` already fell through to `default__` unchanged. Both targets build clean on `--full-refresh`; row counts match exactly (dim_work/mart_work 3187, fact_style_measurement/mart_style_long 200781, mart_author 1171, fact_vocab_overlap 1170).
 
-**4 — Evidence.** Postgres source, delete `fetch-sources.js`. *Done when* the box builds the site with no Azure env vars.
+**(DONE) 4 — Evidence.** `evidence.config.yaml` and `package.json` use `@evidence-dev/postgres`. Row counts match Phase 3's dbt output. Build verified on the box.
 
 **5 — `nightly.yml`.** Cron, gate, dbt, build, deploy, concurrency guard, `workflow_dispatch`, each step an `ssh` into the box with `git pull` first. The first push replaces the tar snapshot in `/code/gufime/`. Actions is free and unmetered on a public repo. *Done when* a dispatch and one unattended night both pass. Pause the Logic App here.
 

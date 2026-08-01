@@ -1,1 +1,1 @@
-select * from read_parquet('data/warehouse/mart_style_long.parquet')
+select * from gold.mart_style_long

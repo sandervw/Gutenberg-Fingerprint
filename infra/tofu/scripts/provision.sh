@@ -38,3 +38,12 @@ su - gufime -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
 
 mkdir -p /files/gufime /code/gufime
 chown -R gufime:gufime /files/gufime /code/gufime
+
+# 2 GB swap: the Evidence build peaks near it on a 4 GB box.
+if [ ! -f /swapfile ]; then
+  fallocate -l 2G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi

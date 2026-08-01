@@ -211,6 +211,6 @@ The enterprise tooling costs more time in workarounds than it returns at this sc
 
 **The goal is to maintain two targets, `duckdb` (dev) and `postgres` (prod)** - the project must continue to represent enterprise-grade architecture, but without the complexity introduced by fabric/azure's Lockin architecture.
 
-**Status:** Phases 0-2 of `docs/Off-Microsoft-Plan.md` are done. The VPS is live, the notebooks are dual-target modules behind `python/helpers/storage.py`, and all Fabric state is migrated to the box and verified. The deployed Fabric items keep the nightly running until Phase 6; the repo module sources run as `uv run python -m python.workflow.<step>`.
+**Status:** Phases 0-4 of `docs/Off-Microsoft-Plan.md` are done. The VPS is live, the notebooks are dual-target modules behind `python/helpers/storage.py`, dbt builds clean on the `postgres` target, and Evidence builds the site straight from Postgres on the box. The deployed Fabric items keep the nightly running until Phase 6; the repo module sources run as `uv run python -m python.workflow.<step>`.
 
 **Done when:** a nightly run completes end to end with no Azure subscription attached to the project, and the site shows the same numbers.
