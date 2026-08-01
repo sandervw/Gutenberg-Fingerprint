@@ -23,5 +23,5 @@ gutenberg_fingerprint:
       password: ""
       port: 5432
       dbname: gufime
-      schema: main
+      schema: gold
       threads: 4
