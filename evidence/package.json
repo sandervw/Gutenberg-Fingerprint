@@ -2,15 +2,11 @@
   "name": "gutenberg-fingerprint-evidence",
   "version": "0.0.1",
   "scripts": {
-    "fetch-sources": "node scripts/fetch-sources.js",
-    "prebuild": "npm run fetch-sources",
     "build": "evidence build",
     "postbuild": "node scripts/cdn-wasm.js && node scripts/trim-prerendered.js && node scripts/copy-404.js",
     "build:strict": "evidence build:strict",
-    "predev": "npm run fetch-sources",
     "dev": "evidence dev --open /",
     "test": "evidence build",
-    "presources": "npm run fetch-sources",
     "sources": "evidence sources",
     "sources:strict": "evidence sources --strict",
     "preview": "evidence preview"
@@ -23,7 +19,7 @@
   "dependencies": {
     "@evidence-dev/core-components": "^5.4.2",
     "@evidence-dev/evidence": "^40.1.8",
-    "@evidence-dev/duckdb": "^2.0.1"
+    "@evidence-dev/postgres": "^1.0.10"
   },
   "overrides": {
     "jsonwebtoken": "9.0.0",

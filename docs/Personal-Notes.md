@@ -40,6 +40,17 @@
 - Snapshot manufactures information that exists nowhere else; Incremental only saves time
 - *If you need incremental to preserve a value, that value belongs upstream in the data*
 
+### VPS Box
+
+Currently set up in **OVHCloud** (the provider)
+
+The Evidence Build requires a `swapfile`
+- swap is disk space the kernel uses when RAM fills up
+- pages out memory that's sitting idle to disk
+- frees up room for currently active work
+- Out box has only 3.7GB ram
+- 2GB of swap gives it overflow room (it degrades to "slower" rather than "killed")
+
 ### Commands
 
 **Create/Login-to vps box commands**

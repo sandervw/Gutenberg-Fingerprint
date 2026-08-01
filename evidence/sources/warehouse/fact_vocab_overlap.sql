@@ -1,1 +1,1 @@
-select * from read_parquet('data/warehouse/fact_vocab_overlap.parquet')
+select * from gold.fact_vocab_overlap

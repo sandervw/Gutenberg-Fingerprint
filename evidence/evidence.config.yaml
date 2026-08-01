@@ -62,5 +62,4 @@ plugins:
     "@evidence-dev/core-components": {}
 
   datasources:
-    # Add datasources here by adding npm packages (also add to package.json).
-    "@evidence-dev/duckdb": { }
+    "@evidence-dev/postgres": { }

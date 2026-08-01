@@ -1,1 +1,1 @@
-select * from read_parquet('data/warehouse/mart_author.parquet')
+select * from gold.mart_author

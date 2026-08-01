@@ -1,1 +1,1 @@
-select * from read_parquet('data/warehouse/fact_style_measurement.parquet')
+select * from gold.fact_style_measurement
