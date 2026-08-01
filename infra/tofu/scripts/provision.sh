@@ -26,7 +26,7 @@ su - postgres -c "psql -tc \"SELECT 1 FROM pg_roles WHERE rolname='gufime'\"" | 
   su - postgres -c "createuser --createdb gufime"
 su - postgres -c "psql -tc \"SELECT 1 FROM pg_database WHERE datname='gufime'\"" | grep -q 1 || \
   su - postgres -c "createdb -O gufime gufime"
-su - gufime -c "psql -c 'CREATE SCHEMA IF NOT EXISTS bronze; CREATE SCHEMA IF NOT EXISTS raw; CREATE SCHEMA IF NOT EXISTS main;'"
+su - gufime -c "psql -c 'CREATE SCHEMA IF NOT EXISTS bronze; CREATE SCHEMA IF NOT EXISTS raw; CREATE SCHEMA IF NOT EXISTS gold; DROP SCHEMA IF EXISTS public CASCADE;'"
 
 # Node 24 and wrangler for the Evidence build.
 curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
