@@ -14,16 +14,13 @@ import requests
 from python.helpers import storage
 
 CATALOG_URL: str = "https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv"
-USER_AGENT: str = "gutenberg-fingerprint-pipeline/0.1 (contact: samvanwilligen@gmail.com)"
-
-TS_UTC: pl.Datetime = pl.Datetime("us", "UTC")
 
 WATERMARK_SCHEMA: dict[str, pl.DataType] = {
     "gutenberg_id": pl.Int64,
     "catalog_row_hash": pl.String,
     "text_hash": pl.String,
-    "first_seen": TS_UTC,
-    "last_changed": TS_UTC,
+    "first_seen": storage.TS_UTC,
+    "last_changed": storage.TS_UTC,
     "status": pl.String,
 }
 
@@ -48,12 +45,15 @@ def download_catalog(
         try:
             written = 0
             with requests.get(
-                url, headers={"User-Agent": USER_AGENT}, stream=True, timeout=timeout_s
-            ) as resp:
-                resp.raise_for_status()
-                with dest.open("wb") as fh:
-                    for chunk in resp.iter_content(chunk_size=1 << 20):
-                        written += fh.write(chunk)
+                url,
+                headers={"User-Agent": storage.USER_AGENT},
+                stream=True,
+                timeout=timeout_s,
+            ) as response:
+                response.raise_for_status()
+                with dest.open("wb") as output_file:
+                    for chunk in response.iter_content(chunk_size=1 << 20):
+                        written += output_file.write(chunk)
             return written
         except requests.RequestException as exc:
             if attempt == attempts or not _retriable(exc):
@@ -72,25 +72,25 @@ def normalize_column(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
 
-def row_hashes(df: pl.DataFrame, id_col: str = "gutenberg_id") -> pl.Series:
+def row_hashes(df: pl.DataFrame, id_column: str = "gutenberg_id") -> pl.Series:
     """sha256 per row over every non-id field, in column order."""
-    payload_cols = [c for c in df.columns if c != id_col]
+    payload_columns = [column for column in df.columns if column != id_column]
     # \x1f (unit separator) between fields
     payload = df.select(
         pl.concat_str(
-            [pl.col(c).fill_null("") for c in payload_cols], separator="\x1f"
+            [pl.col(column).fill_null("") for column in payload_columns], separator="\x1f"
         ).alias("payload")
     )["payload"]
     return pl.Series(
         "catalog_row_hash",
-        [hashlib.sha256(s.encode("utf-8")).hexdigest() for s in payload],
+        [hashlib.sha256(text.encode("utf-8")).hexdigest() for text in payload],
     )
 
 
 def load_catalog(csv_path: Path, run_ts: datetime) -> pl.DataFrame:
     # infer_schema_length=0 keeps every column as text
     df = pl.read_csv(csv_path, infer_schema_length=0)
-    df = df.rename({c: normalize_column(c) for c in df.columns})
+    df = df.rename({column: normalize_column(column) for column in df.columns})
     if "text" not in df.columns:
         raise KeyError(f"expected a 'Text#' column in the feed, got: {df.columns}")
     df = df.rename({"text": "gutenberg_id"}).with_columns(
@@ -99,7 +99,7 @@ def load_catalog(csv_path: Path, run_ts: datetime) -> pl.DataFrame:
     return df.with_columns(
         row_hashes(df).alias("catalog_row_hash"),
         pl.lit(f"{run_ts:%Y-%m-%d}").alias("snapshot_date"),
-        pl.lit(run_ts, dtype=TS_UTC).alias("loaded_at"),
+        pl.lit(run_ts, dtype=storage.TS_UTC).alias("loaded_at"),
     )
 
 

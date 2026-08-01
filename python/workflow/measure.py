@@ -16,6 +16,7 @@ from python.helpers.clean import clean_markdown
 from python.helpers.stylometrics import (
     adjective_density,
     adverb_density,
+    alpha_word_count,
     archaic_word_rate,
     contraction_rate,
     dialogue_narration_ratio,
@@ -30,8 +31,6 @@ from python.helpers.stylometrics import (
     yules_k,
 )
 from python.helpers.vocab import vocab_terms
-
-SELF_FOLDER: str = "Sander-VanWilligen"
 
 # Chunk size stays under spaCy's 1M-char limit
 MAX_CHUNK_CHARS = 100_000
@@ -84,11 +83,11 @@ def build_work_doc(nlp: Language, clean_text: str) -> Doc:
 
 def measure_metrics(work_id: str, doc: Doc) -> list[tuple[str, str, float]]:
     """Flatten every metric's dict into (work_id, metric, value) rows."""
-    rows: list[tuple[str, str, float]] = []
-    for metric_fn in METRIC_FUNCTIONS:
-        for metric_name, value in metric_fn(doc).items():
-            rows.append((work_id, metric_name, float(value)))
-    return rows
+    return [
+        (work_id, metric_name, float(value))
+        for metric_function in METRIC_FUNCTIONS
+        for metric_name, value in metric_function(doc).items()
+    ]
 
 
 def collect_vocab(work_id: str, doc: Doc) -> list[tuple[str, str, int]]:
@@ -98,7 +97,9 @@ def collect_vocab(work_id: str, doc: Doc) -> list[tuple[str, str, int]]:
 
 def source_work_id(source: Path) -> str:
     # Gutenberg filename prefix, or the full stem for self works
-    return source.stem if source.parent.name == SELF_FOLDER else source.name.split("-", 1)[0]
+    if source.parent.name == storage.SELF_FOLDER:
+        return source.stem
+    return source.name.split("-", 1)[0]
 
 
 # %% Run
@@ -107,7 +108,7 @@ if __name__ == "__main__":
     corpus_root = storage.file_path("silver/corpus")
     manifest_path = storage.file_path("bronze/self/_manifest.csv")
 
-    sources = {source_work_id(p): p for p in sorted(corpus_root.rglob("*.md"))}
+    sources = {source_work_id(path): path for path in sorted(corpus_root.rglob("*.md"))}
 
     # Per-work high-water mark of loaded_at
     try:
@@ -121,8 +122,8 @@ if __name__ == "__main__":
         loaded_at_by_id = {}
 
     changed_at: dict[str, datetime] = {
-        str(gid): ts
-        for gid, ts in storage.read_table(
+        str(gutenberg_id): last_changed
+        for gutenberg_id, last_changed in storage.read_table(
             "bronze.watermark", columns=["gutenberg_id", "last_changed"]
         ).iter_rows()
     }
@@ -141,11 +142,15 @@ if __name__ == "__main__":
         """Re-parse when unmeasured or the source changed after measuring."""
         if work_id not in loaded_at_by_id:
             return True
-        ledger = manual_changed_at if source.parent.name == SELF_FOLDER else changed_at
-        changed = ledger.get(work_id)
+        is_self = source.parent.name == storage.SELF_FOLDER
+        changed = (manual_changed_at if is_self else changed_at).get(work_id)
         return changed is not None and changed > loaded_at_by_id[work_id]
 
-    todo = {wid: p for wid, p in sources.items() if needs_measure(wid, p)}
+    todo = {
+        work_id: path
+        for work_id, path in sources.items()
+        if needs_measure(work_id, path)
+    }
     stale_ids = sorted(set(loaded_at_by_id) - set(sources))
     print(f"corpus {len(sources)}: {len(todo)} to measure, {len(stale_ids)} stale to drop")
 
@@ -158,8 +163,7 @@ if __name__ == "__main__":
         doc = build_work_doc(nlp, clean_markdown(source.read_text(encoding="utf-8")))
         measurement_rows.extend(measure_metrics(work_id, doc))
         # word_count rides raw_measurements for dim_work
-        word_count = sum(1 for token in doc if token.is_alpha)
-        measurement_rows.append((work_id, "word_count", float(word_count)))
+        measurement_rows.append((work_id, "word_count", float(alpha_word_count(doc))))
         vocab_rows.extend(collect_vocab(work_id, doc))
         if done % 50 == 0 or done == len(todo):
             print(f"{done}/{len(todo)} works parsed")
@@ -171,12 +175,12 @@ if __name__ == "__main__":
         measurement_rows,
         schema={"work_id": pl.String, "metric": pl.String, "value": pl.Float64},
         orient="row",
-    ).with_columns(loaded_at=pl.lit(loaded_at, dtype=pl.Datetime("us", "UTC")))
+    ).with_columns(loaded_at=pl.lit(loaded_at, dtype=storage.TS_UTC))
     vocab = pl.DataFrame(
         vocab_rows,
         schema={"work_id": pl.String, "term": pl.String, "term_count": pl.Int64},
         orient="row",
-    ).with_columns(loaded_at=pl.lit(loaded_at, dtype=pl.Datetime("us", "UTC")))
+    ).with_columns(loaded_at=pl.lit(loaded_at, dtype=storage.TS_UTC))
 
     def sync_table(name: str, frame: pl.DataFrame) -> None:
         """Swap re-measured works' rows in place, drop stale, keep the rest."""
