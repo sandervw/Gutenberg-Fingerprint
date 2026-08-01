@@ -1,6 +1,6 @@
 # Off-Microsoft: Migration Plan
 
-*Phases 0-2 are executed and verified; Phases 3-6 remain proposals.*
+*Phases 0-3 are executed and verified; Phases 4-6 remain proposals.*
 
 **IMPORTANT:** When comparing technologies/products, list the pros/cons of each across the following criteria:
 - Is it simple?
@@ -110,7 +110,7 @@ Fabric keeps running until Phase 6.
 
 **(DONE) 2 — Migrate.** `scripts/migrate_fabric_to_vps.py` carried all files and nine tables; every count verified both sides. Warehouse tables read via `deltalake.query.QueryBuilder` (`columnMapping`). `scripts/seed_duckdb_from_staging.py` seeds the local duckdb from the staging copy at `C:\gufime-migration`, which stays until the first unattended VPS night passes. `filter.py` on the box matches Fabric's gate count; the backfill backlog drains at ~200 texts/night.
 
-**3 — dbt on Postgres.** Add the target, strip the T-SQL branches (`log_run_results`, the `dim_work` coalesce, the `_sources.yml` database switch). *Done when* both targets build and counts match Fabric.
+**(DONE) 3 — dbt on Postgres.** `postgres` target added (peer auth, unix socket, no password). `log_run_results` and `_sources.yml` needed a postgres branch; `parse_primary_author`/`stddev_pop_expr` already fell through to `default__` unchanged. Both targets build clean on `--full-refresh`; row counts match exactly (dim_work/mart_work 3187, fact_style_measurement/mart_style_long 200781, mart_author 1171, fact_vocab_overlap 1170).
 
 **4 — Evidence.** Postgres source, delete `fetch-sources.js`. *Done when* the box builds the site with no Azure env vars.
 

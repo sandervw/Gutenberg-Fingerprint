@@ -15,3 +15,13 @@ gutenberg_fingerprint:
       schema: dbo
       authentication: CLI # az login locally; service principal for automation
       threads: 4
+    postgres:
+      type: postgres
+      # Unix socket dir, not a hostname: peer auth, no password anywhere.
+      host: /var/run/postgresql
+      user: gufime
+      password: ""
+      port: 5432
+      dbname: gufime
+      schema: main
+      threads: 4
