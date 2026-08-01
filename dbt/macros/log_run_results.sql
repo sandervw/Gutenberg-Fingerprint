@@ -17,7 +17,7 @@
             {% do run_query(
                 "create table if not exists " ~ audit_table ~ " ("
                 ~ "invocation_id varchar, run_started_at timestamp, command varchar, "
-                ~ "node varchar, resource_type varchar, status varchar, execution_time double)"
+                ~ "node varchar, resource_type varchar, status varchar, execution_time double precision)"
             ) %}
         {% endif %}
 

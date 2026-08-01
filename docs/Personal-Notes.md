@@ -50,6 +50,7 @@ tofu init &&
 tofu plan
 tofu apply
 ssh -i ~/.ssh/gufime_rsa ubuntu@15.204.82.199
+sudo -u postgres psql -c "ALTER ROLE gufime WITH PASSWORD '{.env.POSTGRES_PASSWORD}';"
 ```
 
 # OLD DESIGN
