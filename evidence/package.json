@@ -2,14 +2,17 @@
   "name": "gutenberg-fingerprint-evidence",
   "version": "0.0.1",
   "scripts": {
-    "build": "evidence build",
-    "postbuild": "node scripts/cdn-wasm.js && node scripts/trim-prerendered.js && node scripts/copy-404.js",
-    "build:strict": "evidence build:strict",
+    "build": "cross-env VITE_EVIDENCE_SPA=true evidence build",
+    "postbuild": "node scripts/cdn-wasm.js",
+    "build:strict": "cross-env VITE_EVIDENCE_SPA=true evidence build:strict",
+    "fetch-sources": "node scripts/fetch-sources.js",
+    "prebuild": "npm run fetch-sources",
+    "predev": "npm run fetch-sources",
     "dev": "evidence dev --open /",
     "test": "evidence build",
     "sources": "evidence sources",
     "sources:strict": "evidence sources --strict",
-    "preview": "evidence preview"
+    "preview": "cross-env VITE_EVIDENCE_SPA=true evidence preview"
   },
   "engines": {
     "npm": ">=7.0.0",
@@ -26,5 +29,9 @@
     "trim@<0.0.3": ">0.0.3",
     "axios": "^1.7.4",
     "typescript": "^5.4.2"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.10",
+    "cross-env": "^7.0.3"
   }
 }
