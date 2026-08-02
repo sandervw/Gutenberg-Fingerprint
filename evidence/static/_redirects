@@ -1,0 +1,9 @@
+# Redirects outrank static assets on Pages, so pin the prerendered hubs first.
+/works/ /works/index.html 200
+/authors/ /authors/index.html 200
+
+# Detail routes are client-rendered from the SPA shell.
+/works/:work /200.html 200
+/works/:work/ /200.html 200
+/authors/:author /200.html 200
+/authors/:author/ /200.html 200

@@ -4,16 +4,16 @@
   "scripts": {
     "fetch-sources": "node scripts/fetch-sources.js",
     "prebuild": "npm run fetch-sources",
-    "build": "evidence build",
-    "postbuild": "node scripts/cdn-wasm.js && node scripts/trim-prerendered.js && node scripts/copy-404.js",
-    "build:strict": "evidence build:strict",
+    "build": "cross-env VITE_EVIDENCE_SPA=true evidence build",
+    "postbuild": "node scripts/cdn-wasm.js && node scripts/copy-404.js",
+    "build:strict": "cross-env VITE_EVIDENCE_SPA=true evidence build:strict",
     "predev": "npm run fetch-sources",
     "dev": "evidence dev --open /",
     "test": "evidence build",
     "presources": "npm run fetch-sources",
     "sources": "evidence sources",
     "sources:strict": "evidence sources --strict",
-    "preview": "evidence preview"
+    "preview": "cross-env VITE_EVIDENCE_SPA=true evidence preview"
   },
   "engines": {
     "npm": ">=7.0.0",
@@ -22,13 +22,17 @@
   "type": "module",
   "dependencies": {
     "@evidence-dev/core-components": "^5.4.2",
-    "@evidence-dev/evidence": "^40.1.8",
-    "@evidence-dev/duckdb": "^2.0.1"
+    "@evidence-dev/duckdb": "^2.0.1",
+    "@evidence-dev/evidence": "^40.1.8"
   },
   "overrides": {
     "jsonwebtoken": "9.0.0",
     "trim@<0.0.3": ">0.0.3",
     "axios": "^1.7.4",
     "typescript": "^5.4.2"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.10",
+    "cross-env": "^7.0.3"
   }
 }
