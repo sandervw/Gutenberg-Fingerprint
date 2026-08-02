@@ -21,11 +21,16 @@ src/pages/                          # folders = URLs; [param].md = templated
 
 - Build `npm run sources && npm run build`, output dir `build`, root dir `evidence`.
 - 25 MiB per-file cap; bundled duckdb-wasm binaries run 33-38 MB. `evidence/scripts/cdn-wasm.js` (`postbuild`) rewrites their URLs to jsDelivr and deletes them from `build/`.
+- 20-minute build cap (Free plan); 20,000 files per deployment.
+- **`_redirects` outranks static assets**, so a blanket `/works/*` shadows the prerendered `/works/index.html`. Pin hubs first; first match wins.
 - `npm run dev` skips prerender; only `npm run build` reproduces deploy failures.
 
-## Prerender
+## Rendering modes
 
-- `[param].md` prerenders only where a non-parameterized page SSRs a link to it. Input-filtered tables SSR empty, hiding links from the crawler; every `[param]` family needs a full unfiltered link table on a static page (`authors/index.md`, `works/index.md`). Paginated DataTables are fine.
+- SPA mode is on: `VITE_EVIDENCE_SPA=true` (via `cross-env`) flips prerender off globally. `evidence/svelte.config.js` deep-merges in `fallback: '200.html'`; not `index.html`, which collides with the prerendered homepage.
+- Opt back in via `export const prerender = true` in a `+page.js`. On: `/`, `/works`, `/authors`, `/404`. Un-prerender `/404` and `copy-404.js` breaks.
+- Detail routes need `_redirects`. `/works/:work/` won't match the bare `/works/` hub; a splat would.
+- `npm run preview` uses `serve -s`, which rewrites every path to `index.html`. Use `npx serve build` for true behaviour.
 - `<Value/>` in a markdown link URL becomes a literal href and 404s the build; markdown also URL-encodes `[0]`. Use raw `<a href={query[0].col}>`.
 - Escape `'` inside interpolation: `'${params.author.replaceAll("'", "''")}'`.
 - "Error in Data Table: Dataset is empty" from input-dependent components on non-template pages is build-log noise; they hydrate.
