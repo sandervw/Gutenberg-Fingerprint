@@ -36,3 +36,4 @@ extract/
 # --- OS noise ---
 Thumbs.db
 desktop.ini
+.claude/hooks/.state/md-style-check.count

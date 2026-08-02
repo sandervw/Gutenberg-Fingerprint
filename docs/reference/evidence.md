@@ -22,15 +22,18 @@ src/pages/                          # folders = URLs; [param].md = templated
 - Build `npm run sources && npm run build`, output dir `build`, root dir `evidence`.
 - 25 MiB per-file cap; bundled duckdb-wasm binaries run 33-38 MB. `evidence/scripts/cdn-wasm.js` (`postbuild`) rewrites their URLs to jsDelivr and deletes them from `build/`.
 - 20-minute build cap (Free plan); 20,000 files per deployment.
-- **`_redirects` outranks static assets**, so a blanket `/works/*` shadows the prerendered `/works/index.html`. Pin hubs first; first match wins.
+- **Never ship a top-level `build/404.html`.** Its presence disables Pages' built-in SPA fallback, which serves `index.html` at 200 with the URL intact. That fallback is the only thing making cold loads of detail pages work.
+- Don't use `_redirects` 200-rewrites here. Pages normalises the target (`/200.html` becomes `/200`, `/x/index.html` becomes `/x/`) and downgrades the rewrite to a 308; extensionless and directory targets just 404.
 - `npm run dev` skips prerender; only `npm run build` reproduces deploy failures.
 
 ## Rendering modes
 
-- SPA mode is on: `VITE_EVIDENCE_SPA=true` (via `cross-env`) flips prerender off globally. `evidence/svelte.config.js` deep-merges in `fallback: '200.html'`; not `index.html`, which collides with the prerendered homepage.
-- Opt back in via `export const prerender = true` in a `+page.js`. On: `/`, `/works`, `/authors`, `/404`. Un-prerender `/404` and `copy-404.js` breaks.
-- Detail routes need `_redirects`. `/works/:work/` won't match the bare `/works/` hub; a splat would.
-- `npm run preview` uses `serve -s`, which rewrites every path to `index.html`. Use `npx serve build` for true behaviour.
+- SPA mode is on: `VITE_EVIDENCE_SPA=true` (via `cross-env`) flips prerender off globally. `evidence/svelte.config.js` deep-merges in `adapter-static`.
+- Opt back in via `export const prerender = true` in a `+page.js`. On: `/`, `/works`, `/authors`, `/404`.
+- Clicking a detail link never hits Cloudflare (client-side routing). Only cold loads (refresh, pasted URL, inbound link) exercise the fallback.
+- Unknown URLs return 200 with the shell, not 404; SvelteKit renders the error page client-side.
+- Deleting a file from `pages/` or `static/` does not remove it from `.evidence/template/`. Wipe `.evidence` or the stale copy ships.
+- `npm run preview` uses `serve -s`, which rewrites every path to `index.html`. Use `npx serve build`, or `npx wrangler pages dev build` to emulate Pages routing faithfully.
 - `<Value/>` in a markdown link URL becomes a literal href and 404s the build; markdown also URL-encodes `[0]`. Use raw `<a href={query[0].col}>`.
 - Escape `'` inside interpolation: `'${params.author.replaceAll("'", "''")}'`.
 - "Error in Data Table: Dataset is empty" from input-dependent components on non-template pages is build-log noise; they hydrate.
