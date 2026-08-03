@@ -49,6 +49,10 @@ jobs:
         if: steps.filter.outputs.new_count != '0'
         run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.measure"
 
+      - name: dbt deps
+        if: steps.filter.outputs.new_count != '0'
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime/dbt && ~/.local/bin/uv run dbt deps"
+
       - name: dbt build
         if: steps.filter.outputs.new_count != '0'
         run: ssh $SSH_OPTS $BOX "cd /code/gufime/dbt && ~/.local/bin/uv run dbt build --target postgres"
