@@ -1,0 +1,62 @@
+name: Nightly pipeline
+
+# Orchestrates from Actions; every step executes over ssh on the box.
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-pipeline
+  cancel-in-progress: false
+
+env:
+  BOX: gufime@15.204.82.199
+  SSH_OPTS: -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -i /home/runner/.ssh/gufime_key
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install box SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GUFIME_SSH_KEY }}" > ~/.ssh/gufime_key
+          chmod 600 ~/.ssh/gufime_key
+
+      - name: Sync code on the box
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime && git pull --ff-only"
+
+      - name: Catalog ingest
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.catalog_ingest"
+
+      - name: Filter (CDC gate)
+        id: filter
+        run: |
+          output=$(ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.filter")
+          echo "$output"
+          echo "$output" | grep '^new_count=' >> "$GITHUB_OUTPUT"
+
+      - name: Text ingest
+        if: steps.filter.outputs.new_count != '0'
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.text_ingest"
+
+      - name: Strip
+        if: steps.filter.outputs.new_count != '0'
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.strip"
+
+      - name: Measure
+        if: steps.filter.outputs.new_count != '0'
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.measure"
+
+      - name: dbt build
+        if: steps.filter.outputs.new_count != '0'
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime/dbt && ~/.local/bin/uv run dbt build --target postgres"
+
+      - name: Evidence build
+        if: steps.filter.outputs.new_count != '0'
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime/evidence && npm run sources && npm run build"
+
+      - name: Deploy to Cloudflare Pages
+        if: steps.filter.outputs.new_count != '0'
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime/evidence && CLOUDFLARE_API_TOKEN=\$(cat ~/.config/gufime/cf_token) wrangler pages deploy build --project-name=gutenberg-fingerprint --branch=main"

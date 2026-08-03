@@ -147,12 +147,12 @@ The initial build ran on the 60-day trial capacity. The bracket could not be bui
 
 ## 6. The Evidence Wrinkle
 
-Evidence extracts data at **build time** into a static site — the deployed Cloudflare Pages site never touches the Warehouse. Two consequences:
+Evidence extracts data at **build time** — the deployed Cloudflare Pages SPA never touches the Warehouse. Two consequences:
 
 1. **Auth:** Fabric Warehouse refuses SQL auth; Entra ID only. So `export_gold.py` writes the gold marts to parquet in OneLake and `evidence/scripts/fetch-sources.js` pulls them over the OneLake DFS REST API with a service principal. DuckDB then runs `:memory:` against local parquet.
 2. **Sequencing:** the deploy hook is a unique unauthenticated URL, so it's a secret. The Logic App holds the suspend until the Pages build reports success; pausing early kills the OneLake read mid-build.
 
-Three postbuild scripts work around Cloudflare Pages limits on file size, deployment file count, and 404 handling.
+Postbuild scripts work around Cloudflare Pages' file-size cap and 404 handling.
 
 ---
 
