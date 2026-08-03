@@ -21,7 +21,7 @@ jobs:
       - name: Install box SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.GUFIME_SSH_KEY }}" > ~/.ssh/gufime_key
+          printf '%s\n' "${{ secrets.GUFIME_SSH_KEY }}" | tr -d '\r' > ~/.ssh/gufime_key
           chmod 600 ~/.ssh/gufime_key
 
       - name: Sync code on the box
