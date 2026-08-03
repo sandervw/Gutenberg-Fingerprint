@@ -2,7 +2,7 @@
 
 **Live site: [gufime.com](https://gufime.com/)**
 
-A nightly change-data-capture pipeline that watches the Project Gutenberg catalog, downloads the English science-fiction and fantasy corpus, measures 15 stylometric properties of every book, and publishes the result as a static analytics site.
+A nightly change-data-capture pipeline that watches the Project Gutenberg catalog, downloads the English science-fiction and fantasy corpus, measures 15 stylometric properties of every book, and publishes the result as an SPA analytics site.
 
 Every number is a **z-score**, so unrelated metrics sit on one scale and a book like *The Night Land* can be ranked the strangest text in the corpus, then explained series by series.
 
@@ -99,7 +99,7 @@ Evidence extracts data at **build time**, which creates two problems.
 1. **Auth.** Fabric Warehouse refuses SQL auth; Entra ID only. So `export_gold.py` writes the gold marts to parquet in OneLake, and `evidence/scripts/fetch-sources.js` pulls them over the OneLake DFS REST API. DuckDB runs `:memory:` against local parquet, so **the published site never touches the Warehouse**.
 2. **Sequencing.** The Logic App holds the pause until the Pages build reports success. Pausing early would kill the OneLake read mid-build.
 
-Three postbuild scripts work around Cloudflare Pages limits on file size, deployment file count, and 404 handling. Styling mirrors [wordleaves.com](https://wordleaves.com).
+Postbuild scripts work around Cloudflare Pages' file-size cap and 404 handling. Styling mirrors [wordleaves.com](https://wordleaves.com).
 
 ## Cost
 
