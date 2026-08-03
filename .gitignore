@@ -10,8 +10,6 @@ logs/
 .user.yml
 
 # --- Local DuckDB dev warehouse (rebuilt by dbt build) ---
-# Unlike last project, NOT committed for Cloudflare: prod Evidence reads
-# the Fabric Warehouse or parquet exports (project doc §6), not this file.
 *.duckdb
 *.duckdb.wal
 
