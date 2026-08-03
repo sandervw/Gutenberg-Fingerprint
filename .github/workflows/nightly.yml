@@ -25,7 +25,7 @@ jobs:
           chmod 600 ~/.ssh/gufime_key
 
       - name: Sync code on the box
-        run: ssh $SSH_OPTS $BOX "cd /code/gufime && git pull --ff-only"
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime && git reset --hard HEAD && git pull --ff-only"
 
       - name: Catalog ingest
         run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.catalog_ingest"

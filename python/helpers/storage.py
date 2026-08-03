@@ -85,7 +85,7 @@ def write_table(name: str, df: pl.DataFrame, mode: str = "overwrite") -> None:
         with psycopg.connect(PG_DSN) as connection, connection.cursor() as cursor:
             cursor.execute(f"create schema if not exists {schema_name}")
             if mode == "overwrite":
-                cursor.execute(f"drop table if exists {name}")
+                cursor.execute(f"drop table if exists {name} cascade")
             cursor.execute(f"create table if not exists {name} ({_ddl(df.schema)})")
             if df.height:
                 columns = ", ".join(f'"{column}"' for column in df.columns)
@@ -99,7 +99,8 @@ def write_table(name: str, df: pl.DataFrame, mode: str = "overwrite") -> None:
         connection.execute(f"create schema if not exists {schema_name}")
         connection.register("_df", df.to_arrow())
         if mode == "overwrite":
-            connection.execute(f"create or replace table {name} as select * from _df")
+            connection.execute(f"drop table if exists {name} cascade")
+            connection.execute(f"create table {name} as select * from _df")
         else:
             connection.execute(f"create table if not exists {name} ({_ddl(df.schema)})")
             connection.execute(f"insert into {name} by name select * from _df")
