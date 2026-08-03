@@ -39,6 +39,11 @@ su - gufime -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
 mkdir -p /files/gufime /code/gufime
 chown -R gufime:gufime /files/gufime /code/gufime
 
+# Pipeline code checkout, idempotent, always main.
+if [ ! -d /code/gufime/.git ]; then
+  su - gufime -c "git clone https://github.com/sandervw/Gutenberg-Fingerprint.git /code/gufime"
+fi
+
 # 2 GB swap: the Evidence build peaks near it on a 4 GB box.
 if [ ! -f /swapfile ]; then
   fallocate -l 2G /swapfile
