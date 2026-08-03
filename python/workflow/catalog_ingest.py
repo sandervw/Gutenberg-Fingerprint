@@ -19,8 +19,8 @@ WATERMARK_SCHEMA: dict[str, pl.DataType] = {
     "gutenberg_id": pl.Int64,
     "catalog_row_hash": pl.String,
     "text_hash": pl.String,
-    "first_seen": storage.TS_UTC,
-    "last_changed": storage.TS_UTC,
+    "first_seen": storage.UTC_DATETIME_TYPE,
+    "last_changed": storage.UTC_DATETIME_TYPE,
     "status": pl.String,
 }
 
@@ -99,7 +99,7 @@ def load_catalog(csv_path: Path, run_ts: datetime) -> pl.DataFrame:
     return df.with_columns(
         row_hashes(df).alias("catalog_row_hash"),
         pl.lit(f"{run_ts:%Y-%m-%d}").alias("snapshot_date"),
-        pl.lit(run_ts, dtype=storage.TS_UTC).alias("loaded_at"),
+        pl.lit(run_ts, dtype=storage.UTC_DATETIME_TYPE).alias("loaded_at"),
     )
 
 

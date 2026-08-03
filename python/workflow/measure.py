@@ -175,12 +175,12 @@ if __name__ == "__main__":
         measurement_rows,
         schema={"work_id": pl.String, "metric": pl.String, "value": pl.Float64},
         orient="row",
-    ).with_columns(loaded_at=pl.lit(loaded_at, dtype=storage.TS_UTC))
+    ).with_columns(loaded_at=pl.lit(loaded_at, dtype=storage.UTC_DATETIME_TYPE))
     vocab = pl.DataFrame(
         vocab_rows,
         schema={"work_id": pl.String, "term": pl.String, "term_count": pl.Int64},
         orient="row",
-    ).with_columns(loaded_at=pl.lit(loaded_at, dtype=storage.TS_UTC))
+    ).with_columns(loaded_at=pl.lit(loaded_at, dtype=storage.UTC_DATETIME_TYPE))
 
     def sync_table(name: str, frame: pl.DataFrame) -> None:
         """Swap re-measured works' rows in place, drop stale, keep the rest."""

@@ -119,8 +119,8 @@ def update_watermark(
             watermark.select("gutenberg_id", "first_seen"), on="gutenberg_id", how="left"
         )
         .with_columns(
-            pl.col("first_seen").fill_null(pl.lit(run_ts, dtype=storage.TS_UTC)),
-            pl.lit(run_ts, dtype=storage.TS_UTC).alias("last_changed"),
+            pl.col("first_seen").fill_null(pl.lit(run_ts, dtype=storage.UTC_DATETIME_TYPE)),
+            pl.lit(run_ts, dtype=storage.UTC_DATETIME_TYPE).alias("last_changed"),
         )
         .select(watermark.columns)
     )
@@ -141,7 +141,7 @@ def write_audit(
             "failed": [failed],
         },
         schema={
-            "run_ts": storage.TS_UTC,
+            "run_ts": storage.UTC_DATETIME_TYPE,
             "run_type": pl.Utf8,
             "books_in_catalog": pl.Int64,
             "candidate_new": pl.Int64,
