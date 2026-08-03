@@ -296,7 +296,7 @@ if __name__ == "__main__":
     audit = pl.DataFrame(
         [(run_ts, roster.height, stripped, failed, missing)],
         schema={
-            "run_ts": storage.TS_UTC, "roster_size": pl.Int64,
+            "run_ts": storage.UTC_DATETIME_TYPE, "roster_size": pl.Int64,
             "stripped": pl.Int64, "failed": pl.Int64, "missing_text": pl.Int64,
         },
         orient="row",

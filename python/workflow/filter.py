@@ -98,7 +98,7 @@ if __name__ == "__main__":
             "failed": [0],
         },
         schema={
-            "run_ts": storage.TS_UTC,
+            "run_ts": storage.UTC_DATETIME_TYPE,
             "run_type": pl.Utf8,
             "books_in_catalog": pl.Int64,
             "candidate_new": pl.Int64,
