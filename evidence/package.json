@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "scripts": {
     "build": "cross-env VITE_EVIDENCE_SPA=true evidence build",
-    "postbuild": "node scripts/cdn-wasm.js",
+    "postbuild": "node scripts/cdn-wasm.js && node scripts/copy-404.js",
     "build:strict": "cross-env VITE_EVIDENCE_SPA=true evidence build:strict",
     "fetch-sources": "node scripts/fetch-sources.js",
     "prebuild": "npm run fetch-sources",
