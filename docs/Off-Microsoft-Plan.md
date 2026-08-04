@@ -33,14 +33,14 @@ The nightly run touches **two credentials**: an SSH private key in Actions, and 
 
 ```
 GitHub Actions (cron 03:00 UTC, workflow_dispatch) — every step is `ssh box '...'`
-  ├─ catalog_ingest.py → pg bronze.catalog, bronze.watermark
-  ├─ filter.py         → pg raw.raw_works       [step output: new_count]
+  ├─ catalog_ingest.py          → pg bronze.catalog, bronze.watermark
+  ├─ filter.py                  → pg raw.raw_works [step output: new_count]
   │     └── if new_count > 0:
   │           ├─ text_ingest.py → /files/gufime/bronze/texts/
   │           ├─ strip.py       → /files/gufime/silver/corpus/
   │           └─ measure.py     → pg raw.raw_measurements, raw.raw_vocab
-  ├─ dbt build         → pg main.*
-  └─ npm run sources && build → wrangler pages deploy → gufime.com
+  ├─ dbt run deps && dbt build  → pg main.*
+  └─ npm run sources && build   → wrangler pages deploy → gufime.com
 ```
 
 Four places to check on a failed night become one. The `If Condition` gate becomes `if: steps.filter.outputs.new_count != '0'`.
@@ -51,11 +51,11 @@ Four places to check on a failed night become one. The `If Condition` gate becom
 
 **Postgres on an OVHcloud VPS-1** ($4.54/month listed, 2 vCore, 4 GB, 40 GB NVMe) runs Postgres *and* holds the files, so tables and files stay in one place exactly as the Lakehouse has them today. Always on, no autosuspend, no wake latency, no vendor account to lose. `dbt-postgres` is first-party, and Postgres is near enough to DuckDB that most `target.type == 'fabric'` branching deletes.
 
-**Sizing:** 4,408 in-scope works, 204k `raw_measurements` rows, 7.3M `raw_vocab` rows, against a 40 GB disk. Headroom is not a concern for years.
+**Sizing:** ~4,400~ in-scope works, 200k `raw_measurements` rows, 7.5M `raw_vocab` rows, against a 40 GB disk. Headroom is not a concern.
 
 Postgres listens on the unix socket only and authenticates by peer, so the Linux user *is* the credential and no database password exists anywhere.
 
-**The trade, stated plainly:** backups, patching and disk headroom are now yours. Nightly `pg_dump` and the corpus go offsite with `wrangler r2 object put` on the same Cloudflare token, so there are no S3 keys; it caps at 315 MB per object, so the corpus tars in parts. R2's permanently-free 10 GB is the obvious target and keeps the bill unchanged.
+Nightly `pg_dump` and the corpus go offsite with `wrangler r2 object put` on the same Cloudflare token, so there are no S3 keys; it caps at 315 MB per object, so the corpus tars in parts. R2's permanently-free 10 GB is the obvious target and keeps the bill unchanged.
 
 ---
 
@@ -76,7 +76,7 @@ A GitHub-hosted runner cannot see this disk, so the runner orchestrates and the 
 
 ---
 
-## 4. Notebooks → plain modules *(done)*
+## 4. Notebooks → plain modules
 
 Workflow steps live in `python/workflow/`, tunables in `python/helpers/`, all storage behind `python/helpers/storage.py`. `GUFIME_TARGET` picks `duckdb` (default) or `postgres`; `GUFIME_FILES_ROOT`, `GUFIME_PG_DSN`, `GUFIME_DUCKDB_PATH` override paths. Steps run from the repo root: `uv run python -m python.workflow.<step>`. The gate count surfaces via `storage.emit("new_count", n)`, which also writes `$GITHUB_OUTPUT`. The deployed Fabric notebook items are frozen copies.
 
@@ -95,8 +95,6 @@ Workflow steps live in `python/workflow/`, tunables in `python/helpers/`, all st
 3. **(DONE) 2 GB swap.** Set in `provision.sh` and live on the box.
 4. **Scheduled workflows self-disable after 60 days without a commit**, and cron routinely fires 5-30 minutes late.
 5. **The 6-hour job cap.** Nightly deltas are minutes; run any full backfill from the laptop against the same cloud targets.
-6. **(DONE)** All nine stateful tables and both file trees are carried across; `scripts/migrate_fabric_to_vps.py` re-runs safely.
-7. **PG politeness** now lives in `python/workflow/text_ingest.py`. Keep the caps.
 
 ---
 
@@ -114,9 +112,9 @@ Fabric keeps running until Phase 6.
 
 **(DONE) 4 — Evidence.** `evidence.config.yaml` and `package.json` use `@evidence-dev/postgres`. Row counts match Phase 3's dbt output. Build verified on the box.
 
-**5 — `nightly.yml`.** Cron, gate, dbt, build, deploy, concurrency guard, `workflow_dispatch`, each step an `ssh` into the box with `git pull` first. The first push replaces the tar snapshot in `/code/gufime/`. Actions is free and unmetered on a public repo. *Done when* a dispatch and one unattended night both pass. Pause the Logic App here.
+**(DONE) 5 — `nightly.yml`.** Cron, gate, dbt, build, deploy, concurrency guard, `workflow_dispatch`, each step an `ssh` into the box with `git pull` first. Actions is free and unmetered on a public repo.
 
-*Later, optional:* Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) taking over the schedule, with `dagster-dbt` reading `manifest.json` so extract → dbt → site is one asset graph. Not a prerequisite for anything below.
+*Later:* Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) taking over the schedule, with `dagster-dbt` reading `manifest.json` so extract → dbt → site is one asset graph. Not a prerequisite for anything below.
 
 **6 — Teardown.** Delete `fabric/`, `infra/`, `deploy_fabric.py`, `sync-fabric-dbt.yml`, the `fabric-dbt` branch, the workspace, the F2, the subscription. Rewrite the README diagram and Outline §9.
 
