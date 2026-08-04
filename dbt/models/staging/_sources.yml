@@ -2,9 +2,9 @@ version: 2
 
 sources:
   - name: raw
-    # Target-aware source location. Fabric: wh_gold reads lh_silver's tables
-    database: "{{ 'lh_silver' if target.type == 'fabric' else 'gufime' if target.type == 'postgres' else 'warehouse' }}"
-    schema: "{{ 'dbo' if target.type == 'fabric' else 'raw' }}"
+    # duckdb has no real db; 'warehouse' is a placeholder name
+    database: "{{ 'gufime' if target.type == 'postgres' else 'warehouse' }}"
+    schema: raw
     loader: "extract/ (Python + spaCy)" # the pipeline that fills these tables; shows in lineage
     description: "Tidy tables landed by the standalone Python extractor (extract/)."
     config:

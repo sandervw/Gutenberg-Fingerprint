@@ -5,7 +5,6 @@ requires-python = ">=3.12"
 dependencies = [
     "dbt-core>=1.11.12,<2.0",
     "dbt-duckdb>=1.10.1",
-    "dbt-fabric>=1.10.0",
     "dbt-postgres>=1.10.1",
 ]
 
@@ -14,7 +13,6 @@ dev = [
     "deltalake>=1.6.2",
     "duckdb>=1.1.0",
     "en-core-web-sm",
-    "fabric-cicd>=1.2.0",
     "polars>=1.42.1",
     "psycopg[binary]>=3.2.0",
     "pyarrow>=25.0.0",

@@ -1,28 +1,28 @@
 work_id,title,author,tradition,era,is_self,path,loaded_at
-25-000-sugar-lumps,"25,000 Sugar Lumps",Sander VanWilligen,speculative fiction,contemporary,1,"corpus/Sander-VanWilligen/25,000-Sugar-Lumps.md",2026-07-19 00:00:00
-abe-no-seimei,Abe no Seimei,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Abe-no-Seimei.md,2026-07-19 00:00:00
-amidst-the-mist-and-dew,Amidst the Mist and Dew,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Amidst-the-Mist-and-Dew.md,2026-07-19 00:00:00
-barndance,Barndance,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Barndance.md,2026-07-19 00:00:00
-beyond-the-flue,Beyond the Flue,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Beyond-the-Flue.md,2026-07-19 00:00:00
-deadmans-pile,The Oldvaults Under Deadman's Pile,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Deadmans-Pile.md,2026-07-19 00:00:00
-dreamreel,Dreamreel,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Dreamreel.md,2026-07-19 00:00:00
-epicurus-the-mouse,Epicurus the Mouse,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Epicurus-the-Mouse.md,2026-07-19 00:00:00
-fill-the-dark-with-silence,Fill the Dark with Silence,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Fill-the-Dark-with-Silence.md,2026-07-19 00:00:00
-fish-on-the-rotisserie,Fish on the Rotisserie,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Fish-on-the-Rotisserie.md,2026-07-19 00:00:00
-footsteps-in-red,Footsteps in Red,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Footsteps-in-Red.md,2026-07-19 00:00:00
-in-different-color,In Different Color,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/In-Different-Color.md,2026-07-30 09:53:11
-lake-of-the-lost,The Lake of the Lost,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Lake-of-the-Lost.md,2026-07-19 00:00:00
-lumpy-bumpy,Lumpy Bumpy,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Lumpy-Bumpy.md,2026-07-19 00:00:00
-message-from-a-chosen-one,Message from a Chosen One,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Message-from-a-Chosen-One.md,2026-07-19 00:00:00
-murphy-ginger-and-the-magic-cupboard,Murphy Ginger and the Magic Cupboard,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Murphy-Ginger-and-the-Magic-Cupboard.md,2026-07-19 00:00:00
-nicholas-sing,"Nicholas, Sing 'The Rite of Spring'",Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Nicholas-Sing.md,2026-07-19 00:00:00
-nuclear-elves,Nuclear Elves,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Nuclear-Elves.md,2026-07-19 00:00:00
-orientation-day,Orientation Day,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Orientation-Day.md,2026-07-19 00:00:00
-queen-of-the-hill,Queen of the Hill,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Queen-of-the-Hill.md,2026-07-19 00:00:00
-roundworm-woods,Roundworm Woods,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Roundworm-Woods.md,2026-07-19 00:00:00
-the-cck,The Cracked Cup Knight,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/The-CCK.md,2026-07-19 00:00:00
-the-glass-sky,The Glass Sky,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/The-Glass-Sky.md,2026-07-19 00:00:00
-the-sun-wound,The Sun Wound,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/The-Sun-Wound.md,2026-07-19 00:00:00
-the-taxidermist,The Taxidermist,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/The-Taxidermist.md,2026-07-19 00:00:00
-the-thankful-skull,The Thankful Skull,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/The-Thankful-Skull.md,2026-07-19 00:00:00
-wraithcotte,Wraithcotte,Sander VanWilligen,speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Wraithcotte.md,2026-07-19 00:00:00
+25-000-sugar-lumps,"25,000 Sugar Lumps","VanWilligen, Sander",speculative fiction,contemporary,1,"corpus/Sander-VanWilligen/25,000-Sugar-Lumps.md",2026-07-19 00:00:00
+abe-no-seimei,Abe no Seimei,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Abe-no-Seimei.md,2026-07-19 00:00:00
+amidst-the-mist-and-dew,Amidst the Mist and Dew,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Amidst-the-Mist-and-Dew.md,2026-07-19 00:00:00
+barndance,Barndance,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Barndance.md,2026-07-19 00:00:00
+beyond-the-flue,Beyond the Flue,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Beyond-the-Flue.md,2026-07-19 00:00:00
+deadmans-pile,The Oldvaults Under Deadman's Pile,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Deadmans-Pile.md,2026-07-19 00:00:00
+dreamreel,Dreamreel,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Dreamreel.md,2026-07-19 00:00:00
+epicurus-the-mouse,Epicurus the Mouse,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Epicurus-the-Mouse.md,2026-07-19 00:00:00
+fill-the-dark-with-silence,Fill the Dark with Silence,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Fill-the-Dark-with-Silence.md,2026-07-19 00:00:00
+fish-on-the-rotisserie,Fish on the Rotisserie,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Fish-on-the-Rotisserie.md,2026-07-19 00:00:00
+footsteps-in-red,Footsteps in Red,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Footsteps-in-Red.md,2026-07-19 00:00:00
+in-different-color,In Different Color,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/In-Different-Color.md,2026-07-30 09:53:11
+lake-of-the-lost,The Lake of the Lost,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Lake-of-the-Lost.md,2026-07-19 00:00:00
+lumpy-bumpy,Lumpy Bumpy,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Lumpy-Bumpy.md,2026-07-19 00:00:00
+message-from-a-chosen-one,Message from a Chosen One,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Message-from-a-Chosen-One.md,2026-07-19 00:00:00
+murphy-ginger-and-the-magic-cupboard,Murphy Ginger and the Magic Cupboard,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Murphy-Ginger-and-the-Magic-Cupboard.md,2026-07-19 00:00:00
+nicholas-sing,"Nicholas, Sing 'The Rite of Spring'","VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Nicholas-Sing.md,2026-07-19 00:00:00
+nuclear-elves,Nuclear Elves,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Nuclear-Elves.md,2026-07-19 00:00:00
+orientation-day,Orientation Day,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Orientation-Day.md,2026-07-19 00:00:00
+queen-of-the-hill,Queen of the Hill,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Queen-of-the-Hill.md,2026-07-19 00:00:00
+roundworm-woods,Roundworm Woods,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Roundworm-Woods.md,2026-07-19 00:00:00
+the-cck,The Cracked Cup Knight,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/The-CCK.md,2026-07-19 00:00:00
+the-glass-sky,The Glass Sky,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/The-Glass-Sky.md,2026-07-19 00:00:00
+the-sun-wound,The Sun Wound,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/The-Sun-Wound.md,2026-07-19 00:00:00
+the-taxidermist,The Taxidermist,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/The-Taxidermist.md,2026-07-19 00:00:00
+the-thankful-skull,The Thankful Skull,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/The-Thankful-Skull.md,2026-07-19 00:00:00
+wraithcotte,Wraithcotte,"VanWilligen, Sander",speculative fiction,contemporary,1,corpus/Sander-VanWilligen/Wraithcotte.md,2026-07-19 00:00:00
