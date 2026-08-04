@@ -50,14 +50,14 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch, concurrency guard
 
 ## 3. Dimensional Model
 
-| Table                    | Notes                                                                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `dim_author`             | Built from catalog data. `is_self = true` on my own row and on select authors                                                  |
+| Table                    | Notes                                                                                                                                                                                               |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dim_author`             | Built from catalog data. `is_self = true` on my own row and on select authors                                                                                                                       |
 | `dim_work`               | Carries `gutenberg_id`, `download_count`, `subjects`, `ingested_at` (`min(loaded_at)` over the work's measurement rows). Full rebuild; inner join to measurements keeps unmeasured catalog rows out |
-| `fact_style_measurement` | Work × series grain. Full rebuild                                                                                              |
-| `fact_vocab_overlap`     | Author-pair grain, top-N vocab. Full rebuild                                                                                   |
-| `snap_dim_work`          | SCD2 snapshot, check strategy on all columns                                                                                   |
-| `dbt_run_log`            | One row per dbt node per run, written by an `on-run-end` hook                                                                  |
+| `fact_style_measurement` | Work × series grain. Full rebuild                                                                                                                                                                   |
+| `fact_vocab_overlap`     | Author-pair grain, top-N vocab. Full rebuild                                                                                                                                                        |
+| `snap_dim_work`          | SCD2 snapshot, check strategy on all columns                                                                                                                                                        |
+| `dbt_run_log`            | One row per dbt node per run, written by an `on-run-end` hook                                                                                                                                       |
 
 Audit rows live in bronze `ingest_audit`, dbt's run history in `dbt_run_log`, and the site surfaces freshness as `max(ingested_at)` on the index.
 

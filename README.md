@@ -13,19 +13,19 @@ Runs on one ~$5/month OVH VPS ("the box"): Postgres, plain Python, dbt Core, and
 ```
 GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch) — every step is `ssh box '...'`
   ├─ git reset --hard origin/main    (sync /code/gufime)
-  ├─ catalog_ingest.py           → pg bronze.catalog, bronze.watermark
-  ├─ filter.py                   → pg raw.raw_works, bronze.ingest_audit
+  ├─ catalog_ingest.py           → postgres bronze.catalog, bronze.watermark
+  ├─ filter.py                   → postgres raw.raw_works, bronze.ingest_audit
   │                                [step output: new_count]
-  └─ if new_count != 0:
+  └─ if new_count != 0 (the "CDC gate"):
        ├─ text_ingest.py         → /files/gufime/bronze/texts/, watermark
        ├─ strip.py               → /files/gufime/silver/corpus/, bronze.strip_audit
-       ├─ measure.py             → pg raw.raw_measurements, raw.raw_vocab
-       ├─ dbt deps && dbt build  → pg gold.*
+       ├─ measure.py             → postgres raw.raw_measurements, raw.raw_vocab
+       ├─ dbt deps && dbt build  → postgres gold.*
        └─ npm run sources && npm run build
             └─ wrangler pages deploy → gufime.com
 ```
 
-GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the box executes. Files live on the box's disk under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`), listening on the unix socket only with peer auth. On a quiet night the run stops after `filter.py`.
+GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the box executes. Files live on the box's disk under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`), listening on the unix socket only with peer auth. When there are no new fiction/sci-fi works in the catalog, the run stops after `filter.py`.
 
 **Change detection.** A `bronze.watermark` table keyed on `gutenberg_id` marks a book new when its ID is absent, changed when its catalog row hash differs, and retried when it last failed. The diff runs against the **in-scope subset only**; the ~78,000 out-of-scope books never enter the watermark.
 
@@ -33,8 +33,8 @@ GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the 
 
 Cleaning and measurement are plain Python modules in `python/workflow/`, with tunables in `python/helpers/`.
 
-- `strip.py` cuts the PG boilerplate. Regenerated old files keep an ancient end-marker inside the modern `*** END OF ...` span; the cut is taken at the earliest marker of either era.
-- `measure.py` parses with spaCy `en_core_web_sm`, chunking each text to stay under spaCy's max document length. Only new works, and works whose source changed, re-parse.
+- `strip.py` cuts the PG boilerplate.
+- `measure.py` parses with spaCy, chunking text to stay under spaCy's max length. Only new/changed works re-parse.
 - `lexicons.py`, `vocab.py`, and `stylometrics.py` hold the tunable parts, one function per metric returning a dict of series.
 
 **15 metric concepts → 63 measured series.** Three concepts fan out, function-word frequency alone tracking 40 words individually.
@@ -61,21 +61,21 @@ A fact constellation: `fact_style_measurement` at work × series grain, `fact_vo
 - **Source freshness.** `raw_works` is the heartbeat at `error_after: 24 hours`; measurement tables are exempt.
 - **Snapshots.** SCD2 on `dim_work`.
 - **Audit hook.** `on-run-end` writes one row per node into `gold.dbt_run_log`.
-- **Tests.** Keys, relationships, and accepted values, plus a singular test asserting every work carries all 14 per-work metric concepts.
+- **Tests.** Keys, relationships, and accepted values, plus asserting every work carries 14 metric concepts.
 
 ## The site
 
-Evidence extracts data at **build time**; the deployed SPA never queries a database. The build runs on the box, where `@evidence-dev/postgres` reads the `gold` marts over the unix socket with peer auth. `wrangler pages deploy` ships the static build to Cloudflare Pages.
+Evidence extracts data at build time; the deployed SPA never queries a database. The build runs on the box, where `@evidence-dev/postgres` reads the `gold` marts over the unix socket with peer auth. `wrangler pages deploy` ships the static build to Cloudflare Pages.
 
 Postbuild scripts work around Cloudflare Pages' file-size cap and 404 handling. Styling mirrors [wordleaves.com](https://wordleaves.com).
 
 ## Cost
 
-| Item                                  | Estimate   |
-| ------------------------------------- | ---------- |
-| OVH VPS-1 (2 vCore, 4 GB, 40 GB NVMe) | ~$5/mo     |
-| GitHub Actions (public repo)          | free       |
-| Cloudflare Pages builds               | free tier  |
+| Item                                  | Estimate  |
+| ------------------------------------- | --------- |
+| OVH VPS-1 (2 vCore, 4 GB, 40 GB NVMe) | ~$5/mo    |
+| GitHub Actions (public repo)          | free      |
+| Cloudflare Pages builds               | free tier |
 
 Two credentials run the night: an SSH private key in Actions secrets, and a Cloudflare API token on the box scoped to Pages.
 
