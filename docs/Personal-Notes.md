@@ -2,9 +2,7 @@
 
 *Claude, never touch this file unless I say to.*
 
-# NEW DESIGN
-
-### Terms
+## Terms
 
 **DuckDB-WASM**
 - An in-process sql db compiled to Web-Assembly
@@ -30,17 +28,7 @@
     - (`provision.tf`) - ssh into the VPS, runs the above
 - `winget install opentofu.tofu`
 
-### dbt
-
-**Incremental is a cache. A snapshot is a diary.**
-- Incremental can be thrown away and rebuilt
-- Snapshots only show what was written that day
-- Incremental is just an optimization for when a full rebuild is slow/expensive (so worthless on a table like dim_works)
-- Snapshots (SCD2) are for when a soruce overwrites itself, and you want to capture old values
-- Snapshot manufactures information that exists nowhere else; Incremental only saves time
-- *If you need incremental to preserve a value, that value belongs upstream in the data*
-
-### VPS Box
+## VPS Box
 
 Currently set up in **OVHCloud** (the provider)
 
@@ -51,7 +39,7 @@ The Evidence Build requires a `swapfile`
 - Out box has only 3.7GB ram
 - 2GB of swap gives it overflow room (it degrades to "slower" rather than "killed")
 
-### Commands
+## Commands
 
 **Create/Login-to vps box commands**
 ```
@@ -61,53 +49,31 @@ tofu init &&
 tofu plan
 tofu apply
 ssh -i ~/.ssh/gufime_rsa ubuntu@15.204.82.199
+# Add password for DBeaver login/auth
 sudo -u postgres psql -c "ALTER ROLE gufime WITH PASSWORD '{.env.POSTGRES_PASSWORD}';"
 ```
 
-# OLD DESIGN
-
-## Setup
-
 *`uv` = basically, `npm` for python*
 
+**Setup Commands:**
 `uv init --bare` # writes a minimal pyproject.toml; pyproject.toml is the package.json equivalent
 `uv python pin 3.12`      # writes .python-version; 3.12 = Fabric's dbt runtime
-`uv add dbt-core dbt-duckdb dbt-fabric` # records/installs the dependencies in a virtual env and pins versions in `uv.lock` (like package-lock.json)
+`uv add dbt-core dbt-duckdb dbt-postgres` # records/installs the dependencies in a virtual env and pins versions in `uv.lock` (like package-lock.json)
 `uv run dbt --version`    # runs a command inside .venv without activating it
 
-Then:
-
+**DBT Commands:**
 `cd dbt`
-`uv run dbt deps`         # installs dbt_utils into dbt_packages/ (per packages.yml)
-`uv run dbt debug`        # validates profiles.yml + connection
-`uv run dbt build`        # run models + tests (needs the old warehouse.duckdb copied in as sample data)
-
-No dbt init — that scaffolds an empty project; we're porting a real one.
-
-```
-# Deploying the logic app
-set -a; source .env; set +a
-az deployment group create \
-  --resource-group DefaultResourceGroup-CUS \
-  --template-file infra/pipeline-automation.bicep \
-  --parameters capacityName=gbfabric \
-  --parameters deployHookUrl="$CloudFlare_Deploy_Hook_URL" \
-  --parameters cfApiToken="$CloudFlare_API_Token"
-```
-
-## Viewing the data
-
-`duckdb -ui prose_fingerprint/warehouse.duckdb`      # browser UI (object tree + grid)
-`duckdb prose_fingerprint/warehouse.duckdb `         # SQL shell: .tables, SELECT ... LIMIT 10
-
+`uv run dbt deps`   # installs dbt_utils into dbt_packages/ (per packages.yml)
+`uv run dbt debug`  # validates profiles.yml + connection
+`uv run dbt build`  # run models + tests (needs the old warehouse.duckdb copied in as sample data)
 `dbt docs generate` # compile metadata
 `dbt docs serve`    # launch local web server to view data lineage
 
-## Python extract
+**DuckDB Commands**
+`duckdb -ui gutenberg_fingerprint/warehouse.duckdb`      # browser UI (object tree + grid)
+`duckdb gutenberg_fingerprint/warehouse.duckdb `         # SQL shell: .tables, SELECT ... LIMIT 10
 
-Run on a notebook in fabric (not a script on my pc)
-- runs on a Python kernel (1 CU per second)
-- Use `polars` to shape dataframe of the pg catalog; use `pyarrow` for watermark table shape; use `deltalake` for delta table format on disk
+## Python extracts
 
 Land untouched plain text gutenberg files in `bronze`, cleaned markdown in `silver`
 
@@ -120,67 +86,13 @@ Steps:
    - ID in both, row hash differs: PG shipped a correction to an old text (real and common), fetch again.
    - Hashes match: skip. Most nights near everything skips, and a no-op night costs minutes.
 
-### Old Design
-
-Raw data is extracted from /corpus via the /extracts python logic
-
-Seven python files:
-- `build_seed.py` - "the junior cook"; parses files to create authors csv
-- `cleaning.py` - "the wash/strainer station"; cleans the raw file text
-- `extracts.py` - "the cook"; knows text and NLP; cleans, parses with spaCy; runs metrics, assembles types rows; the 'E' of ELT
-- `lexicons.py` - "the reference charts"; a list of spice rack spices; holds data, not logic
-- `loaders.py` - "the waiter"; knows the database; holds table shapes and create/insert; the 'L' of ELT
-- `stylometrics.py` - "the measuring gear"; scales, calipers; reads numbers off the dish
-- `vocab.py` - "the specific sampler/bagging appliance"; does one specific job for one metric
-
-The cleansing/quality part of transformation lives in the python extract (cleaning.py)
-- strips out markdown (keeps source files intact while cleaning up text for downstream)
-- Flattens multi-value stylometric measures into single work-metric-value rows
-
 Keep reference tables for list-based metrics (archaic words, function words, punctuation) in lexicons.py
 
-Python creates a few 'raw' schema tables in duckdb
+Python creates a few 'raw' schema tables
 - raw_measurements (one row per work_id, metric, and value)
 - raw_works (one row per work_id and wordcount)
 - raw_vocab (one row per work per word)
-  - USed to claculate vocab overlap between me and others authors (Jaccard)
-
-## Fabric (OLD - DO NOT READ)
-
-### Bicep
-
-Basically "Infrastructure as code"
-- See infra/ folder
-- Basically, a .bicep file is a wanted end state; a tool takes all steps to get real state to match; git keeps your written record
-
-### Lakehouse Design
-
-We use two lakehouses in this design
-- Lakehouse is seperate from a lake (OneLake)
-- Lakehouse is a database-shaped folder on top of lake
-- Bronze lakehouse holds raw text blobs, plus delta tables (catalog rows, CDC watermark)
-- Silver holds tidy delta tables only
-- Gold warehouse only holds cleaned marts
-- Seperate layers (bronze/silver/gold) is standard design; creates seperation of trust
-
-### dbt + Fabric
-
-dbt currently sits on one machine; fabric/azure sits on another
-- dbt builds the sql from templates (jinja) and mails them to the engine (fabric) to run the actual sql
-- Needs an ODBC 18 driver (the light from the machine "remote" to the engine "TV")
-
-The Full stack
-- dbt Core — renders Jinja into SQL, plans run order
-- dbt-fabric — recasts generic SQL patterns into Fabric's T-SQL, works our link
-- pyodbc — a Python-to-ODBC bridge
-- ODBC Driver 18 — speaks TDS on our wire (our fresh install)
-- Warehouse SQL endpoint — Azure, where all real work happens
-
-### Commands
-
-`az resource invoke-action --action resume --resource-group DefaultResourceGroup-CUS --name gbfabric --resource-type Microsoft.Fabric/capacities` # resume fabric capacity
-
-`uv run python scripts/deploy_fabric.py` # Deploy fabric objects
+  - Used to claculate vocab overlap between me and others authors (Jaccard)
 
 ## dbt
 
@@ -189,7 +101,7 @@ The Full stack
 A dimension is just a model: one `.sql` file = one `SELECT`.
 dbt runs the SELECT and wraps it in `CREATE TABLE AS ...`;
 
-#### Where each thing lives
+### Where each thing lives
 
 | Concern                              | Where                       | How                                                                                           |
 | ------------------------------------ | --------------------------- | --------------------------------------------------------------------------------------------- |
@@ -199,22 +111,16 @@ dbt runs the SELECT and wraps it in `CREATE TABLE AS ...`;
 | Where it loads from                  | inside the SELECT           | `{{ ref('seed_authors') }}`, `{{ ref('stg_works') }}`. `ref()` builds the DAG                 |
 | Materialization                      | `dbt_project.yml`           | `marts: +materialized: table`. Override per-model with `{{ config(...) }}`.                   |
 
-Key point: schema and transformation are the SAME file (the SELECT). The `.yml` only describes and tests what that SELECT produces
+Key point: **schema and transformation are the SAME file** (the SELECT). The `.yml` only describes and tests what that SELECT produces
 
-#### Files for one model (e.g. dim_work)
+### Files for one model (e.g. dim_work)
 
 1. `models/marts/dim_work.sql` - the transformation + the schema (the SELECT).
 2. `models/marts/_marts.yml` - docs + tests (optional but wanted).
 3. `dbt_project.yml` - already says marts to table.
 4. Upstream `ref()` targets: `seed_authors`, `stg_works` (already built).
 
-#### SCD2 Tables
-
-Configured via a single yml file in `snapshots`
-- adds valid from/to columns (to is null for active row)
-- Used `check` method to determine row changes
-
-#### Materializations
+### Materializations
 
 A materialization answers: when I run this SELECT, what physical thing should exist in the warehouse? It's the build strategy (the DDL wrapper dbt generates).
 
@@ -228,13 +134,21 @@ A materialization answers: when I run this SELECT, what physical thing should ex
 Purpose: it decouples WHAT the data is (the SELECT) from HOW/WHEN it is stored and refreshed.
 Flip a view into a table by changing one config line; the SQL never changes.
 
-#### Freshness Checks
+**Incremental is a cache. A snapshot (SCD2) is a diary.**
+- Incremental can be thrown away and rebuilt
+- Snapshots only show what was written that day
+- Incremental is just an optimization for when a full rebuild is slow/expensive (so worthless on a table like dim_works)
+- Snapshots are for when a soruce overwrites itself, and you want to capture old values
+- Snapshot manufactures information that exists nowhere else; Incremental only saves time
+- *If you need incremental to preserve a value, that value belongs upstream in the data*
+
+### Freshness Checks
 
 Used to throw warning/errors in the event that source (raw) data is stale
 - Can be configured at source or table level
 - see `staging/_sources.yml`
 
-#### Audit Hooks
+### Audit Hooks
 
 See `dbt_project.yml` and `macros/log_run_results.sql`
 - Basically, adds a step at the end of the run to add a row to the audit log table
