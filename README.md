@@ -21,8 +21,10 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch) — every step is
        ├─ strip.py               → /files/gufime/silver/corpus/, bronze.strip_audit
        ├─ measure.py             → postgres raw.raw_measurements, raw.raw_vocab
        ├─ dbt deps && dbt build  → postgres gold.*
-       └─ npm run sources && npm run build
-            └─ wrangler pages deploy → gufime.com
+       ├─ npm run sources && npm run build
+       │    └─ wrangler pages deploy → gufime.com
+       └─ backup.py corpus       → R2 gufime-backup/corpus/
+  backup.py pg                   → R2 gufime-backup/pg/gufime.dump  (every night)
 ```
 
 GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the box executes. Files live on the box's disk under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`), listening on the unix socket only with peer auth. When there are no new fiction/sci-fi works in the catalog, the run stops after `filter.py`.
