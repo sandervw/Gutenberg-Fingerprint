@@ -14,13 +14,15 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch, concurrency guard
   ├─ catalog_ingest.py           → pg bronze.catalog, bronze.watermark
   ├─ filter.py                   → pg raw.raw_works, bronze.ingest_audit
   │                                [step output: new_count]
-  └─ if new_count != 0:
-       ├─ text_ingest.py         → /files/gufime/bronze/texts/, watermark
-       ├─ strip.py               → /files/gufime/silver/corpus/, bronze.strip_audit
-       ├─ measure.py             → pg raw.raw_measurements, raw.raw_vocab
-       ├─ dbt deps && dbt build  → pg gold.*
-       └─ npm run sources && npm run build
-            └─ wrangler pages deploy → gufime.com
+  ├─ if new_count != 0:
+  │    ├─ text_ingest.py         → /files/gufime/bronze/texts/, watermark
+  │    ├─ strip.py               → /files/gufime/silver/corpus/, bronze.strip_audit
+  │    ├─ measure.py             → pg raw.raw_measurements, raw.raw_vocab
+  │    ├─ dbt deps && dbt build  → pg gold.*
+  │    ├─ npm run sources && npm run build
+  │    │    └─ wrangler pages deploy → gufime.com
+  │    └─ backup.py corpus       → R2 gufime-backup/corpus/ (tar parts + manifest)
+  └─ backup.py pg                → R2 gufime-backup/pg/gufime.dump  (every night)
 ```
 
 - **Orchestrator:** GitHub Actions holds the schedule, the CDC gate (`if: steps.filter.outputs.new_count != '0'`), the SSH key, and the logs. On a quiet night the run stops after `filter.py`.
@@ -40,7 +42,7 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch, concurrency guard
 **The mechanics:**
 
 - A `bronze.watermark` table: `gutenberg_id`, `catalog_row_hash`, `text_hash`, `first_seen`, `last_changed`, `status`.
-- **New book** = in-scope ID absent from the watermark. **Changed book** = catalog row hash differs from the watermark's. **Retry** = last attempt failed.
+- **New book** = in-scope catalog row ID absent from the watermark. **Changed book** = catalog row hash differs from the watermark's. **Retry** = last attempt failed.
 - Downloads: plain-text format only, rate-limited, capped per run, from PG's mirrors.
 - Every run writes an **ingestion audit row**: run timestamp, books checked, new, changed, failed.
 
@@ -50,28 +52,29 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch, concurrency guard
 
 ## 3. Dimensional Model
 
-| Table                    | Notes                                                                                                                                                                                               |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dim_author`             | Built from catalog data. `is_self = true` on my own row and on select authors                                                                                                                       |
-| `dim_work`               | Carries `gutenberg_id`, `download_count`, `subjects`, `ingested_at` (`min(loaded_at)` over the work's measurement rows). Full rebuild; inner join to measurements keeps unmeasured catalog rows out |
-| `fact_style_measurement` | Work × series grain. Full rebuild                                                                                                                                                                   |
-| `fact_vocab_overlap`     | Author-pair grain, top-N vocab. Full rebuild                                                                                                                                                        |
-| `snap_dim_work`          | SCD2 snapshot, check strategy on all columns                                                                                                                                                        |
-| `dbt_run_log`            | One row per dbt node per run, written by an `on-run-end` hook                                                                                                                                       |
+| Table                    | Notes                                                                                                           |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `dim_author`             | Built from catalog data. `is_self = true` on my own row and on select authors                                   |
+| `dim_work`               | Carries `gutenberg_id`, `subjects`, `ingested_at`. inner join to measurements keeps unmeasured catalog rows out |
+| `dim_metric`             | One row per metric concept, from the `seed_metrics` seed; carries display/unit metadata and additivity class    |
+| `fact_style_measurement` | Work × series grain                                                                                             |
+| `fact_vocab_overlap`     | Author-pair grain, top-N vocab                                                                                  |
+| `snap_dim_work`          | SCD2 snapshot, check strategy on all columns                                                                    |
+| `dbt_run_log`            | One row per dbt node per run, written by an `on-run-end` hook                                                   |
 
-Audit rows live in bronze `ingest_audit`, dbt's run history in `dbt_run_log`, and the site surfaces freshness as `max(ingested_at)` on the index.
+Audit rows live in bronze `ingest_audit`, dbt's run history in `dbt_run_log`, and the site surfaces freshness as `max(ingested_at)` on the main page.
 
 ---
 
 ## 4. dbt Concepts
 
-- **Incremental models** — none; every dim/fact full-rebuilds
+- **Incremental models** — none; every dim/fact full-rebuilds (overkill for this scale)
 - **Source freshness** — `raw_works` is the heartbeat at `error_after: 24 hours`; the measurement tables are exempt
 - **Snapshots** — SCD2 on `dim_work`
 - **Environment split** — a `duckdb` dev target and a `postgres` prod target from one codebase
 - **On-run-end hook** — `log_run_results` writes run metadata to `gold.dbt_run_log` with plain `create table if not exists`
 
-Prod dbt is `uv run dbt build --target postgres` on the box: peer auth over the unix socket, schema `gold`, no password. Local dev seeds a DuckDB file with `scripts/load_local_raw_tables.py` and builds against `dbt/warehouse.duckdb`.
+Prod dbt is `uv run dbt build --target postgres` on the box: peer auth over the unix socket, schema `gold`, no password. Local dev builds against `dbt/warehouse.duckdb`.
 
 ---
 
@@ -79,7 +82,9 @@ Prod dbt is `uv run dbt build --target postgres` on the box: peer auth over the 
 
 **About $5/month, always on.** An OVH VPS-1 (2 vCore, 4 GB, 40 GB NVMe); ~2 GB of corpus against 40 GB. GitHub Actions is free and unmetered on a public repo; Cloudflare Pages builds sit inside the free tier.
 
-The nightly run touches **two credentials**: an SSH private key in Actions secrets, and a Cloudflare API token in `~/.config/gufime/cf_token` on the box, scoped to Pages. The OVH and Cloudflare tokens OpenTofu needs stay on the laptop.
+The nightly run touches **two credentials**: an SSH private key in Actions secrets, and a Cloudflare API token in `~/.config/gufime/cf_token` on the box, scoped to Pages plus R2 write on the backup bucket. The OVH and Cloudflare tokens OpenTofu needs stay on the laptop.
+
+**Backups:** `python/workflow/backup.py` wraps `wrangler r2 object put` and ships to the R2 bucket `gufime-backup` (free-tier 10 GB, declared in `infra/tofu/cloudflare.tf`), latest-only keys overwritten in place. `pg_dump -Fc` every night to `pg/gufime.dump`; on changed nights the corpus tars into 250 MB parts under `corpus/`, plus a sha256 `corpus.manifest` uploaded last. Restore fetches the parts the manifest lists: `cat corpus.tar.gz.* | tar -xz`, and `pg_restore -d gufime`. Backup steps run only after every prior step succeeds.
 
 **Infra as code:** `infra/tofu/` (OpenTofu, OVH + Cloudflare providers) orders the box; `infra/tofu/scripts/provision.sh` runs over SSH and sets up Postgres (three schemas, peer auth on the socket), `uv`, Node 24, `wrangler`, unattended-upgrades, 2 GB swap, `/files/gufime/`, `/code/gufime/`.
 
@@ -108,5 +113,4 @@ The workflow runs `npm run sources && npm run build` (SPA mode), then `wrangler 
 
 ## 8. Future Enhancements
 
-1. **Offsite backups to R2.** Nightly `pg_dump` plus the corpus, shipped with `wrangler r2 object put` on the box's existing Cloudflare token (scope widened to write on one bucket). `wrangler` caps at 315 MB per object; the corpus tars in parts. Target: R2's permanently-free 10 GB.
-2. **Dagster orchestration.** Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) takes over the schedule from Actions, with `dagster-dbt` reading `manifest.json`; extract → dbt → site becomes one asset graph.
+1. **Dagster orchestration.** Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) takes over the schedule from Actions, with `dagster-dbt` reading `manifest.json`; extract → dbt → site becomes one asset graph.

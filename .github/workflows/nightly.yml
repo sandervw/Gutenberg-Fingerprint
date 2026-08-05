@@ -64,3 +64,10 @@ jobs:
       - name: Deploy to Cloudflare Pages
         if: steps.filter.outputs.new_count != '0'
         run: ssh $SSH_OPTS $BOX "cd /code/gufime/evidence && CLOUDFLARE_API_TOKEN=\$(cat ~/.config/gufime/cf_token) wrangler pages deploy build --project-name=gutenberg-fingerprint --branch=main"
+
+      - name: Backup corpus to R2
+        if: steps.filter.outputs.new_count != '0'
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres CLOUDFLARE_API_TOKEN=\$(cat ~/.config/gufime/cf_token) ~/.local/bin/uv run python -m python.workflow.backup corpus"
+
+      - name: Backup Postgres to R2
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres CLOUDFLARE_API_TOKEN=\$(cat ~/.config/gufime/cf_token) ~/.local/bin/uv run python -m python.workflow.backup pg"
