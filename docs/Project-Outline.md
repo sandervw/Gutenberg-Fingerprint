@@ -22,7 +22,7 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch, concurrency guard
   │    ├─ npm run sources && npm run build
   │    │    └─ wrangler pages deploy → gufime.com
   │    └─ backup.py corpus       → R2 gufime-backup/corpus/ (tar parts + manifest)
-  └─ backup.py pg                → R2 gufime-backup/pg/gufime.dump  (every night)
+  └─ backup.py pg                → R2 gufime-backup/pg/gufime.dump  (every night, backup postgres)
 ```
 
 - **Orchestrator:** GitHub Actions holds the schedule, the CDC gate (`if: steps.filter.outputs.new_count != '0'`), the SSH key, and the logs. On a quiet night the run stops after `filter.py`.

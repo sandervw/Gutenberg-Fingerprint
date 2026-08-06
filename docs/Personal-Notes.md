@@ -4,6 +4,12 @@
 
 ## Terms
 
+**.tar File**
+- "tape archive"
+- bundles a directory tree into one file (no compression)
+- Pair it with gzip and you get .tar.gz, which also compresses
+- Used here in R2 backup
+
 **DuckDB-WASM**
 - An in-process sql db compiled to Web-Assembly
 - Allows clients to run queries in their browser

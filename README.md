@@ -24,7 +24,7 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch) — every step is
        ├─ npm run sources && npm run build
        │    └─ wrangler pages deploy → gufime.com
        └─ backup.py corpus       → R2 gufime-backup/corpus/
-  backup.py pg                   → R2 gufime-backup/pg/gufime.dump  (every night)
+  backup.py pg                   → R2 gufime-backup/pg/gufime.dump  (every night, backup postgres)
 ```
 
 GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the box executes. Files live on the box's disk under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`), listening on the unix socket only with peer auth. When there are no new fiction/sci-fi works in the catalog, the run stops after `filter.py`.
@@ -88,7 +88,6 @@ python/      pipeline: workflow steps + helpers, storage seam (storage.py)
 dbt/         dbt Core project (models, macros, snapshots, tests)
 evidence/    Evidence.dev site + build scripts
 infra/tofu/  OpenTofu: OVH VPS + Cloudflare DNS, provision.sh
-scripts/     local dev loader
 docs/        project outline, analysis write-ups, reference notes
 ```
 
@@ -98,7 +97,8 @@ Requires Python 3.12+, [uv](https://docs.astral.sh/uv/), and Node 24.
 
 ```bash
 uv sync
-uv run python scripts/load_local_raw_tables.py  # seed dbt/warehouse.duckdb
+uv run python -m python.workflow.catalog_ingest  # seed bronze.catalog
+uv run python -m python.workflow.filter          # seed raw.raw_works
 
 cd dbt
 uv run dbt deps
