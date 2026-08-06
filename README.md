@@ -2,7 +2,7 @@
 
 **Live site: [gufime.com](https://gufime.com/)**
 
-A nightly change-data-capture pipeline that watches the Project Gutenberg catalog, downloads the English science-fiction and fantasy corpus, measures 15 stylometric properties of every book, and publishes the result as an SPA analytics site. Every published number is a **z-score**.
+A nightly change-data-capture pipeline that watches the Project Gutenberg catalog, downloads the English science-fiction, fantasy, and horror corpus, measures 15 stylometric properties of every book, and publishes the result as an SPA analytics site. Every published number is a **z-score**.
 
 Runs on one ~$5/month OVH VPS ("the box"): Postgres, plain Python, dbt Core, and Evidence.dev, orchestrated by GitHub Actions, published to Cloudflare Pages.
 
@@ -27,7 +27,7 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch) — every step is
   backup.py pg                   → R2 gufime-backup/pg/gufime.dump  (every night, backup postgres)
 ```
 
-GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the box executes. Files live on the box's disk under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`), listening on the unix socket only with peer auth. When there are no new fiction/sci-fi works in the catalog, the run stops after `filter.py`.
+GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the box executes. Files live on the box's disk under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`), listening on the unix socket only with peer auth. When there are no new in-scope works in the catalog, the run stops after `filter.py`.
 
 **Change detection.** A `bronze.watermark` table keyed on `gutenberg_id` marks a book new when its ID is absent, changed when its catalog row hash differs, and retried when it last failed. The diff runs against the **in-scope subset only**; the ~78,000 out-of-scope books never enter the watermark.
 

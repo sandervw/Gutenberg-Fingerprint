@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Nightly CDC pipeline over the Project Gutenberg sci-fi/fantasy corpus. Published to Cloudflare Pages at https://gufime.com/.
+Nightly CDC pipeline over the Project Gutenberg sci-fi/fantasy/horror corpus. Published to Cloudflare Pages at https://gufime.com/.
 
 `README.md` is the architecture. `docs/Project-Outline.md` is the design and the roadmap. `docs/reference/` holds verified tech notes.
 

@@ -50,7 +50,7 @@ models:
                 to: ref('dim_author')
                 field: author_key
       - name: genre
-        description: "Sci-Fi / Fantasy / Horror / Undetermined, carried off stg_works. Genres are exclusive: a work matching more than one lands Undetermined. The self corpus is seeded as 'speculative fiction' and lands Undetermined, so the 26 self works never skew a genre split."
+        description: "Sci-Fi / Fantasy / Horror / Undetermined, carried off stg_works. Exclusive; overlaps land Undetermined, as does the self corpus (seeded 'speculative fiction')."
         data_tests:
           - not_null
           - accepted_values:

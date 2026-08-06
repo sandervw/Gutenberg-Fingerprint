@@ -3,7 +3,7 @@ title: Gutenberg Fiction Metrics
 neverShowQueries: true
 ---
 
-A metric-based comparison of fantasy and science fiction in [Project Gutenberg](https://www.gutenberg.org/). Measured as **z-scores**. Positive means a work does *more* of something than the typical work; negative, less.
+A metric-based comparison of science fiction, fantasy, and horror in [Project Gutenberg](https://www.gutenberg.org/). Measured as **z-scores**. Positive means a work does *more* of something than the typical work; negative, less.
 
 ```sql last_refreshed
 select max(ingested_at) as refreshed,
