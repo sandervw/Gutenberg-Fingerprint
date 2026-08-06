@@ -1,6 +1,6 @@
 # `gutenberg-fingerprint` — A Nightly CDC Stylometrics Pipeline
 
-A nightly, change-data-capturing pipeline that watches the Project Gutenberg science-fiction and fantasy catalog, lands new and corrected books on a small VPS, extracts stylometrics, and rebuilds dbt → Evidence → Cloudflare Pages.
+A nightly, change-data-capturing pipeline that watches the Project Gutenberg science-fiction, fantasy, and horror catalog, lands new and corrected books on a small VPS, extracts stylometrics, and rebuilds dbt → Evidence → Cloudflare Pages.
 
 ---
 
@@ -46,7 +46,7 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch, concurrency guard
 - Downloads: plain-text format only, rate-limited, capped per run, from PG's mirrors.
 - Every run writes an **ingestion audit row**: run timestamp, books checked, new, changed, failed.
 
-**Corpus filter** (applied at CDC time): English, `Type = Text`, science-fiction and fantasy via subject and bookshelf keyword match. Flags (`is_translation`, `is_juvenile`, `is_play`, `is_poetry`) ride along as fields on `stg_works` and are filtered at query time in Evidence.
+**Corpus filter** (applied at CDC time): English, `Type = Text`, science-fiction, fantasy, and horror via subject and bookshelf keyword match. `genre` is one exclusive column; works matching more than one land `Undetermined`. Flags (`is_translation`, `is_juvenile`, `is_play`, `is_poetry`) ride along as fields on `stg_works` and are filtered at query time in Evidence.
 
 ---
 
@@ -113,8 +113,7 @@ The workflow runs `npm run sources && npm run build` (SPA mode), then `wrangler 
 
 ## 8. Future Enhancements
 
-1. **Horror Expansion.** See `docs\Horror-Genre-Expansion.md`.
-2. **Dagster orchestration.** Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) takes over the schedule from Actions, with `dagster-dbt` reading `manifest.json`; extract → dbt → site becomes one asset graph.
-3. **Filtering/Cleansing Improvements.** Come up with scheme to remove duplicate works (Alice's adventures in wonderland, anthem, the princess and Goblin, etc) - multiple PG ids.
+1. **Dagster orchestration.** Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) takes over the schedule from Actions, with `dagster-dbt` reading `manifest.json`; extract → dbt → site becomes one asset graph.
+2. **Filtering/Cleansing Improvements.** Come up with scheme to remove duplicate works (Alice's adventures in wonderland, anthem, the princess and Goblin, etc) - multiple PG ids.
    1. Also remove "new" Works (Concordance), and add dim_date (how to load date table?)
    2. Need to figure out how to remove deleted works from bronze/silver files too
