@@ -117,3 +117,15 @@ The workflow runs `npm run sources && npm run build` (SPA mode), then `wrangler 
 2. **Filtering/Cleansing Improvements.** Come up with scheme to remove duplicate works (Alice's adventures in wonderland, anthem, the princess and Goblin, etc) - multiple PG ids.
    1. Also remove "new" Works (Concordance), and add dim_date (how to load date table?)
    2. Need to figure out how to remove deleted works from bronze/silver files too
+
+---
+
+## 9. Catalog Facts
+
+**Admission.** PG takes public-domain works plus copyrighted ones donated with permission, which is why Ann Wilson's 1990s Terran Empire series sits in the corpus.
+
+**Rights.** `pg_catalog.csv` has no rights column. The downloaded text carries `*** This is a COPYRIGHTED Project Gutenberg eBook`: 49 of 4,629 bronze texts.
+
+**Duplicates.** Keying on first-line title plus author finds 61 groups, 71 excess rows. Titles pack subtitles after `\r\n`.
+
+**Dates.** `issued` is the PG posting date, 79,071/79,071 populated, 1971-12-01 to 2026-08-02. No date-written exists anywhere. `authors` carries birth/death years for 4,169 of 4,708.

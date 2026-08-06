@@ -70,14 +70,32 @@ GENRE: pl.Expr = (
     .otherwise(pl.lit("Undetermined"))
 )
 
+# %% Dedup - same title + primary author = one work, many PG ids
+
+DEDUP_TITLE: pl.Expr = pl.col("title").fill_null("").str.strip_chars().str.to_lowercase()
+DEDUP_AUTHOR: pl.Expr = (
+    pl.col("authors").fill_null("").str.split(";").list.first().str.strip_chars().str.to_lowercase()
+)
+
 # %% Run
 
 if __name__ == "__main__":
     catalog_df: pl.DataFrame = storage.read_table("bronze.catalog")
 
-    raw_works_df: pl.DataFrame = catalog_df.filter(
+    scoped_df: pl.DataFrame = catalog_df.filter(
         (pl.col("type") == "Text") & (pl.col("language") == "en") & IN_SCOPE
     ).with_columns(GENRE.alias("genre"))
+
+    # Keep lowest gutenberg_id per work; drop re-release dupes
+    raw_works_df: pl.DataFrame = (
+        scoped_df.with_columns(
+            DEDUP_TITLE.alias("_k_title"), DEDUP_AUTHOR.alias("_k_author")
+        )
+        .sort("gutenberg_id")
+        .unique(subset=["_k_title", "_k_author"], keep="first", maintain_order=True)
+        .drop("_k_title", "_k_author")
+    )
+    deduped: int = scoped_df.height - raw_works_df.height
 
     storage.write_table("raw.raw_works", raw_works_df, mode="overwrite")
 
@@ -85,6 +103,7 @@ if __name__ == "__main__":
         raw_works_df.group_by("genre").len().sort("genre").iter_rows()
     )
     print(f"raw_works: kept {raw_works_df.height:,} of {catalog_df.height:,} catalog rows")
+    print(f"deduped: dropped {deduped:,} re-release rows")
     print(f"genre split: {by_genre}")
 
     # CDC diff - in-scope set vs watermark, logged to ingest_audit

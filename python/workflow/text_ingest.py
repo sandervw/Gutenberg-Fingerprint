@@ -153,12 +153,31 @@ def write_audit(
     storage.write_table("bronze.ingest_audit", row, mode="append")
 
 
+# %% Prune - bronze mirrors roster; drop files for departed works
+
+
+def prune_orphans(roster: pl.DataFrame, texts_root: Path) -> int:
+    """Delete bronze texts whose work left the roster."""
+    if not texts_root.exists():
+        return 0
+    keep = set(roster["gutenberg_id"].to_list())
+    removed = 0
+    for path in texts_root.glob("*.txt"):
+        if path.stem.isdigit() and int(path.stem) not in keep:
+            path.unlink()
+            removed += 1
+    return removed
+
+
 # %% Run
 
 if __name__ == "__main__":
     run_ts: datetime = datetime.now(timezone.utc)
     roster: pl.DataFrame = storage.read_table("raw.raw_works")
     watermark: pl.DataFrame = storage.read_table("bronze.watermark")
+    pruned: int = prune_orphans(roster, TEXTS_ROOT)
+    if pruned:
+        print(f"pruned {pruned:,} orphan bronze texts")
     backlog: pl.DataFrame = pick_downloads(roster, watermark)
 
     candidate_new: int = backlog.filter(pl.col("seen_hash").is_null()).height
