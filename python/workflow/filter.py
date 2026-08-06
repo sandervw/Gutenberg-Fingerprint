@@ -1,4 +1,4 @@
-# Filter: bronze catalog -> raw_works (English SF/fantasy), plus CDC gate count.
+# Filter: bronze catalog -> raw_works (English SF/fantasy/horror), plus CDC gate count.
 
 from __future__ import annotations
 
@@ -31,8 +31,19 @@ SF_THEME: pl.Expr = SUBJECTS.str.contains(
 )
 FANTASY_THEME: pl.Expr = SUBJECTS.str.contains(
     "(?i)fairy tal|fairies|magic|mythology|folklore|dragons|witch|wizard"
-    "|ghost stories|supernatural|imaginary places|legends"
+    "|imaginary places|legends"
 )
+
+HORROR_CORE: pl.Expr = SUBJECTS.str.contains("(?i)horror tales|gothic fiction") | shelf_token(
+    "(Horror|Gothic Fiction)"
+)
+# Ghosts/vampires etc need a fiction subdivision; the rest stand alone
+HORROR_THEME: pl.Expr = SUBJECTS.str.contains(
+    r"(?i)ghost stor|paranormal fiction|haunted house|haunted place|frankenstein.s monster"
+    r"|(ghosts|supernatural|occultism|demonology|vampires|werewol\w*)\s*--\s*"
+    r"(fiction|juvenile fiction|poetry|drama)"
+)
+HORROR: pl.Expr = HORROR_CORE | HORROR_THEME
 
 ABOUT_SUBDIVISION: str = (
     r"(?i)--\s*(history and criticism|authorship|criticism|bibliograph"
@@ -47,13 +58,15 @@ IS_ABOUT: pl.Expr = (
     .list.any()
 )
 
-IN_SCOPE: pl.Expr = (SF_CORE | FANTASY_CORE | SFF_SHELF) & IS_ABOUT.not_()
+IN_SCOPE: pl.Expr = (SF_CORE | FANTASY_CORE | SFF_SHELF | HORROR) & IS_ABOUT.not_()
 
 GENRE: pl.Expr = (
-    pl.when((SF_CORE | SF_THEME) & (FANTASY_CORE | FANTASY_THEME).not_())
+    pl.when((SF_CORE | SF_THEME) & (FANTASY_CORE | FANTASY_THEME).not_() & HORROR.not_())
     .then(pl.lit("Sci-Fi"))
-    .when((FANTASY_CORE | FANTASY_THEME) & (SF_CORE | SF_THEME).not_())
+    .when((FANTASY_CORE | FANTASY_THEME) & (SF_CORE | SF_THEME).not_() & HORROR.not_())
     .then(pl.lit("Fantasy"))
+    .when(HORROR & (SF_CORE | SF_THEME).not_() & (FANTASY_CORE | FANTASY_THEME).not_())
+    .then(pl.lit("Horror"))
     .otherwise(pl.lit("Undetermined"))
 )
 

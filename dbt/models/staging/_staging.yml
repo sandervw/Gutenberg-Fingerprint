@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: stg_works
-    description: "One row per work (4,405)."
+    description: "One row per work (4,707)."
     columns:
       - name: gutenberg_id
         description: "PG's natural key. PK + grain guard."
@@ -17,12 +17,12 @@ models:
         data_tests:
           - not_null
       - name: genre
-        description: "Sci-Fi (3,224), Fantasy (720), or Undetermined (461)."
+        description: "Sci-Fi (3,195), Fantasy (637), Horror (404), or Undetermined (471)."
         data_tests:
           - not_null
           - accepted_values:
               arguments:
-                values: ["Sci-Fi", "Fantasy", "Undetermined"]
+                values: ["Sci-Fi", "Fantasy", "Horror", "Undetermined"]
       - name: is_translation
         description: "'[Translator]' author marker."
         data_tests:
