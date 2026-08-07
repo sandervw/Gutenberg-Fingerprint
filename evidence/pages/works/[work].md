@@ -10,12 +10,14 @@ select
     genre,
     prose_type,
     word_count,
-    '/authors/' || author as author_link
+    '/authors/' || author as author_link,
+    case when is_self = 1 then null
+         else 'https://www.gutenberg.org/ebooks/' || work_id end as work_link
 from warehouse.mart_work
 where work_id = '${params.work}'
 ```
 
-# <Value data={work} column=title/>
+# {#if work[0]?.work_link}<a href={work[0]?.work_link}><Value data={work} column=title/></a>{:else}<Value data={work} column=title/>{/if}
 
 By <a href={work[0]?.author_link}><Value data={work} column=author/></a> - {work[0]?.genre === 'Undetermined' ? "" : work[0]?.genre + ' '}<Value data={work} column=prose_type/>, <Value data={work} column=word_count fmt=num0/> words.
 

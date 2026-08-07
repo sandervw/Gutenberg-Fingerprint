@@ -52,16 +52,16 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch, concurrency guard
 
 ## 3. Dimensional Model
 
-| Table                    | Notes                                                                                                           |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Table                    | Notes                                                                                                                                              |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `dim_author`             | Built from catalog data. `is_self = true` on my own row and on select authors; carries `birth_date`/`death_date` (Jan 1 of catalog year, nullable) |
-| `dim_work`               | Carries `gutenberg_id`, `subjects`, `ingested_at`, `issue_date` (PG posting date). inner join to measurements keeps unmeasured catalog rows out |
-| `dim_metric`             | One row per metric concept, from the `seed_metrics` seed; carries display/unit metadata and additivity class    |
-| `dim_date`               | Calendar dimension, daily grain 1970-2035; both facts' `loaded_date_key` FKs point here                         |
-| `fact_style_measurement` | Work × series grain; `loaded_date_key` FK to `dim_date`                                                         |
-| `fact_vocab_overlap`     | Author-pair grain, top-N vocab; `loaded_date_key` FK to `dim_date`                                              |
-| `snap_dim_work`          | SCD2 snapshot, check strategy on all columns                                                                    |
-| `dbt_run_log`            | One row per dbt node per run, written by an `on-run-end` hook                                                   |
+| `dim_work`               | Carries `gutenberg_id`, `subjects`, `ingested_at`, `issue_date` (PG posting date). inner join to measurements keeps unmeasured catalog rows out    |
+| `dim_metric`             | One row per metric concept, from the `seed_metrics` seed; carries display/unit metadata and additivity class                                       |
+| `dim_date`               | Calendar dimension, daily grain 1970-2035; both facts' `loaded_date_key` FKs point here                                                            |
+| `fact_style_measurement` | Work × series grain; `loaded_date_key` FK to `dim_date`                                                                                            |
+| `fact_vocab_overlap`     | Author-pair grain, top-N vocab; `loaded_date_key` FK to `dim_date`                                                                                 |
+| `snap_dim_work`          | SCD2 snapshot, check strategy on all columns                                                                                                       |
+| `dbt_run_log`            | One row per dbt node per run, written by an `on-run-end` hook                                                                                      |
 
 Audit rows live in bronze `ingest_audit`, dbt's run history in `dbt_run_log`, and the site surfaces freshness as `max(ingested_at)` on the main page.
 
@@ -115,4 +115,3 @@ The workflow runs `npm run sources && npm run build` (SPA mode), then `wrangler 
 ## 8. Future Enhancements
 
 1. **Dagster orchestration.** Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) takes over the schedule from Actions, with `dagster-dbt` reading `manifest.json`; extract → dbt → site becomes one asset graph.
-2. **Add Work Links.** based on Proj Gut ID, each page links to its associated work
