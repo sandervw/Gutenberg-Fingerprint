@@ -10,7 +10,7 @@ from pathlib import Path
 import polars as pl
 import requests
 
-from python.helpers import storage
+from python.helpers import filter, storage
 
 TEXTS_ROOT: Path = storage.file_path("bronze/texts")
 MIRROR: str = "https://gutenberg.pglaf.org"
@@ -81,6 +81,11 @@ def download_texts(todo: pl.DataFrame) -> pl.DataFrame:
         gutenberg_id = row["gutenberg_id"]
         try:
             raw_bytes = fetch_text(gutenberg_id, session)
+            if filter.is_copyrighted(raw_bytes):
+                (TEXTS_ROOT / f"{gutenberg_id}.txt").unlink(missing_ok=True)
+                rows.append((gutenberg_id, row["catalog_row_hash"], None, "copyrighted"))
+                consecutive_failures = 0
+                continue
             (TEXTS_ROOT / f"{gutenberg_id}.txt").write_bytes(raw_bytes)
             text_hash = hashlib.sha256(raw_bytes).hexdigest()
             rows.append((gutenberg_id, row["catalog_row_hash"], text_hash, "ingested"))
@@ -198,7 +203,8 @@ if __name__ == "__main__":
 
     processed: pl.DataFrame = download_texts(todo)
     downloaded: int = processed.filter(pl.col("status") == "ingested").height
-    failed: int = processed.height - downloaded
+    failed: int = processed.filter(pl.col("status") == "failed").height
+    copyrighted: int = processed.filter(pl.col("status") == "copyrighted").height
 
     storage.write_table(
         "bronze.watermark", update_watermark(watermark, processed, run_ts), mode="overwrite"
@@ -206,6 +212,6 @@ if __name__ == "__main__":
     write_audit(roster.height, candidate_new, candidate_changed, downloaded, failed, run_ts)
 
     print(
-        f"texts: {downloaded:,} downloaded, {failed:,} failed -> {TEXTS_ROOT}"
-        f" | {deferred:,} left for the next run"
+        f"texts: {downloaded:,} downloaded, {failed:,} failed, {copyrighted:,} copyrighted"
+        f" -> {TEXTS_ROOT} | {deferred:,} left for the next run"
     )
