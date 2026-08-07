@@ -11,7 +11,7 @@ from pathlib import Path
 import polars as pl
 import requests
 
-from python.helpers import storage
+from python.helpers import filter, storage
 
 CATALOG_URL: str = "https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv"
 
@@ -117,4 +117,51 @@ if __name__ == "__main__":
 
     storage.write_table("bronze.catalog", catalog_df, mode="overwrite")
     storage.ensure_table("bronze.watermark", WATERMARK_SCHEMA)
-    print(f"catalog photo written: {catalog_df.height:,} books")
+
+    result: filter.FilterResult = filter.filter_catalog(catalog_df)
+    raw_works_df: pl.DataFrame = result.raw_works
+    storage.write_table("raw.raw_works", raw_works_df, mode="overwrite")
+
+    by_genre: dict[str, int] = dict(
+        raw_works_df.group_by("genre").len().sort("genre").iter_rows()
+    )
+    print(f"raw_works: kept {raw_works_df.height:,} of {catalog_df.height:,} catalog rows")
+    print(f"deduped: dropped {result.deduped:,} re-release rows")
+    print(f"genre split: {by_genre}")
+
+    # CDC diff - in-scope set vs watermark
+    joined: pl.DataFrame = raw_works_df.select("gutenberg_id", "catalog_row_hash").join(
+        storage.read_table("bronze.watermark").select(
+            "gutenberg_id", pl.col("catalog_row_hash").alias("seen_hash")
+        ),
+        on="gutenberg_id",
+        how="left",
+    )
+    candidate_new: int = joined.filter(pl.col("seen_hash").is_null()).height
+    candidate_changed: int = joined.filter(
+        pl.col("seen_hash").is_not_null()
+        & (pl.col("seen_hash") != pl.col("catalog_row_hash"))
+    ).height
+    audit_row: pl.DataFrame = pl.DataFrame(
+        {
+            "run_ts": [run_ts],  # reuse the run's timestamp
+            "run_type": ["catalog_refresh"],
+            "books_in_catalog": [catalog_df.height],
+            "candidate_new": [candidate_new],
+            "candidate_changed": [candidate_changed],
+            "downloaded": [0],
+            "failed": [0],
+        },
+        schema={
+            "run_ts": storage.UTC_DATETIME_TYPE,
+            "run_type": pl.Utf8,
+            "books_in_catalog": pl.Int64,
+            "candidate_new": pl.Int64,
+            "candidate_changed": pl.Int64,
+            "downloaded": pl.Int64,
+            "failed": pl.Int64,
+        },
+    )
+    storage.write_table("bronze.ingest_audit", audit_row, mode="append")
+    print(f"new in-scope works: {candidate_new:,} | changed: {candidate_changed:,}")
+    storage.emit("new_count", candidate_new + candidate_changed)

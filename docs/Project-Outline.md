@@ -11,8 +11,7 @@ Everything runs on one OVH VPS ("the box"): Postgres, the pipeline files, dbt, a
 ```
 GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch, concurrency guard)
   ├─ git reset --hard origin/main    (sync /code/gufime)
-  ├─ catalog_ingest.py           → pg bronze.catalog, bronze.watermark
-  ├─ filter.py                   → pg raw.raw_works, bronze.ingest_audit
+  ├─ catalog_ingest.py           → pg bronze.catalog, bronze.watermark, raw.raw_works, bronze.ingest_audit
   │                                [step output: new_count]
   ├─ if new_count != 0:
   │    ├─ text_ingest.py         → /files/gufime/bronze/texts/, watermark
@@ -25,7 +24,7 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch, concurrency guard
   └─ backup.py pg                → R2 gufime-backup/pg/gufime.dump  (every night, backup postgres)
 ```
 
-- **Orchestrator:** GitHub Actions holds the schedule, the CDC gate (`if: steps.filter.outputs.new_count != '0'`), the SSH key, and the logs. On a quiet night the run stops after `filter.py`.
+- **Orchestrator:** GitHub Actions holds the schedule, the CDC gate (`if: steps.catalog.outputs.new_count != '0'`), the SSH key, and the logs. On a quiet night the run stops after `catalog_ingest.py`.
 - **Workflow steps** are plain Python modules in `python/workflow/`, tunables in `python/helpers/` (`lexicons.py`, `vocab.py`, `stylometrics.py`, `clean.py`), all storage behind `python/helpers/storage.py`. `GUFIME_TARGET` picks `duckdb` (local default) or `postgres`; `GUFIME_FILES_ROOT`, `GUFIME_PG_DSN`, `GUFIME_DUCKDB_PATH` override paths. Steps run from the repo root: `uv run python -m python.workflow.<step>`. The gate count surfaces via `storage.emit("new_count", n)`, which also writes `$GITHUB_OUTPUT`.
 - **Storage:** files on the box's disk (`/files/gufime/bronze/texts/`, `bronze/catalog/`, `bronze/self/` + `_manifest.csv`, `silver/corpus/`); tables in Postgres database `gufime`, schemas `bronze` (catalog, watermark, ingest_audit, strip_audit), `raw` (raw_works, raw_measurements, raw_vocab), and `gold` (the dbt layer). Postgres listens on the unix socket only and authenticates by peer; no database password exists anywhere.
 - **Warehouse + dbt:** `dbt build --target postgres` on the box materializes the star schema and marts in `gold`.
@@ -113,19 +112,14 @@ The workflow runs `npm run sources && npm run build` (SPA mode), then `wrangler 
 
 ## 8. Future Enhancements
 
-1. **Dagster orchestration.** Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) takes over the schedule from Actions, with `dagster-dbt` reading `manifest.json`; extract → dbt → site becomes one asset graph.
-2. **Filtering/Cleansing Improvements.** Come up with scheme to remove duplicate works (Alice's adventures in wonderland, anthem, the princess and Goblin, etc) - multiple PG ids.
-   1. Also remove "new" Works (Concordance), and add dim_date (how to load date table?)
-   2. Need to figure out how to remove deleted works from bronze/silver files too
+1. **Filtering/Cleansing Improvements.** Come up with scheme to remove "new" Works (Concordance)
+   1. PG takes public-domain works plus copyrighted ones donated with permission
+   2. `pg_catalog.csv` has no rights column. Downloaded text has `*** This is a COPYRIGHTED Project Gutenberg eBook`: ~50 bronze texts.
+2. **Add dim_date** (how to load date table?)
+3. **Dagster orchestration.** Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) takes over the schedule from Actions, with `dagster-dbt` reading `manifest.json`; extract → dbt → site becomes one asset graph.
 
 ---
 
 ## 9. Catalog Facts
-
-**Admission.** PG takes public-domain works plus copyrighted ones donated with permission, which is why Ann Wilson's 1990s Terran Empire series sits in the corpus.
-
-**Rights.** `pg_catalog.csv` has no rights column. The downloaded text carries `*** This is a COPYRIGHTED Project Gutenberg eBook`: 49 of 4,629 bronze texts.
-
-**Duplicates.** Keying on first-line title plus author finds 61 groups, 71 excess rows. Titles pack subtitles after `\r\n`.
 
 **Dates.** `issued` is the PG posting date, 79,071/79,071 populated, 1971-12-01 to 2026-08-02. No date-written exists anywhere. `authors` carries birth/death years for 4,169 of 4,708.

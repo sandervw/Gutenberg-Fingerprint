@@ -1,12 +1,10 @@
-# Filter: bronze catalog -> raw_works (English SF/fantasy/horror), plus CDC gate count.
+# Filter helper: catalog rows -> in-scope, deduped raw_works.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from dataclasses import dataclass
 
 import polars as pl
-
-from python.helpers import storage
 
 # %% Scope + genre - checks both subjects (LCSH) and bookshelves
 
@@ -77,69 +75,23 @@ DEDUP_AUTHOR: pl.Expr = (
     pl.col("authors").fill_null("").str.split(";").list.first().str.strip_chars().str.to_lowercase()
 )
 
-# %% Run
+# %% Pure entry point
 
-if __name__ == "__main__":
-    catalog_df: pl.DataFrame = storage.read_table("bronze.catalog")
 
-    scoped_df: pl.DataFrame = catalog_df.filter(
+@dataclass(frozen=True)
+class FilterResult:
+    raw_works: pl.DataFrame
+    deduped: int  # re-release rows dropped
+
+
+def filter_catalog(catalog_df: pl.DataFrame) -> FilterResult:
+    scoped = catalog_df.filter(
         (pl.col("type") == "Text") & (pl.col("language") == "en") & IN_SCOPE
     ).with_columns(GENRE.alias("genre"))
-
-    # Keep lowest gutenberg_id per work; drop re-release dupes
-    raw_works_df: pl.DataFrame = (
-        scoped_df.with_columns(
-            DEDUP_TITLE.alias("_k_title"), DEDUP_AUTHOR.alias("_k_author")
-        )
+    raw_works = (
+        scoped.with_columns(DEDUP_TITLE.alias("_k_title"), DEDUP_AUTHOR.alias("_k_author"))
         .sort("gutenberg_id")
         .unique(subset=["_k_title", "_k_author"], keep="first", maintain_order=True)
         .drop("_k_title", "_k_author")
     )
-    deduped: int = scoped_df.height - raw_works_df.height
-
-    storage.write_table("raw.raw_works", raw_works_df, mode="overwrite")
-
-    by_genre: dict[str, int] = dict(
-        raw_works_df.group_by("genre").len().sort("genre").iter_rows()
-    )
-    print(f"raw_works: kept {raw_works_df.height:,} of {catalog_df.height:,} catalog rows")
-    print(f"deduped: dropped {deduped:,} re-release rows")
-    print(f"genre split: {by_genre}")
-
-    # CDC diff - in-scope set vs watermark, logged to ingest_audit
-    joined: pl.DataFrame = raw_works_df.select("gutenberg_id", "catalog_row_hash").join(
-        storage.read_table("bronze.watermark").select(
-            "gutenberg_id", pl.col("catalog_row_hash").alias("seen_hash")
-        ),
-        on="gutenberg_id",
-        how="left",
-    )
-    candidate_new: int = joined.filter(pl.col("seen_hash").is_null()).height
-    candidate_changed: int = joined.filter(
-        pl.col("seen_hash").is_not_null()
-        & (pl.col("seen_hash") != pl.col("catalog_row_hash"))
-    ).height
-    audit_row: pl.DataFrame = pl.DataFrame(
-        {
-            "run_ts": [datetime.now(timezone.utc)],
-            "run_type": ["catalog_refresh"],
-            "books_in_catalog": [catalog_df.height],
-            "candidate_new": [candidate_new],
-            "candidate_changed": [candidate_changed],
-            "downloaded": [0],  # text_ingest.py logs the real downloads
-            "failed": [0],
-        },
-        schema={
-            "run_ts": storage.UTC_DATETIME_TYPE,
-            "run_type": pl.Utf8,
-            "books_in_catalog": pl.Int64,
-            "candidate_new": pl.Int64,
-            "candidate_changed": pl.Int64,
-            "downloaded": pl.Int64,
-            "failed": pl.Int64,
-        },
-    )
-    storage.write_table("bronze.ingest_audit", audit_row, mode="append")
-    print(f"new in-scope works: {candidate_new:,} | changed: {candidate_changed:,}")
-
-    storage.emit("new_count", candidate_new + candidate_changed)
+    return FilterResult(raw_works=raw_works, deduped=scoped.height - raw_works.height)
