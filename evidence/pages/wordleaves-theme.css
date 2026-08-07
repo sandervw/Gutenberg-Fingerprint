@@ -67,3 +67,12 @@ article#evidence-main-article > p.markdown {
 [class*='shadow'] {
 	box-shadow: none;
 }
+
+/* Copper hover for tagged links */
+.link {
+	transition: color 0.15s ease;
+	cursor: pointer;
+}
+.link:hover {
+	color: var(--wl-accent);
+}
