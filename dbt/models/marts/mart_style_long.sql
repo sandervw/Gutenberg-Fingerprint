@@ -28,7 +28,9 @@ select
 
     -- measures (non-additive: never SUM)
     f.value,
-    {{ zscore('f.value', 'f.metric_name') }} as zscore
+    {{ zscore('f.value', 'f.metric_name') }} as zscore,
+
+    f.loaded_date
 
 from fact f
 inner join {{ ref('dim_work') }}   w  on w.work_key   = f.work_key

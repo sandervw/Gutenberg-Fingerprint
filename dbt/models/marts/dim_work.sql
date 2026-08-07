@@ -12,7 +12,8 @@ with works as (
         is_translation,
         is_juvenile,
         is_play,
-        is_poetry
+        is_poetry,
+        issued as issue_date
     from {{ ref('stg_works') }}
 
     union all
@@ -25,7 +26,8 @@ with works as (
         0,
         0,
         0,
-        0
+        0,
+        cast(null as date)
     from {{ ref('seed_authors') }}
 
 ),
@@ -58,6 +60,7 @@ select
         when measured.word_count < 40000 then 'novella'
         else 'novel'
     end as prose_type,
+    works.issue_date,
     measured.ingested_at
 from works
 -- inner: unmeasured and departed catalog works stay out
