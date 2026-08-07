@@ -39,3 +39,7 @@ models:
         description: "'poetry' subject keyword."
         data_tests:
           - not_null
+      - name: birth_year
+        description: "Primary author birth year off the authors string. Nullable."
+      - name: death_year
+        description: "Primary author death year off the authors string. Nullable."

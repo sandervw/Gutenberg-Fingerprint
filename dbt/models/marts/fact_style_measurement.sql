@@ -8,7 +8,8 @@ with measurements as (
         work_id,
         metric_key,
         metric_name,
-        value
+        value,
+        cast(loaded_at as date) as loaded_date
     from {{ ref('int_measurements_normalized') }}
 
 ),
@@ -29,6 +30,8 @@ select
     works.author_key,
     measurements.metric_key,   -- FK -> dim_metric (concept grain)
     measurements.metric_name,  -- child series name (metric_key is concept-grain)
+    {{ dbt_utils.generate_surrogate_key(['measurements.loaded_date']) }} as loaded_date_key,
+    measurements.loaded_date,
     measurements.value
 from measurements
 inner join works on works.work_id = measurements.work_id

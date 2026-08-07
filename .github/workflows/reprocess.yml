@@ -1,0 +1,38 @@
+name: Reprocess and deploy
+
+# On-demand rebuild: syncs code, rebuilds dbt + Evidence, deploys. No ingestion.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-pipeline
+  cancel-in-progress: false
+
+env:
+  BOX: gufime@15.204.82.199
+  SSH_OPTS: -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -i /home/runner/.ssh/gufime_key
+
+jobs:
+  reprocess:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install box SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.GUFIME_SSH_KEY }}" | tr -d '\r' > ~/.ssh/gufime_key
+          chmod 600 ~/.ssh/gufime_key
+
+      - name: Sync code on the box
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime && git fetch origin && git checkout main && git reset --hard origin/main"
+
+      - name: dbt deps
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime/dbt && ~/.local/bin/uv run dbt deps"
+
+      - name: dbt build
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime/dbt && ~/.local/bin/uv run dbt build --target postgres"
+
+      - name: Evidence build
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime/evidence && npm run sources && npm run build"
+
+      - name: Deploy to Cloudflare Pages
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime/evidence && CLOUDFLARE_API_TOKEN=\$(cat ~/.config/gufime/cf_token) wrangler pages deploy build --project-name=gutenberg-fingerprint --branch=main"

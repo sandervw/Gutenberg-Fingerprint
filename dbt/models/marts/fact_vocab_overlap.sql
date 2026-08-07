@@ -8,7 +8,8 @@ with overlap as (
         my_vocab_size,
         their_vocab_size,
         shared_terms,
-        jaccard
+        jaccard,
+        cast(loaded_at as date) as loaded_date
     from {{ ref('int_vocab_jaccard') }}
 
 ),
@@ -25,6 +26,8 @@ select
     {{ dbt_utils.generate_surrogate_key(['me.author_key_a', 'overlap.author_key_b']) }} as overlap_key,
     me.author_key_a,            -- FK -> dim_author (you)
     overlap.author_key_b,       -- FK -> dim_author (other)
+    {{ dbt_utils.generate_surrogate_key(['overlap.loaded_date']) }} as loaded_date_key,
+    overlap.loaded_date,
     overlap.my_vocab_size,
     overlap.their_vocab_size,
     overlap.shared_terms,

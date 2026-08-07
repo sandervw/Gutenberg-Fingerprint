@@ -41,12 +41,24 @@ shared as (  -- |A ∩ B|: terms each other author shares with you
     from them
     inner join me on them.term = me.term
     group by them.author_key
+),
+
+their_loaded as (  -- freshest vocab load per other author
+    select dim_work.author_key, max(stg_vocab.loaded_at) as loaded_at
+    from {{ ref('stg_vocab') }} as stg_vocab
+    inner join {{ ref('dim_work') }} as dim_work
+        on stg_vocab.work_id = dim_work.work_id
+    inner join {{ ref('dim_author') }} as dim_author
+        on dim_work.author_key = dim_author.author_key
+    where dim_author.is_self = 0
+    group by dim_work.author_key
 )
 
 select
     their_size.author_key,
     my_size.my_size                                       as my_vocab_size,
     their_size.their_size                                 as their_vocab_size,
+    their_loaded.loaded_at                                as loaded_at,
     coalesce(shared.shared_terms, 0)                      as shared_terms,
     -- |A∩B| / |A∪B|, where |A∪B| = |A| + |B| - |A∩B|.
     coalesce(shared.shared_terms, 0) * 1.0
@@ -55,4 +67,6 @@ select
 from their_size
 left join shared
     on their_size.author_key = shared.author_key
+left join their_loaded
+    on their_size.author_key = their_loaded.author_key
 cross join my_size

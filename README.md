@@ -26,7 +26,7 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch) — every step is
   backup.py pg                   → R2 gufime-backup/pg/gufime.dump  (every night, backup postgres)
 ```
 
-GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the box executes. Files live on the box's disk under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`), listening on the unix socket only with peer auth. When there are no new in-scope works in the catalog, the run stops after `catalog_ingest.py`.
+GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the box executes. Files live on the box's disk under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`), listening on the unix socket only with peer auth. When there are no new in-scope works in the catalog, the run stops after `catalog_ingest.py`. A separate `reprocess.yml` (`workflow_dispatch`) rebuilds dbt → Evidence → deploy without ingestion.
 
 **Change detection.** A `bronze.watermark` table keyed on `gutenberg_id` marks a book new when its ID is absent, changed when its catalog row hash differs, and retried when it last failed. `text_ingest` sniffs each fetched text for PG's copyrighted-donation header and stamps those with a terminal `copyrighted` status that is never retried. The diff runs against the **in-scope subset only**; the ~78,000 out-of-scope books never enter the watermark.
 
@@ -55,7 +55,7 @@ sources (raw)  →  stg_*  →  int_*  →  dim_*/fact_*  →  mart_*
                   views     views     tables           tables
 ```
 
-A fact constellation: `fact_style_measurement` at work × series grain, `fact_vocab_overlap` at author-pair grain, sharing conformed `dim_work`, `dim_author`, and `dim_metric`. The marts on top are split by the grain the charts read at: `mart_style_long` (work × series), `mart_work` (work-grain listings, the outlier ranking), `mart_author` (author-grain rollups). Every Evidence query selects from the table already at its own grain.
+A fact constellation: `fact_style_measurement` at work × series grain, `fact_vocab_overlap` at author-pair grain, sharing conformed `dim_work`, `dim_author`, `dim_metric`, and `dim_date` (a calendar dimension for load-date FKs). The marts on top are split by the grain the charts read at: `mart_style_long` (work × series), `mart_work` (work-grain listings, the outlier ranking), `mart_author` (author-grain rollups). Every Evidence query selects from the table already at its own grain.
 
 - **Portability.** Every model compiles against both DuckDB (local dev) and Postgres (prod) from one codebase.
 - **Derived stamps.** `dim_work.ingested_at` is `min(loaded_at)` over the work's measurement rows. The dimension inner-joins measurements, keeping unmeasured catalog rows out.

@@ -24,6 +24,7 @@ select
     w.is_juvenile,
     w.is_play,
     w.is_poetry,
+    w.issue_date,
     w.ingested_at,
 
     -- author

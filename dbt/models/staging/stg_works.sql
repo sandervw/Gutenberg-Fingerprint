@@ -39,5 +39,7 @@ select
         when lower(subjects) like '%poetry%' then 1
         else 0
     end                                             as is_poetry,
+    {{ author_birth_year('authors') }}              as birth_year,
+    {{ author_death_year('authors') }}              as death_year,
     cast(loaded_at as {{ dbt.type_timestamp() }})   as loaded_at
 from {{ source('raw', 'raw_works') }}

@@ -24,7 +24,7 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch, concurrency guard
   └─ backup.py pg                → R2 gufime-backup/pg/gufime.dump  (every night, backup postgres)
 ```
 
-- **Orchestrator:** GitHub Actions holds the schedule, the CDC gate (`if: steps.catalog.outputs.new_count != '0'`), the SSH key, and the logs. On a quiet night the run stops after `catalog_ingest.py`.
+- **Orchestrator:** GitHub Actions holds the schedule, the CDC gate (`if: steps.catalog.outputs.new_count != '0'`), the SSH key, and the logs. On a quiet night the run stops after `catalog_ingest.py`. A separate `reprocess.yml` (`workflow_dispatch`) resyncs and rebuilds dbt → Evidence → deploy without ingestion.
 - **Workflow steps** are plain Python modules in `python/workflow/`, tunables in `python/helpers/` (`lexicons.py`, `vocab.py`, `stylometrics.py`, `clean.py`), all storage behind `python/helpers/storage.py`. `GUFIME_TARGET` picks `duckdb` (local default) or `postgres`; `GUFIME_FILES_ROOT`, `GUFIME_PG_DSN`, `GUFIME_DUCKDB_PATH` override paths. Steps run from the repo root: `uv run python -m python.workflow.<step>`. The gate count surfaces via `storage.emit("new_count", n)`, which also writes `$GITHUB_OUTPUT`.
 - **Storage:** files on the box's disk (`/files/gufime/bronze/texts/`, `bronze/catalog/`, `bronze/self/` + `_manifest.csv`, `silver/corpus/`); tables in Postgres database `gufime`, schemas `bronze` (catalog, watermark, ingest_audit, strip_audit), `raw` (raw_works, raw_measurements, raw_vocab), and `gold` (the dbt layer). Postgres listens on the unix socket only and authenticates by peer; no database password exists anywhere.
 - **Warehouse + dbt:** `dbt build --target postgres` on the box materializes the star schema and marts in `gold`.
@@ -54,11 +54,12 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch, concurrency guard
 
 | Table                    | Notes                                                                                                           |
 | ------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `dim_author`             | Built from catalog data. `is_self = true` on my own row and on select authors                                   |
-| `dim_work`               | Carries `gutenberg_id`, `subjects`, `ingested_at`. inner join to measurements keeps unmeasured catalog rows out |
+| `dim_author`             | Built from catalog data. `is_self = true` on my own row and on select authors; carries `birth_date`/`death_date` (Jan 1 of catalog year, nullable) |
+| `dim_work`               | Carries `gutenberg_id`, `subjects`, `ingested_at`, `issue_date` (PG posting date). inner join to measurements keeps unmeasured catalog rows out |
 | `dim_metric`             | One row per metric concept, from the `seed_metrics` seed; carries display/unit metadata and additivity class    |
-| `fact_style_measurement` | Work × series grain                                                                                             |
-| `fact_vocab_overlap`     | Author-pair grain, top-N vocab                                                                                  |
+| `dim_date`               | Calendar dimension, daily grain 1970-2035; both facts' `loaded_date_key` FKs point here                         |
+| `fact_style_measurement` | Work × series grain; `loaded_date_key` FK to `dim_date`                                                         |
+| `fact_vocab_overlap`     | Author-pair grain, top-N vocab; `loaded_date_key` FK to `dim_date`                                              |
 | `snap_dim_work`          | SCD2 snapshot, check strategy on all columns                                                                    |
 | `dbt_run_log`            | One row per dbt node per run, written by an `on-run-end` hook                                                   |
 
@@ -113,15 +114,5 @@ The workflow runs `npm run sources && npm run build` (SPA mode), then `wrangler 
 
 ## 8. Future Enhancements
 
-1. ~~**Filtering/Cleansing Improvements.** Come up with scheme to remove "new" Works (Concordance)~~ **Done.**
-   1. PG takes public-domain works plus copyrighted ones donated with permission
-   2. `pg_catalog.csv` has no rights column. Downloaded text has `*** This is a COPYRIGHTED Project Gutenberg eBook`: ~50 bronze texts.
-   3. `text_ingest` sniffs the header, skips the write, and stamps a terminal `copyrighted` status.
-2. **Add dim_date** (how to load date table?)
-3. **Dagster orchestration.** Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) takes over the schedule from Actions, with `dagster-dbt` reading `manifest.json`; extract → dbt → site becomes one asset graph.
-
----
-
-## 9. Catalog Facts
-
-**Dates.** `issued` is the PG posting date, 79,071/79,071 populated, 1971-12-01 to 2026-08-02. No date-written exists anywhere. `authors` carries birth/death years for 4,169 of 4,708.
+1. **Dagster orchestration.** Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) takes over the schedule from Actions, with `dagster-dbt` reading `manifest.json`; extract → dbt → site becomes one asset graph.
+2. **Add Work Links.** based on Proj Gut ID, each page links to its associated work

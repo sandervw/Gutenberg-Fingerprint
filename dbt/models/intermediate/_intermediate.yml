@@ -32,6 +32,10 @@ models:
               arguments:
                 to: ref('dim_author')
                 field: author_key
+      - name: loaded_at
+        description: "Freshest vocab load timestamp for the other author."
+        data_tests:
+          - not_null
       - name: jaccard
         description: "|A∩B| / |A∪B|. A proper fraction, so must sit in [0, 1]."
         data_tests:

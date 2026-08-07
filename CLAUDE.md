@@ -18,3 +18,4 @@ Nightly CDC pipeline over the Project Gutenberg sci-fi/fantasy/horror corpus. Pu
 - Site styling mirrors wordleaves.com (`evidence/sparse.css` + `evidence/wordleaves.css`): cream/charcoal, copper accent, iA Writer Quattro.
 - **Environment** Windows 11, Bash/Powershell, VS Code. Python via `uv` (`uv run ...`), Node 24 for Evidence (pinned in `evidence/.node-version`).
 - **Box (OVH VPS):** `ssh box` (aliased in `~/.ssh/config`; user `gufime@15.204.82.199`, key `~/.ssh/gufime_rsa`). Files under `/files/gufime/`; bronze texts at `/files/gufime/bronze/texts/`. Postgres via unix socket, peer auth.
+- When needing to inspect data, **ssh into the box**
