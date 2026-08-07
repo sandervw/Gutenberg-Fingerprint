@@ -42,6 +42,7 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch, concurrency guard
 
 - A `bronze.watermark` table: `gutenberg_id`, `catalog_row_hash`, `text_hash`, `first_seen`, `last_changed`, `status`.
 - **New book** = in-scope catalog row ID absent from the watermark. **Changed book** = catalog row hash differs from the watermark's. **Retry** = last attempt failed.
+- **Status vocabulary:** `ingested`, `failed`, `copyrighted`. `text_ingest` sniffs each fetched text and skips copyrighted donations, stamping a terminal `copyrighted` status that is never retried.
 - Downloads: plain-text format only, rate-limited, capped per run, from PG's mirrors.
 - Every run writes an **ingestion audit row**: run timestamp, books checked, new, changed, failed.
 
@@ -112,9 +113,10 @@ The workflow runs `npm run sources && npm run build` (SPA mode), then `wrangler 
 
 ## 8. Future Enhancements
 
-1. **Filtering/Cleansing Improvements.** Come up with scheme to remove "new" Works (Concordance)
+1. ~~**Filtering/Cleansing Improvements.** Come up with scheme to remove "new" Works (Concordance)~~ **Done.**
    1. PG takes public-domain works plus copyrighted ones donated with permission
    2. `pg_catalog.csv` has no rights column. Downloaded text has `*** This is a COPYRIGHTED Project Gutenberg eBook`: ~50 bronze texts.
+   3. `text_ingest` sniffs the header, skips the write, and stamps a terminal `copyrighted` status.
 2. **Add dim_date** (how to load date table?)
 3. **Dagster orchestration.** Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) takes over the schedule from Actions, with `dagster-dbt` reading `manifest.json`; extract → dbt → site becomes one asset graph.
 

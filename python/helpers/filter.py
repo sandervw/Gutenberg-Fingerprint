@@ -95,3 +95,14 @@ def filter_catalog(catalog_df: pl.DataFrame) -> FilterResult:
         .drop("_k_title", "_k_author")
     )
     return FilterResult(raw_works=raw_works, deduped=scoped.height - raw_works.height)
+
+
+# %% Copyrighted donations - PG header sits above the START marker
+
+COPYRIGHT_MARKER: bytes = b"copyrighted project gutenberg ebook"
+COPYRIGHT_SCAN_BYTES: int = 2048  # marker lands by byte ~576
+
+
+def is_copyrighted(raw_bytes: bytes) -> bool:
+    """True when PG's copyrighted-donation header is present."""
+    return COPYRIGHT_MARKER in raw_bytes[:COPYRIGHT_SCAN_BYTES].lower()

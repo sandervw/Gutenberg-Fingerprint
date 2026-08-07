@@ -28,7 +28,7 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch) — every step is
 
 GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the box executes. Files live on the box's disk under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`), listening on the unix socket only with peer auth. When there are no new in-scope works in the catalog, the run stops after `catalog_ingest.py`.
 
-**Change detection.** A `bronze.watermark` table keyed on `gutenberg_id` marks a book new when its ID is absent, changed when its catalog row hash differs, and retried when it last failed. The diff runs against the **in-scope subset only**; the ~78,000 out-of-scope books never enter the watermark.
+**Change detection.** A `bronze.watermark` table keyed on `gutenberg_id` marks a book new when its ID is absent, changed when its catalog row hash differs, and retried when it last failed. `text_ingest` sniffs each fetched text for PG's copyrighted-donation header and stamps those with a terminal `copyrighted` status that is never retried. The diff runs against the **in-scope subset only**; the ~78,000 out-of-scope books never enter the watermark.
 
 ## Measurement
 
