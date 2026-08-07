@@ -27,46 +27,43 @@ jobs:
       - name: Sync code on the box
         run: ssh $SSH_OPTS $BOX "cd /code/gufime && git fetch origin && git checkout main && git reset --hard origin/main"
 
-      - name: Catalog ingest
-        run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.catalog_ingest"
-
-      - name: Filter (CDC gate)
-        id: filter
+      - name: Catalog ingest (CDC gate)
+        id: catalog
         run: |
-          output=$(ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.filter")
+          output=$(ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.catalog_ingest")
           echo "$output"
           echo "$output" | grep '^new_count=' >> "$GITHUB_OUTPUT"
 
       - name: Text ingest
-        if: steps.filter.outputs.new_count != '0'
+        if: steps.catalog.outputs.new_count != '0'
         run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.text_ingest"
 
       - name: Strip
-        if: steps.filter.outputs.new_count != '0'
+        if: steps.catalog.outputs.new_count != '0'
         run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.strip"
 
       - name: Measure
-        if: steps.filter.outputs.new_count != '0'
+        if: steps.catalog.outputs.new_count != '0'
         run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres ~/.local/bin/uv run python -m python.workflow.measure"
 
       - name: dbt deps
-        if: steps.filter.outputs.new_count != '0'
+        if: steps.catalog.outputs.new_count != '0'
         run: ssh $SSH_OPTS $BOX "cd /code/gufime/dbt && ~/.local/bin/uv run dbt deps"
 
       - name: dbt build
-        if: steps.filter.outputs.new_count != '0'
+        if: steps.catalog.outputs.new_count != '0'
         run: ssh $SSH_OPTS $BOX "cd /code/gufime/dbt && ~/.local/bin/uv run dbt build --target postgres"
 
       - name: Evidence build
-        if: steps.filter.outputs.new_count != '0'
+        if: steps.catalog.outputs.new_count != '0'
         run: ssh $SSH_OPTS $BOX "cd /code/gufime/evidence && npm run sources && npm run build"
 
       - name: Deploy to Cloudflare Pages
-        if: steps.filter.outputs.new_count != '0'
+        if: steps.catalog.outputs.new_count != '0'
         run: ssh $SSH_OPTS $BOX "cd /code/gufime/evidence && CLOUDFLARE_API_TOKEN=\$(cat ~/.config/gufime/cf_token) wrangler pages deploy build --project-name=gutenberg-fingerprint --branch=main"
 
       - name: Backup corpus to R2
-        if: steps.filter.outputs.new_count != '0'
+        if: steps.catalog.outputs.new_count != '0'
         run: ssh $SSH_OPTS $BOX "cd /code/gufime && GUFIME_TARGET=postgres CLOUDFLARE_API_TOKEN=\$(cat ~/.config/gufime/cf_token) ~/.local/bin/uv run python -m python.workflow.backup corpus"
 
       - name: Backup Postgres to R2

@@ -13,8 +13,7 @@ Runs on one ~$5/month OVH VPS ("the box"): Postgres, plain Python, dbt Core, and
 ```
 GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch) — every step is `ssh box '...'`
   ├─ git reset --hard origin/main    (sync /code/gufime)
-  ├─ catalog_ingest.py           → postgres bronze.catalog, bronze.watermark
-  ├─ filter.py                   → postgres raw.raw_works, bronze.ingest_audit
+  ├─ catalog_ingest.py           → postgres bronze.catalog, bronze.watermark, raw.raw_works, bronze.ingest_audit
   │                                [step output: new_count]
   └─ if new_count != 0 (the "CDC gate"):
        ├─ text_ingest.py         → /files/gufime/bronze/texts/, watermark
@@ -27,7 +26,7 @@ GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch) — every step is
   backup.py pg                   → R2 gufime-backup/pg/gufime.dump  (every night, backup postgres)
 ```
 
-GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the box executes. Files live on the box's disk under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`), listening on the unix socket only with peer auth. When there are no new in-scope works in the catalog, the run stops after `filter.py`.
+GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the box executes. Files live on the box's disk under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`), listening on the unix socket only with peer auth. When there are no new in-scope works in the catalog, the run stops after `catalog_ingest.py`.
 
 **Change detection.** A `bronze.watermark` table keyed on `gutenberg_id` marks a book new when its ID is absent, changed when its catalog row hash differs, and retried when it last failed. The diff runs against the **in-scope subset only**; the ~78,000 out-of-scope books never enter the watermark.
 
@@ -97,8 +96,7 @@ Requires Python 3.12+, [uv](https://docs.astral.sh/uv/), and Node 24.
 
 ```bash
 uv sync
-uv run python -m python.workflow.catalog_ingest  # seed bronze.catalog
-uv run python -m python.workflow.filter          # seed raw.raw_works
+uv run python -m python.workflow.catalog_ingest  # seed bronze.catalog + raw.raw_works
 
 cd dbt
 uv run dbt deps
