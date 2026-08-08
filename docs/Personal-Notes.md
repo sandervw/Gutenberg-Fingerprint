@@ -236,3 +236,24 @@ where author = '${inputs.picked.value}'
 ```
 - ${inputs.picked.value} is the manual equivalent of PowerBI's cross-filtering.
 - one query can reference another's result with ${query_name}; build reusable base queries and filter them downstream
+
+## Dagster
+
+Overview:
+- Open-source, python data orchestrator
+- Orchestrates tables, files, models; knows how they depend
+- First-class dbt integration
+- Pipelines like software: local development, typed inputs/outputs
+- One web UI showing whole graph and freshness
+- Dagster (OSS) = the dbt Core equivalent; `pip install dagster`
+- OSS has everything: assets, scheduling, the web UI, everything; Self-hosted on our OVH box
+- Requires adding to privision.tf
+- Dagster isn't a nightly job like your GitHub cron; It's a persistent service
+- Two long-running processes:
+  - webserver - serves the UI (default port 3000)
+  - daemon - the background clock that fires your nightly schedule
+  - The box runs both of the above continually
+- Manual runs: click "Materialize" in the UI. No SSH
+- Viewing the UI: two options
+    - Quick SSH port-forward (ssh -L 3000:localhost:3000 box, one command, keeps it private)
+    - Expose it via a Cloudflare Tunnel + Access on a subdomain, so it's a bookmarked URL with login, no SSH at all
