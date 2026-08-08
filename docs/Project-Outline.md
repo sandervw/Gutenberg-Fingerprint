@@ -115,3 +115,4 @@ The workflow runs `npm run sources && npm run build` (SPA mode), then `wrangler 
 ## 8. Future Enhancements
 
 1. **Dagster orchestration.** Dagster OSS takes over the schedule from Actions; extract → dbt → site becomes one asset graph.
+2. **Custom analytics frontend.** An Astro static site over the `gold` marts, replacing Evidence. A build-time renderer runs each page's SQL against Postgres (DuckDB locally) and emits plain HTML with inline SVG; the deployed site ships no client-side query engine or WASM. A markdown-plus-SQL authoring layer binds fenced ` ```sql ` blocks to chart and table components, reproducing Evidence's authoring model. Templated `[work]` and `[author]` pages render at build.

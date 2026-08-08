@@ -2,7 +2,6 @@
   "name": "gutenberg-fingerprint-evidence",
   "version": "0.0.1",
   "scripts": {
-    "postinstall": "patch-package",
     "build": "cross-env VITE_EVIDENCE_SPA=true evidence build",
     "postbuild": "node scripts/cdn-wasm.js && node scripts/copy-404.js",
     "build:strict": "cross-env VITE_EVIDENCE_SPA=true evidence build:strict",
@@ -30,7 +29,6 @@
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.10",
-    "cross-env": "^7.0.3",
-    "patch-package": "^8.0.1"
+    "cross-env": "^7.0.3"
   }
 }
