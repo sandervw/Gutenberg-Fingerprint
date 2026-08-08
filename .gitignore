@@ -21,6 +21,9 @@ evidence/build/
 evidence/static/data/
 *.options.yaml
 
+# --- Wrangler deploy cache (created at repo root during pages deploy) ---
+.wrangler/
+
 # --- Secrets (service principal creds, Cloudflare deploy hook URL) ---
 .env
 
