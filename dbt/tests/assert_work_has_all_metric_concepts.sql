@@ -1,5 +1,4 @@
--- Flags any work not carrying all 14 per-work metric concepts (Jaccard, the
--- 15th, is cross-author and lives elsewhere). Zero rows returned = pass.
+-- Flags any work not carrying all 14 metric concepts; Zero rows returned = pass.
 
 select
     work_key,

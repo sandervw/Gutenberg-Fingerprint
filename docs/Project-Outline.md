@@ -114,4 +114,4 @@ The workflow runs `npm run sources && npm run build` (SPA mode), then `wrangler 
 
 ## 8. Future Enhancements
 
-1. **Dagster orchestration.** Dagster OSS (webserver + daemon + Postgres, ~2 GB VPS) takes over the schedule from Actions, with `dagster-dbt` reading `manifest.json`; extract → dbt → site becomes one asset graph.
+1. **Dagster orchestration.** Dagster OSS takes over the schedule from Actions; extract → dbt → site becomes one asset graph.
