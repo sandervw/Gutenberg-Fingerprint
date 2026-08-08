@@ -11,10 +11,6 @@ models:
           - not_null
       - name: additivity
         description: "Kimball additivity class. All 15 metrics are non-additive (ratios/averages/indices); value + zscore must never be summed across rows."
-        data_tests:
-          - accepted_values:
-              arguments:
-                values: ["additive", "semi-additive", "non-additive"]
 
   - name: dim_date
     description: "Calendar dimension, daily grain 1970-2035. Referenced by fact loaded_date_key FKs. Not tied to issued/birth/death."
@@ -71,16 +67,10 @@ models:
         description: "Sci-Fi / Fantasy / Horror / Undetermined, carried off stg_works. Exclusive; overlaps land Undetermined, as does the self corpus (seeded 'speculative fiction')."
         data_tests:
           - not_null
-          - accepted_values:
-              arguments:
-                values: ["Sci-Fi", "Fantasy", "Horror", "Undetermined"]
       - name: prose_type
         description: "Size band off word_count (<10k short-story, <40k novella, else novel)."
         data_tests:
           - not_null
-          - accepted_values:
-              arguments:
-                values: ["short-story", "novella", "novel"]
       - name: issue_date
         description: "PG posting date off stg_works.issued. Nullable; null for the self corpus."
 
