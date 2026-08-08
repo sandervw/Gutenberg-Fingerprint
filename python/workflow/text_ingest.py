@@ -176,7 +176,7 @@ def prune_orphans(roster: pl.DataFrame, texts_root: Path) -> int:
 
 # %% Run
 
-if __name__ == "__main__":
+def main() -> None:
     run_ts: datetime = datetime.now(timezone.utc)
     roster: pl.DataFrame = storage.read_table("raw.raw_works")
     watermark: pl.DataFrame = storage.read_table("bronze.watermark")
@@ -215,3 +215,7 @@ if __name__ == "__main__":
         f"texts: {downloaded:,} downloaded, {failed:,} failed, {copyrighted:,} copyrighted"
         f" -> {TEXTS_ROOT} | {deferred:,} left for the next run"
     )
+
+
+if __name__ == "__main__":
+    main()

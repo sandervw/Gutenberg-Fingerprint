@@ -1,0 +1,16 @@
+[Unit]
+Description=Dagster webserver
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+User=gufime
+WorkingDirectory=/code/gufime
+Environment=DAGSTER_HOME=/files/gufime/dagster
+Environment=GUFIME_TARGET=postgres
+Environment=DAGSTER_PG_URL=postgresql://gufime@/gufime?host=/var/run/postgresql
+ExecStart=/home/gufime/.local/bin/uv run dagster-webserver -h 127.0.0.1 -p 3000
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

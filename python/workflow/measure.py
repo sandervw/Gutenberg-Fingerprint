@@ -104,7 +104,7 @@ def source_work_id(source: Path) -> str:
 
 # %% Run
 
-if __name__ == "__main__":
+def main() -> None:
     corpus_root = storage.file_path("silver/corpus")
     manifest_path = storage.file_path("bronze/self/_manifest.csv")
 
@@ -198,3 +198,7 @@ if __name__ == "__main__":
         f"{measurements.height:,} rows into raw_measurements "
         f"({len(METRIC_FUNCTIONS)} metrics); {vocab.height:,} rows into raw_vocab."
     )
+
+
+if __name__ == "__main__":
+    main()

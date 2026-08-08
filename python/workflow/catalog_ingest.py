@@ -105,7 +105,7 @@ def load_catalog(csv_path: Path, run_ts: datetime) -> pl.DataFrame:
 
 # %% Run
 
-if __name__ == "__main__":
+def main() -> int:
     run_ts: datetime = datetime.now(timezone.utc)
     raw_path: Path = storage.file_path(f"bronze/catalog/pg_catalog_{run_ts:%Y-%m-%d}.csv")
 
@@ -165,3 +165,8 @@ if __name__ == "__main__":
     storage.write_table("bronze.ingest_audit", audit_row, mode="append")
     print(f"new in-scope works: {candidate_new:,} | changed: {candidate_changed:,}")
     storage.emit("new_count", candidate_new + candidate_changed)
+    return candidate_new + candidate_changed
+
+
+if __name__ == "__main__":
+    main()

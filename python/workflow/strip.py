@@ -8,6 +8,8 @@ import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
+import polars as pl
+
 from python.helpers import storage
 
 TEXTS_ROOT: Path = storage.file_path("bronze/texts")
@@ -252,9 +254,7 @@ def to_markdown(raw_bytes: bytes, title: str, author: str) -> str:
 
 # %% Run
 
-if __name__ == "__main__":
-    import polars as pl
-
+def main() -> None:
     run_ts = datetime.now(timezone.utc)
     corpus_root = storage.file_path("silver/corpus")
 
@@ -303,3 +303,7 @@ if __name__ == "__main__":
     )
     storage.write_table("bronze.strip_audit", audit, mode="append")
     print(f"corpus: {stripped:,} written, {failed:,} failed, {missing:,} missing, {promoted} self -> {corpus_root}")
+
+
+if __name__ == "__main__":
+    main()
