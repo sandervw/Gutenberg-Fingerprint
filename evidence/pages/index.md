@@ -11,11 +11,11 @@ select max(ingested_at) as refreshed,
 from warehouse.mart_work
 ```
 
-*<Value data={last_refreshed} column=work_count/> works in corpus - Last refreshed <Value data={last_refreshed} column=refreshed fmt=longdate/>.*
+*There are currently <Value data={last_refreshed} column=work_count/> works in this corpus. The lastest Gutenberg work of speculative fiction arrived on <Value data={last_refreshed} column=refreshed fmt=longdate/>.*
 
 ## Weirdest Works
 
-The most statistically distinctive fiction, ranked by an **excess** index: for each work, the sum of every metric's z-score beyond ±2. Excludes plays, translations, juvenile fiction, poetry, and works under 10,000 words.
+The most statistically distinctive fiction, ranked by **excess**: for each work, the sum of every metric's z-score beyond ±2. Shorter works are excluded.
 
 ```sql outliers
 select

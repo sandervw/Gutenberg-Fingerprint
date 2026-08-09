@@ -11,7 +11,7 @@ select
     prose_type,
     word_count,
     '/authors/' || author as author_link,
-    case when is_self = 1 then null
+    case when is_self = 1 then 'https://wordleaves.com/'
          else 'https://www.gutenberg.org/ebooks/' || work_id end as work_link
 from warehouse.mart_work
 where work_id = '${params.work}'

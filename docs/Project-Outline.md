@@ -111,14 +111,10 @@ The `site` asset runs `npm run sources && npm run build` (SPA mode), then `wrang
 
 ## 8. Future Enhancements
 
-Enhancements on top of the Dagster orchestration (§1):
-
-1. **Outstanding from main plan**
-   1. add descriptive info to dagster assets
-   2. fix names of all pg abbreviation (use postgres) artifacts/code > very confusing when the project is Project Gutenberg...
-2. **dbt model-level assets.** `dagster-dbt` renders each dbt model as its own lineage asset.
-3. . **Failure alerts.** A run-status sensor emails on nightly run failure.
-4.  **Retry policies.** Auto-retry network-bound assets (catalog, texts, deploy) with backoff.
-5.  **Asset tests.** Unit-test asset logic and the gate sensor in pytest.
+**Dagster Enhancements**
+1. **dbt model-level assets.** `dagster-dbt` renders each dbt model as its own lineage asset.
+2. . **Failure alerts.** A run-status sensor emails on nightly run failure.
+3.  **Retry policies.** Auto-retry network-bound assets (catalog, texts, deploy) with backoff.
+4.  **Asset tests.** Unit-test asset logic and the gate sensor in pytest.
 
 **Custom analytics frontend.** An Astro static site over the `gold` marts, replacing Evidence. A build-time renderer runs each page's SQL against Postgres (DuckDB locally) and emits plain HTML with inline SVG; the deployed site ships no client-side query engine or WASM. A markdown-plus-SQL authoring layer binds fenced ` ```sql ` blocks to chart and table components, reproducing Evidence's authoring model. Templated `[work]` and `[author]` pages render at build.
