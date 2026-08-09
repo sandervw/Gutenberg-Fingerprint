@@ -17,7 +17,7 @@ Dagster OSS on the box (nightly schedule 08:00 UTC, Postgres-backed run storage)
         stripped      → /files/gufime/silver/corpus/, bronze.strip_audit
         measures      → postgres raw.raw_measurements, raw.raw_vocab
         dbt_build     → dbt deps && dbt build → postgres gold.*
-        pg_backup     → R2 gufime-backup/pg/gufime.dump
+        postgres_backup → R2 gufime-backup/postgres/gufime.dump
         corpus_backup → R2 gufime-backup/corpus/ (tar parts + manifest)
         site          → npm run sources && build → wrangler pages deploy → gufime.com
 ```
@@ -83,7 +83,7 @@ Prod dbt is `uv run dbt build --target postgres` on the box: peer auth over the 
 
 **Credentials:** an SSH private key in Actions secrets (the deploy hook), a Cloudflare API token in `~/.config/gufime/cf_token` on the box (Pages plus R2 write), and a Cloudflare **Tunnel token** `cloudflared` uses to expose the Dagster UI. The OVH and Cloudflare tokens OpenTofu needs stay on the laptop.
 
-**Backups:** `python/workflow/backup.py` wraps `wrangler r2 object put` and ships to the R2 bucket `gufime-backup` (free-tier 10 GB, declared in `infra/tofu/cloudflare.tf`), latest-only keys overwritten in place. On changed nights `pg_backup` writes `pg_dump -Fc` to `pg/gufime.dump`, then `corpus_backup` tars the corpus into 250 MB parts under `corpus/`, plus a sha256 `corpus.manifest` uploaded last. Restore fetches the parts the manifest lists: `cat corpus.tar.gz.* | tar -xz`, and `pg_restore -d gufime`. Backup steps run only after every prior step succeeds.
+**Backups:** `python/workflow/backup.py` wraps `wrangler r2 object put` and ships to the R2 bucket `gufime-backup` (free-tier 10 GB, declared in `infra/tofu/cloudflare.tf`), latest-only keys overwritten in place. On changed nights `postgres_backup` writes `pg_dump -Fc` to `postgres/gufime.dump`, then `corpus_backup` tars the corpus into 250 MB parts under `corpus/`, plus a sha256 `corpus.manifest` uploaded last. Restore fetches the parts the manifest lists: `cat corpus.tar.gz.* | tar -xz`, and `pg_restore -d gufime`. Backup steps run only after every prior step succeeds.
 
 **Infra as code:** `infra/tofu/` (OpenTofu, OVH + Cloudflare providers) orders the box; `provision.sh` sets up Postgres (four schemas — `bronze`, `raw`, `gold`, `dagster` — peer auth on the socket), `uv`, Node 24, `wrangler`, `cloudflared`, unattended-upgrades, 2 GB swap, `/files/gufime/`, `/code/gufime/`. `provision.tf` installs the Dagster systemd units and registers the `cloudflared` tunnel service.
 
@@ -114,9 +114,8 @@ The `site` asset runs `npm run sources && npm run build` (SPA mode), then `wrang
 Enhancements on top of the Dagster orchestration (§1):
 
 1. **Outstanding from main plan**
-   1. add descriptive info to assets
-   2. update docs (and resume)
-   3. fix names of all pg abbreviation (use postgres) artifacts/code > very confusing when the project is Project Gutenberg...
+   1. add descriptive info to dagster assets
+   2. fix names of all pg abbreviation (use postgres) artifacts/code > very confusing when the project is Project Gutenberg...
 2. **dbt model-level assets.** `dagster-dbt` renders each dbt model as its own lineage asset.
 3. . **Failure alerts.** A run-status sensor emails on nightly run failure.
 4.  **Retry policies.** Auto-retry network-bound assets (catalog, texts, deploy) with backoff.

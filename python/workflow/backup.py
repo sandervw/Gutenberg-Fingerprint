@@ -1,4 +1,4 @@
-# Backup: pg dump and corpus tar to R2 via wrangler.
+# Backup: postgres dump and corpus tar to R2 via wrangler.
 
 from __future__ import annotations
 
@@ -38,14 +38,14 @@ def put_stream(key: str, payload: Iterable[bytes]) -> None:
 
 # %% Modes
 
-def backup_pg(work: Path) -> None:
+def backup_postgres(work: Path) -> None:
     dump = work / "gufime.dump"
     subprocess.run(
         ["pg_dump", "-Fc", "-f", str(dump), storage.POSTGRES_CONNECTION_STRING],
         check=True,
     )
-    put_file("pg/gufime.dump", dump)
-    print(f"pg backup: {dump.stat().st_size:,} bytes -> {BUCKET}/pg/gufime.dump")
+    put_file("postgres/gufime.dump", dump)
+    print(f"postgres backup: {dump.stat().st_size:,} bytes -> {BUCKET}/postgres/gufime.dump")
 
 def backup_corpus(work: Path) -> None:
     archive = work / "corpus.tar.gz"
@@ -79,7 +79,7 @@ def backup_corpus(work: Path) -> None:
 
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else ""
-    if mode not in ("pg", "corpus"):
-        sys.exit("usage: python -m python.workflow.backup pg|corpus")
+    if mode not in ("postgres", "corpus"):
+        sys.exit("usage: python -m python.workflow.backup postgres|corpus")
     with tempfile.TemporaryDirectory(prefix="gufime-backup.") as scratch:
-        (backup_pg if mode == "pg" else backup_corpus)(Path(scratch))
+        (backup_postgres if mode == "postgres" else backup_corpus)(Path(scratch))
