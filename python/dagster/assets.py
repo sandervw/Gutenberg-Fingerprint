@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 import dagster
-from dagster_dbt import DagsterDbtTranslator, DbtCliResource, DbtProject, dbt_assets
+from dagster_dbt import DbtCliResource, DbtProject, dbt_assets
 
 from python.workflow import catalog_ingest, text_ingest, strip, measure
 
@@ -21,21 +21,16 @@ def _sh(cmd: str, cwd: Path) -> None:
     subprocess.run(cmd, cwd=cwd, shell=True, check=True, env=env)
 
 
-class _Translator(DagsterDbtTranslator):
-    """Map dbt sources onto the assets that produce them."""
-    def get_asset_key(self, props) -> dagster.AssetKey:
-        if props["resource_type"] == "source":
-            if props["name"] == "raw_works":
-                return dagster.AssetKey("catalog")
-            return dagster.AssetKey(props["name"])
-        return super().get_asset_key(props)
-
-
 @dagster.asset
 def catalog() -> dagster.MaterializeResult:
     """Catalog ingest: PG feed -> bronze catalog table + raw CSV snapshot."""
     n = catalog_ingest.main()
     return dagster.MaterializeResult(metadata={"new_count": n})
+
+
+@dagster.asset(deps=[catalog], key_prefix="raw")
+def raw_works() -> None:
+    """Table node: raw_works, written by catalog."""
 
 
 @dagster.asset(deps=[catalog])
@@ -50,18 +45,23 @@ def stripped() -> None:
     strip.main()
 
 
-@dagster.multi_asset(
-    deps=[stripped],
-    outs={"raw_measurements": dagster.AssetOut(), "raw_vocab": dagster.AssetOut()},
-)
-def measures():
+@dagster.asset(deps=[stripped])
+def measures() -> None:
     """Measure: corpus markdown -> raw_measurements + raw_vocab, incremental by watermark."""
     measure.main()
-    yield dagster.MaterializeResult(asset_key="raw_measurements")
-    yield dagster.MaterializeResult(asset_key="raw_vocab")
 
 
-@dbt_assets(manifest=dbt_project.manifest_path, dagster_dbt_translator=_Translator())
+@dagster.asset(deps=[measures], key_prefix="raw")
+def raw_measurements() -> None:
+    """Table node: raw_measurements, written by measures."""
+
+
+@dagster.asset(deps=[measures], key_prefix="raw")
+def raw_vocab() -> None:
+    """Table node: raw_vocab, written by measures."""
+
+
+@dbt_assets(manifest=dbt_project.manifest_path)
 def dbt_models(context, dbt: DbtCliResource):
     """dbt: build gold marts; each node its own lineage asset."""
     yield from dbt.cli(["build"], context=context).stream()
