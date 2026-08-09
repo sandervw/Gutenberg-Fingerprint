@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import os
+
 import dagster
+from dagster_dbt import DbtCliResource
 
 from . import assets
 
@@ -11,12 +14,11 @@ catalog_job = dagster.define_asset_job(
     selection=["catalog"],
     description="Poll Project Gutenberg catalog: gates the nightly downstream run.",
 )
+# Everything downstream of catalog; catalog itself is sensor-gated.
+_catalog = dagster.AssetSelection.keys("catalog")
 downstream_job = dagster.define_asset_job(
     "downstream_job",
-    selection=[
-        "texts", "stripped", "measures", "dbt_build",
-        "postgres_backup", "corpus_backup", "site"
-    ],
+    selection=_catalog.downstream() - _catalog,
     description="Run Pipeline: when new/changed works detected, reprocess, rebuild, deploy.",
 )
 
@@ -50,4 +52,10 @@ defs = dagster.Definitions(
     jobs=[catalog_job, downstream_job],
     schedules=[nightly_schedule],
     sensors=[gate],
+    resources={
+        "dbt": DbtCliResource(
+            project_dir=assets.dbt_project,
+            target=os.environ.get("GUFIME_TARGET", "duckdb"),
+        )
+    },
 )

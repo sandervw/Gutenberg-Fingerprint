@@ -5,15 +5,30 @@ import subprocess
 from pathlib import Path
 
 import dagster
+from dagster_dbt import DagsterDbtTranslator, DbtCliResource, DbtProject, dbt_assets
 
 from python.workflow import catalog_ingest, text_ingest, strip, measure
 
 REPO = Path(__file__).resolve().parents[2]
 
+# Prebuilt manifest in prod; regenerated under `dagster dev`.
+dbt_project = DbtProject(project_dir=REPO / "dbt")
+dbt_project.prepare_if_dev()
+
 
 def _sh(cmd: str, cwd: Path) -> None:
     env = {**os.environ, "PATH": f"{Path.home() / '.local' / 'bin'}:{os.environ.get('PATH', '')}"}
     subprocess.run(cmd, cwd=cwd, shell=True, check=True, env=env)
+
+
+class _Translator(DagsterDbtTranslator):
+    """Map dbt sources onto the assets that produce them."""
+    def get_asset_key(self, props) -> dagster.AssetKey:
+        if props["resource_type"] == "source":
+            if props["name"] == "raw_works":
+                return dagster.AssetKey("catalog")
+            return dagster.AssetKey(props["name"])
+        return super().get_asset_key(props)
 
 
 @dagster.asset
@@ -35,19 +50,24 @@ def stripped() -> None:
     strip.main()
 
 
-@dagster.asset(deps=[stripped])
-def measures() -> None:
+@dagster.multi_asset(
+    deps=[stripped],
+    outs={"raw_measurements": dagster.AssetOut(), "raw_vocab": dagster.AssetOut()},
+)
+def measures():
     """Measure: corpus markdown -> raw_measurements + raw_vocab, incremental by watermark."""
     measure.main()
+    yield dagster.MaterializeResult(asset_key="raw_measurements")
+    yield dagster.MaterializeResult(asset_key="raw_vocab")
 
 
-@dagster.asset(deps=[measures])
-def dbt_build() -> None:
-    """dbt: build gold layer marts from raw bronze source tables."""
-    _sh("uv run dbt deps && uv run dbt build --target postgres", REPO / "dbt")
+@dbt_assets(manifest=dbt_project.manifest_path, dagster_dbt_translator=_Translator())
+def dbt_models(context, dbt: DbtCliResource):
+    """dbt: build gold marts; each node its own lineage asset."""
+    yield from dbt.cli(["build"], context=context).stream()
 
 
-@dagster.asset(deps=[dbt_build])
+@dagster.asset(deps=list(dbt_models.keys))
 def postgres_backup() -> None:
     """Postgres Backup: dump full gufime postgres DB to cloudflare R2 via wrangler."""
     _sh(

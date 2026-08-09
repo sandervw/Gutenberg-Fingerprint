@@ -27,5 +27,8 @@ jobs:
       - name: Sync code on the box
         run: ssh $SSH_OPTS $BOX "cd /code/gufime && git fetch origin && git checkout main && git reset --hard origin/main"
 
+      - name: Build dbt manifest on the box
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime/dbt && \$HOME/.local/bin/uv run dbt deps && \$HOME/.local/bin/uv run dbt parse --target postgres"
+
       - name: Restart Dagster
         run: ssh $SSH_OPTS $BOX "sudo systemctl restart dagster-webserver.service dagster-daemon.service"

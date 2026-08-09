@@ -4,6 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "dagster>=1.13.17",
+    "dagster-dbt>=0.29.17",
     "dagster-postgres>=0.29.17",
     "dagster-webserver>=1.13.17",
     "dbt-core>=1.11.12,<2.0",

@@ -16,7 +16,7 @@ Dagster OSS on the box (nightly schedule 08:00 UTC, Postgres-backed run storage)
         texts         → /files/gufime/bronze/texts/, watermark
         stripped      → /files/gufime/silver/corpus/, bronze.strip_audit
         measures      → postgres raw.raw_measurements, raw.raw_vocab
-        dbt_build     → dbt deps && dbt build → postgres gold.*
+        dbt_models    → dbt build → postgres gold.*  (each dbt node a lineage asset)
         postgres_backup → R2 gufime-backup/postgres/gufime.dump
         corpus_backup → R2 gufime-backup/corpus/ (tar parts + manifest)
         site          → npm run sources && build → wrangler pages deploy → gufime.com
@@ -112,9 +112,8 @@ The `site` asset runs `npm run sources && npm run build` (SPA mode), then `wrang
 ## 8. Future Enhancements
 
 **Dagster Enhancements**
-1. **dbt model-level assets.** `dagster-dbt` renders each dbt model as its own lineage asset.
-2. . **Failure alerts.** A run-status sensor emails on nightly run failure.
-3.  **Retry policies.** Auto-retry network-bound assets (catalog, texts, deploy) with backoff.
-4.  **Asset tests.** Unit-test asset logic and the gate sensor in pytest.
+1. **Failure alerts.** A run-status sensor emails on nightly run failure.
+2. **Retry policies.** Auto-retry network-bound assets (catalog, texts, deploy) with backoff.
+3. **Asset tests.** Unit-test asset logic and the gate sensor in pytest.
 
 **Custom analytics frontend.** An Astro static site over the `gold` marts, replacing Evidence. A build-time renderer runs each page's SQL against Postgres (DuckDB locally) and emits plain HTML with inline SVG; the deployed site ships no client-side query engine or WASM. A markdown-plus-SQL authoring layer binds fenced ` ```sql ` blocks to chart and table components, reproducing Evidence's authoring model. Templated `[work]` and `[author]` pages render at build.

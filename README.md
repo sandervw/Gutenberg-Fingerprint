@@ -17,7 +17,7 @@ Dagster on the box — nightly schedule 08:00 UTC
         texts          → /files/gufime/bronze/texts/
         stripped       → /files/gufime/silver/corpus/
         measures       → postgres raw.raw_measurements, raw.raw_vocab
-        dbt_build      → postgres gold.*
+        dbt_models     → postgres gold.*   (each dbt node a lineage asset)
         postgres_backup → R2 gufime-backup/postgres/gufime.dump
         corpus_backup  → R2 gufime-backup/corpus/
         site           → npm build + wrangler pages deploy → gufime.com
