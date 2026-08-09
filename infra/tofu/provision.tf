@@ -75,3 +75,34 @@ resource "terraform_data" "dagster" {
     ]
   }
 }
+
+# Cloudflare Tunnel token; empty skips the tunnel.
+variable "cloudflare_tunnel_token" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+# Registers cloudflared as a service fronting the Dagster UI.
+resource "terraform_data" "tunnel" {
+  count      = var.cloudflare_tunnel_token == "" ? 0 : 1
+  depends_on = [terraform_data.dagster]
+
+  triggers_replace = {
+    token = var.cloudflare_tunnel_token
+  }
+
+  connection {
+    type        = "ssh"
+    host        = local.vps_ipv4
+    user        = "ubuntu"
+    private_key = file("~/.ssh/gufime_rsa")
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo cloudflared service uninstall || true",
+      "sudo cloudflared service install ${var.cloudflare_tunnel_token}",
+    ]
+  }
+}

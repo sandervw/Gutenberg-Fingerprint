@@ -36,6 +36,13 @@ npm install -g wrangler
 # uv installs to /home/gufime/.local/bin.
 su - gufime -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
 
+# cloudflared: outbound tunnel for the Dagster UI.
+mkdir -p --mode=0755 /usr/share/keyrings
+curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg > /usr/share/keyrings/cloudflare-main.gpg
+echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main' > /etc/apt/sources.list.d/cloudflared.list
+apt-get update
+apt-get install -y cloudflared
+
 mkdir -p /files/gufime /code/gufime
 chown -R gufime:gufime /files/gufime /code/gufime
 

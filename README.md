@@ -4,29 +4,26 @@
 
 A nightly change-data-capture pipeline that watches the Project Gutenberg catalog, downloads the English science-fiction, fantasy, and horror corpus, measures 15 stylometric properties of every book, and publishes the result as an SPA analytics site. Every published number is a **z-score**.
 
-Runs on one ~$5/month OVH VPS ("the box"): Postgres, plain Python, dbt Core, and Evidence.dev, orchestrated by GitHub Actions, published to Cloudflare Pages.
+Runs on one ~$5/month OVH VPS ("the box"): Postgres, plain Python, dbt Core, and Evidence.dev, orchestrated by **Dagster OSS**, published to Cloudflare Pages.
 
 ---
 
 ## Architecture
 
 ```
-GitHub Actions nightly.yml (cron 08:00 UTC, workflow_dispatch) — every step is `ssh box '...'`
-  ├─ git reset --hard origin/main    (sync /code/gufime)
-  ├─ catalog_ingest.py           → postgres bronze.catalog, bronze.watermark, raw.raw_works, bronze.ingest_audit
-  │                                [step output: new_count]
-  └─ if new_count != 0 (the "CDC gate"):
-       ├─ text_ingest.py         → /files/gufime/bronze/texts/, watermark
-       ├─ strip.py               → /files/gufime/silver/corpus/, bronze.strip_audit
-       ├─ measure.py             → postgres raw.raw_measurements, raw.raw_vocab
-       ├─ dbt deps && dbt build  → postgres gold.*
-       ├─ npm run sources && npm run build
-       │    └─ wrangler pages deploy → gufime.com
-       └─ backup.py corpus       → R2 gufime-backup/corpus/
-  backup.py pg                   → R2 gufime-backup/pg/gufime.dump  (every night, backup postgres)
+Dagster on the box — nightly schedule 08:00 UTC
+  catalog                          → postgres bronze.*, raw.raw_works   (prints new_count)
+   └─ gate sensor (new_count > 0) launches one linear chain:
+        texts          → /files/gufime/bronze/texts/
+        stripped       → /files/gufime/silver/corpus/
+        measures       → postgres raw.raw_measurements, raw.raw_vocab
+        dbt_build      → postgres gold.*
+        pg_backup      → R2 gufime-backup/pg/gufime.dump
+        corpus_backup  → R2 gufime-backup/corpus/
+        site           → npm build + wrangler pages deploy → gufime.com
 ```
 
-GitHub Actions holds the schedule, the CDC gate, the SSH key, and the logs; the box executes. Files live on the box's disk under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`), listening on the unix socket only with peer auth. When there are no new in-scope works in the catalog, the run stops after `catalog_ingest.py`. A separate `reprocess.yml` (`workflow_dispatch`) rebuilds dbt → Evidence → deploy without ingestion.
+Dagster OSS on the box holds the schedule, the CDC gate, and the run logs (Postgres `dagster` schema). The `nightly` schedule materializes `catalog`; a `gate` asset sensor reads its `new_count` and launches the downstream chain only when new works exist. On a quiet night nothing past `catalog` runs. Push to `main` triggers a GitHub Actions deploy hook (`deploy.yml`) that syncs the box's checkout and restarts Dagster. The Dagster UI is served at [dagster.gufime.com](https://dagster.gufime.com) behind a Cloudflare Tunnel + Access. Files live under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`) over the unix socket with peer auth.
 
 **Change detection.** A `bronze.watermark` table keyed on `gutenberg_id` marks a book new when its ID is absent, changed when its catalog row hash differs, and retried when it last failed. `text_ingest` sniffs each fetched text for PG's copyrighted-donation header and stamps those with a terminal `copyrighted` status that is never retried. The diff runs against the **in-scope subset only**; the ~78,000 out-of-scope books never enter the watermark.
 
@@ -75,10 +72,10 @@ Postbuild scripts work around Cloudflare Pages' file-size cap and 404 handling. 
 | Item                                  | Estimate  |
 | ------------------------------------- | --------- |
 | OVH VPS-1 (2 vCore, 4 GB, 40 GB NVMe) | ~$5/mo    |
-| GitHub Actions (public repo)          | free      |
-| Cloudflare Pages builds               | free tier |
+| GitHub Actions deploy hook            | free      |
+| Cloudflare Pages + Tunnel + Access    | free tier |
 
-Two credentials run the night: an SSH private key in Actions secrets, and a Cloudflare API token on the box scoped to Pages.
+Credentials: an SSH key in Actions secrets (the deploy hook), a Cloudflare API token on the box (Pages + R2), and a Cloudflare Tunnel token `cloudflared` uses for the UI.
 
 ## Repo layout
 
@@ -86,7 +83,7 @@ Two credentials run the night: an SSH private key in Actions secrets, and a Clou
 python/      pipeline: workflow steps + helpers, storage seam (storage.py)
 dbt/         dbt Core project (models, macros, snapshots, tests)
 evidence/    Evidence.dev site + build scripts
-infra/tofu/  OpenTofu: OVH VPS + Cloudflare DNS, provision.sh
+infra/tofu/  OpenTofu: OVH VPS + Cloudflare, provision.sh + Dagster/tunnel services
 docs/        project outline, analysis write-ups, reference notes
 ```
 
