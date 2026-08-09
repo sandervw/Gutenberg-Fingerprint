@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -11,7 +12,8 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 def _sh(cmd: str, cwd: Path) -> None:
-    subprocess.run(cmd, cwd=cwd, shell=True, check=True)
+    env = {**os.environ, "PATH": f"{Path.home() / '.local' / 'bin'}:{os.environ.get('PATH', '')}"}
+    subprocess.run(cmd, cwd=cwd, shell=True, check=True, env=env)
 
 
 @dagster.asset
@@ -60,7 +62,7 @@ def corpus_backup() -> None:
     )
 
 
-@dagster.asset
+@dagster.asset(deps=[dbt_build])
 def pg_backup() -> None:
     _sh(
         "CLOUDFLARE_API_TOKEN=$(cat ~/.config/gufime/cf_token) "

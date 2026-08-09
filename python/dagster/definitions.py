@@ -7,12 +7,13 @@ from . import assets
 all_assets = dagster.load_assets_from_modules([assets])
 
 catalog_job = dagster.define_asset_job(
-    "catalog_job", selection=["catalog", "pg_backup"]
+    "catalog_job", selection=["catalog"]
 )
 downstream_job = dagster.define_asset_job(
     "downstream_job",
     selection=[
-        "texts", "stripped", "measures", "dbt_build", "site", "corpus_backup"
+        "texts", "stripped", "measures", "dbt_build", "site",
+        "corpus_backup", "pg_backup"
     ],
 )
 
