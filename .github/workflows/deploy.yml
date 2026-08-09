@@ -1,0 +1,31 @@
+name: Deploy to box
+
+# On push to main: sync the box checkout, reload Dagster.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+env:
+  BOX: gufime@15.204.82.199
+  SSH_OPTS: -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -i /home/runner/.ssh/gufime_key
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install box SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.GUFIME_SSH_KEY }}" | tr -d '\r' > ~/.ssh/gufime_key
+          chmod 600 ~/.ssh/gufime_key
+
+      - name: Sync code on the box
+        run: ssh $SSH_OPTS $BOX "cd /code/gufime && git fetch origin && git checkout main && git reset --hard origin/main"
+
+      - name: Restart Dagster
+        run: ssh $SSH_OPTS $BOX "sudo systemctl restart dagster-webserver.service dagster-daemon.service"

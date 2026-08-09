@@ -43,17 +43,15 @@ def dbt_build() -> None:
 
 
 @dagster.asset(deps=[dbt_build])
-def site() -> None:
-    _sh("npm run sources && npm run build", REPO / "evidence")
+def pg_backup() -> None:
     _sh(
         "CLOUDFLARE_API_TOKEN=$(cat ~/.config/gufime/cf_token) "
-        "wrangler pages deploy build "
-        "--project-name=gutenberg-fingerprint --branch=main",
-        REPO / "evidence",
+        "uv run python -m python.workflow.backup pg",
+        REPO,
     )
 
 
-@dagster.asset(deps=[site])
+@dagster.asset(deps=[pg_backup])
 def corpus_backup() -> None:
     _sh(
         "CLOUDFLARE_API_TOKEN=$(cat ~/.config/gufime/cf_token) "
@@ -62,10 +60,12 @@ def corpus_backup() -> None:
     )
 
 
-@dagster.asset(deps=[dbt_build])
-def pg_backup() -> None:
+@dagster.asset(deps=[corpus_backup])
+def site() -> None:
+    _sh("npm run sources && npm run build", REPO / "evidence")
     _sh(
         "CLOUDFLARE_API_TOKEN=$(cat ~/.config/gufime/cf_token) "
-        "uv run python -m python.workflow.backup pg",
-        REPO,
+        "wrangler pages deploy build "
+        "--project-name=gutenberg-fingerprint --branch=main",
+        REPO / "evidence",
     )

@@ -114,10 +114,18 @@ The workflow runs `npm run sources && npm run build` (SPA mode), then `wrangler 
 
 ## 8. Future Enhancements
 
-1. **Dagster orchestration.** Dagster OSS takes over the schedule from Actions; extract → dbt → site becomes one asset graph.
-   1. Outstanding: set up cloudflare tunnel; fix wiring of backup step; add descriptive info to assets; remove old nightly process; update docs (and resume)
+**Dagster orchestration.** Dagster OSS takes over the schedule from Actions; extract → dbt → site becomes one asset graph.
+
+1. **Outstanding from main plan**
+   1. set up cloudflare tunnel
+   2. add descriptive info to assets
+   3. remove old nightly process
+   4. update docs (and resume)
+   5. fix orchestration (dbt > pg_backup > corpus_backup > site)
+   6. fix names of all pg abbreviation (use postgres) artifacts/code > very confusing when the project is Project Gutenberg...
 2. **dbt model-level assets.** `dagster-dbt` renders each dbt model as its own lineage asset.
-3. **Asset tests.** Unit-test asset logic and the gate sensor in pytest.
-4. **Failure alerts.** A run-status sensor emails on nightly run failure.
-5. **Retry policies.** Auto-retry network-bound assets (catalog, texts, deploy) with backoff.
-6. **Custom analytics frontend.** An Astro static site over the `gold` marts, replacing Evidence. A build-time renderer runs each page's SQL against Postgres (DuckDB locally) and emits plain HTML with inline SVG; the deployed site ships no client-side query engine or WASM. A markdown-plus-SQL authoring layer binds fenced ` ```sql ` blocks to chart and table components, reproducing Evidence's authoring model. Templated `[work]` and `[author]` pages render at build.
+3. . **Failure alerts.** A run-status sensor emails on nightly run failure.
+4.  **Retry policies.** Auto-retry network-bound assets (catalog, texts, deploy) with backoff.
+5.  **Asset tests.** Unit-test asset logic and the gate sensor in pytest.
+
+**Custom analytics frontend.** An Astro static site over the `gold` marts, replacing Evidence. A build-time renderer runs each page's SQL against Postgres (DuckDB locally) and emits plain HTML with inline SVG; the deployed site ships no client-side query engine or WASM. A markdown-plus-SQL authoring layer binds fenced ` ```sql ` blocks to chart and table components, reproducing Evidence's authoring model. Templated `[work]` and `[author]` pages render at build.

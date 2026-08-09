@@ -12,8 +12,8 @@ catalog_job = dagster.define_asset_job(
 downstream_job = dagster.define_asset_job(
     "downstream_job",
     selection=[
-        "texts", "stripped", "measures", "dbt_build", "site",
-        "corpus_backup", "pg_backup"
+        "texts", "stripped", "measures", "dbt_build",
+        "pg_backup", "corpus_backup", "site"
     ],
 )
 
