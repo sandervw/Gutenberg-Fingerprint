@@ -5,7 +5,7 @@ gutenberg_fingerprint:
       type: duckdb
       # Absolute on purpose: dbt-duckdb resolves a RELATIVE path against the
       # current working dir (not the project)
-      path: C:/Users/Sander/OneDrive/Documents/Github/Gutenberg-Fingerprint/dbt/warehouse.duckdb
+      path: C:/Users/Sander/Documents/Github/Gutenberg-Fingerprint/dbt/warehouse.duckdb
       threads: 4
     postgres:
       type: postgres
