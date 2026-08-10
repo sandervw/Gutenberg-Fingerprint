@@ -51,9 +51,9 @@ if [ ! -d /code/gufime/.git ]; then
   su - gufime -c "git clone https://github.com/sandervw/Gutenberg-Fingerprint.git /code/gufime"
 fi
 
-# 2 GB swap: the Evidence build peaks near it on a 4 GB box.
+# 6 GB swap: the Evidence build overran 2 GB and OOM-killed on a 4 GB box.
 if [ ! -f /swapfile ]; then
-  fallocate -l 2G /swapfile
+  fallocate -l 6G /swapfile
   chmod 600 /swapfile
   mkswap /swapfile
   swapon /swapfile

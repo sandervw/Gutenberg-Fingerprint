@@ -15,11 +15,14 @@ catalog_job = dagster.define_asset_job(
     description="Poll Project Gutenberg catalog: gates the nightly downstream run.",
 )
 # Everything downstream of catalog; catalog itself is sensor-gated.
+# One step at a time; box is memory-constrained.
+_serial = dagster.multiprocess_executor.configured({"max_concurrent": 1})
 _catalog = dagster.AssetSelection.keys("catalog")
 downstream_job = dagster.define_asset_job(
     "downstream_job",
     selection=_catalog.downstream() - _catalog,
     description="Run Pipeline: when new/changed works detected, reprocess, rebuild, deploy.",
+    executor_def=_serial,
 )
 
 nightly_schedule = dagster.ScheduleDefinition(

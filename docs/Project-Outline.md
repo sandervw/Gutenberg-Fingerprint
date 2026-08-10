@@ -85,7 +85,7 @@ Prod dbt is `uv run dbt build --target postgres` on the box: peer auth over the 
 
 **Backups:** `python/workflow/backup.py` wraps `wrangler r2 object put` and ships to the R2 bucket `gufime-backup` (free-tier 10 GB, declared in `infra/tofu/cloudflare.tf`), latest-only keys overwritten in place. On changed nights `postgres_backup` writes `pg_dump -Fc` to `postgres/gufime.dump`, then `corpus_backup` tars the corpus into 250 MB parts under `corpus/`, plus a sha256 `corpus.manifest` uploaded last. Restore fetches the parts the manifest lists: `cat corpus.tar.gz.* | tar -xz`, and `pg_restore -d gufime`. Backup steps run only after every prior step succeeds.
 
-**Infra as code:** `infra/tofu/` (OpenTofu, OVH + Cloudflare providers) orders the box; `provision.sh` sets up Postgres (four schemas — `bronze`, `raw`, `gold`, `dagster` — peer auth on the socket), `uv`, Node 24, `wrangler`, `cloudflared`, unattended-upgrades, 2 GB swap, `/files/gufime/`, `/code/gufime/`. `provision.tf` installs the Dagster systemd units and registers the `cloudflared` tunnel service.
+**Infra as code:** `infra/tofu/` (OpenTofu, OVH + Cloudflare providers) orders the box; `provision.sh` sets up Postgres (four schemas — `bronze`, `raw`, `gold`, `dagster` — peer auth on the socket), `uv`, Node 24, `wrangler`, `cloudflared`, unattended-upgrades, 6 GB swap, `/files/gufime/`, `/code/gufime/`. `provision.tf` installs the Dagster systemd units and registers the `cloudflared` tunnel service.
 
 **Box hygiene:** unattended security upgrades, a firewall opening SSH only, Postgres bound to the local socket.
 

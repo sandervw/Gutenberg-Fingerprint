@@ -90,7 +90,8 @@ def corpus_backup() -> None:
 @dagster.asset(deps=[corpus_backup])
 def site() -> None:
     """Gufime Site Deploy: build evidence site and deploy to cloudflare."""
-    _sh("npm run sources && npm run build", REPO / "evidence")
+    # Cap node heap so the build can't balloon and OOM the box.
+    _sh("NODE_OPTIONS=--max-old-space-size=1536 npm run sources && npm run build", REPO / "evidence")
     _sh(
         "CLOUDFLARE_API_TOKEN=$(cat ~/.config/gufime/cf_token) "
         "wrangler pages deploy build "
