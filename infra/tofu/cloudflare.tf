@@ -1,5 +1,11 @@
-# Reads CLOUDFLARE_API_TOKEN from the environment.
-provider "cloudflare" {}
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
+
+variable "cloudflare_api_token" {
+  type      = string
+  sensitive = true
+}
 
 # Empty account id skips the bucket entirely.
 variable "cloudflare_account_id" {
