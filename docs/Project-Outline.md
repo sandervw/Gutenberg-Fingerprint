@@ -22,7 +22,7 @@ Dagster OSS on the box (nightly schedule 08:00 UTC, Postgres-backed run storage)
         site          → npm run sources && build → wrangler pages deploy → gufime.com
 ```
 
-- **Orchestrator:** Dagster OSS on the box holds the schedule, the CDC gate, and the run logs (Postgres `dagster` schema). The `nightly` schedule materializes `catalog`; the `gate` asset sensor reads its `new_count` and launches `downstream_job` only when `new_count > 0`. On a quiet night nothing past `catalog` runs; **manual rebuild** is *Materialize all* in the UI. Two systemd units serve it: `dagster-webserver` (`127.0.0.1:3000`) and `dagster-daemon`. The UI lives at `dagster.gufime.com` behind a Cloudflare Tunnel + Access.
+- **Orchestrator:** Dagster OSS on the box holds the schedule, the CDC gate, and the run logs (Postgres `dagster` schema). The `nightly` schedule materializes `catalog`; the `gate` asset sensor reads its `new_count` and launches `downstream_job` only when `new_count > 0`. On a quiet night nothing past `catalog` runs; **manual rebuild** is *Materialize all* in the UI. A `failure_alert` run-status sensor emails via Cloudflare on any run failure. Two systemd units serve it: `dagster-webserver` (`127.0.0.1:3000`) and `dagster-daemon`. The UI lives at `dagster.gufime.com` behind a Cloudflare Tunnel + Access.
 - **Assets** (`python/dagster/assets.py`, `definitions.py`) wrap the Python modules in `python/workflow/`; Python steps import and call `main()`, while dbt, Evidence, and backup shell out. Tunables in `python/helpers/` (`lexicons.py`, `vocab.py`, `stylometrics.py`, `clean.py`), all storage behind `python/helpers/storage.py`. `GUFIME_TARGET` picks `duckdb` (local default) or `postgres`; `GUFIME_FILES_ROOT`, `GUFIME_PG_DSN`, `GUFIME_DUCKDB_PATH` override paths. `catalog.main()` returns the new-count int, published as `MaterializeResult` metadata the sensor reads.
 - **Storage:** files on the box's disk (`/files/gufime/bronze/texts/`, `bronze/catalog/`, `bronze/self/` + `_manifest.csv`, `silver/corpus/`); tables in Postgres database `gufime`, schemas `bronze` (catalog, watermark, ingest_audit, strip_audit), `raw` (raw_works, raw_measurements, raw_vocab), `gold` (the dbt layer), and `dagster` (run metadata). Postgres listens on the unix socket only and authenticates by peer; no database password exists anywhere.
 - **Warehouse + dbt:** `dbt build --target postgres` on the box materializes the star schema and marts in `gold`.
@@ -81,7 +81,7 @@ Prod dbt is `uv run dbt build --target postgres` on the box: peer auth over the 
 
 **About $5/month, always on.** An OVH VPS-1 (2 vCore, 4 GB, 40 GB NVMe); ~2 GB of corpus against 40 GB. GitHub Actions is free and unmetered on a public repo; Cloudflare Pages builds sit inside the free tier.
 
-**Credentials:** an SSH private key in Actions secrets (the deploy hook), a Cloudflare API token in `~/.config/gufime/cf_token` on the box (Pages plus R2 write), and a Cloudflare **Tunnel token** `cloudflared` uses to expose the Dagster UI. The OVH and Cloudflare tokens OpenTofu needs stay on the laptop.
+**Credentials:** an SSH private key in Actions secrets (the deploy hook), a Cloudflare API token in `~/.config/gufime/cf_token` on the box (Pages, R2 write, plus Send Email), and a Cloudflare **Tunnel token** `cloudflared` uses to expose the Dagster UI. The OVH and Cloudflare tokens OpenTofu needs stay on the laptop.
 
 **Backups:** `python/workflow/backup.py` wraps `wrangler r2 object put` and ships to the R2 bucket `gufime-backup` (free-tier 10 GB, declared in `infra/tofu/cloudflare.tf`), latest-only keys overwritten in place. On changed nights `postgres_backup` writes `pg_dump -Fc` to `postgres/gufime.dump`, then `corpus_backup` tars the corpus into 250 MB parts under `corpus/`, plus a sha256 `corpus.manifest` uploaded last. Restore fetches the parts the manifest lists: `cat corpus.tar.gz.* | tar -xz`, and `pg_restore -d gufime`. Backup steps run only after every prior step succeeds.
 
@@ -112,8 +112,6 @@ The `site` asset runs `npm run sources && npm run build` (SPA mode), then `wrang
 ## 8. Future Enhancements
 
 **Dagster Enhancements**
-1. **Failure alerts.** A run-status sensor emails on nightly run failure.
-2. **Retry policies.** Auto-retry network-bound assets (catalog, texts, deploy) with backoff.
-3. **Asset tests.** Unit-test asset logic and the gate sensor in pytest.
+1. **Retry policies.** Auto-retry network-bound assets (catalog, texts, deploy) with backoff.
 
 **Custom analytics frontend.** An Astro static site over the `gold` marts, replacing Evidence. A build-time renderer runs each page's SQL against Postgres (DuckDB locally) and emits plain HTML with inline SVG; the deployed site ships no client-side query engine or WASM. A markdown-plus-SQL authoring layer binds fenced ` ```sql ` blocks to chart and table components, reproducing Evidence's authoring model. Templated `[work]` and `[author]` pages render at build.

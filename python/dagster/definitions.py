@@ -5,7 +5,7 @@ import os
 import dagster
 from dagster_dbt import DbtCliResource
 
-from . import assets
+from . import alert, assets
 
 all_assets = dagster.load_assets_from_modules([assets])
 
@@ -50,11 +50,26 @@ def gate(
     return dagster.SkipReason("no new works")
 
 
+@dagster.run_failure_sensor(
+    monitored_jobs=[catalog_job, downstream_job],
+    default_status=dagster.DefaultSensorStatus.RUNNING,
+    description="Email on any nightly run failure.",
+)
+def failure_alert(context: dagster.RunFailureSensorContext) -> None:
+    run = context.dagster_run
+    body = (
+        f"Job {run.job_name} failed.\n"
+        f"Run: https://dagster.gufime.com/runs/{run.run_id}\n\n"
+        f"{context.failure_event.message}"
+    )
+    alert.send(f"gufime pipeline failed: {run.job_name}", body)
+
+
 defs = dagster.Definitions(
     assets=all_assets,
     jobs=[catalog_job, downstream_job],
     schedules=[nightly_schedule],
-    sensors=[gate],
+    sensors=[gate, failure_alert],
     resources={
         "dbt": DbtCliResource(
             project_dir=assets.dbt_project,

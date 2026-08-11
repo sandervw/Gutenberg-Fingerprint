@@ -9,6 +9,9 @@ WorkingDirectory=/code/gufime
 Environment=DAGSTER_HOME=/files/gufime/dagster
 Environment=GUFIME_TARGET=postgres
 Environment=DAGSTER_PG_URL=postgresql://gufime@/gufime?host=/var/run/postgresql
+Environment=CLOUDFLARE_ACCOUNT_ID=954c30f428e0a61f4c66e6a679f51ec0
+Environment=GUFIME_ALERT_FROM=alerts@gufime.com
+Environment=GUFIME_ALERT_TO=samvanwilligen@gmail.com
 ExecStart=/home/gufime/.local/bin/uv run dagster-daemon run
 Restart=on-failure
 
