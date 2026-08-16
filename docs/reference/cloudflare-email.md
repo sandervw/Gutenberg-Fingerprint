@@ -40,7 +40,7 @@ Retry 429 and 500 with backoff; 400 and 401 are terminal. Transactional email on
 ## Test
 
 ```bash
-ssh box
+ssh gufime
 cd /code/gufime
 GUFIME_ALERT_TO=samvanwilligen@gmail.com uv run python -m python.dagster.alert "test"
 ```
