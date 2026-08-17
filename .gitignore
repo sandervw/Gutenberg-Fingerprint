@@ -40,3 +40,6 @@ desktop.ini
 
 # --- Hook state (runtime counters, not source) ---
 .claude/hooks/.state/
+
+# --- Personal learning notes (local only) ---
+docs/Personal-Notes.md
