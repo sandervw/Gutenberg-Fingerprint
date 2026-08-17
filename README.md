@@ -4,7 +4,7 @@
 
 A nightly change-data-capture pipeline that watches the Project Gutenberg catalog, downloads the English science-fiction, fantasy, and horror corpus, measures 15 stylometric properties of every book, and publishes the result as an SPA analytics site. Every published number is a **z-score**.
 
-Runs on one ~$5/month OVH VPS ("the box"): Postgres, plain Python, dbt Core, and Evidence.dev, orchestrated by **Dagster OSS**, published to Cloudflare Pages.
+Runs on one ~$5/month OVH VPS ("the box"): Postgres, plain Python, dbt Core, and Evidence.dev, orchestrated by **Dagster OSS**, published to Cloudflare.
 
 ---
 
