@@ -1,0 +1,45 @@
+version: 2
+
+models:
+  - name: stg_works
+    description: "One row per work (4,707)."
+    columns:
+      - name: gutenberg_id
+        description: "PG's natural key. PK + grain guard."
+        data_tests:
+          - unique
+          - not_null
+      - name: title
+        data_tests:
+          - not_null
+      - name: author_name
+        description: "Primary (first-listed) author."
+        data_tests:
+          - not_null
+      - name: genre
+        description: "Sci-Fi (3,195), Fantasy (637), Horror (404), or Undetermined (471)."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Sci-Fi", "Fantasy", "Horror", "Undetermined"]
+      - name: is_translation
+        description: "'[Translator]' author marker."
+        data_tests:
+          - not_null
+      - name: is_juvenile
+        description: "PZ LoC class or 'juvenile' subject keyword. ~459 works."
+        data_tests:
+          - not_null
+      - name: is_play
+        description: "'drama'/'plays' subject keyword or Plays/Films/Dramas bookshelf."
+        data_tests:
+          - not_null
+      - name: is_poetry
+        description: "'poetry' subject keyword."
+        data_tests:
+          - not_null
+      - name: birth_year
+        description: "Primary author birth year off the authors string. Nullable."
+      - name: death_year
+        description: "Primary author death year off the authors string. Nullable."

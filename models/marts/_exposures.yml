@@ -1,0 +1,20 @@
+version: 2
+
+exposures:
+  - name: gutenberg_fingerprint_dashboard
+    label: "Prose Fingerprint (Evidence)"
+    type: dashboard
+    maturity: medium # still evolving; bump to high once stable
+    url: http://localhost:3000
+    description: >
+      Evidence.dev site (reports/) comparing the user's prose against studied
+      authors.
+    depends_on:
+      - ref('mart_style_long') # measurement OBT behind every stylometric chart
+      - ref('mart_work') # work listings, headers, outlier ranking
+      - ref('mart_author') # author listings and summary tiles
+      - ref('fact_vocab_overlap') # vocabulary-overlap kinship (author-pair grain)
+      - ref('dim_metric') # metric-definition tables
+    owner:
+      name: Sander
+      email: samvanwilligen@gmail.com

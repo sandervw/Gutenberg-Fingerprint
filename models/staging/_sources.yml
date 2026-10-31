@@ -1,0 +1,22 @@
+version: 2
+
+sources:
+  - name: raw
+    # Fabric: wh_gold reads lh_silver cross-database; duckdb db is a placeholder
+    database: "{{ {'postgres': 'gufime', 'fabric': 'lh_silver'}.get(target.type, 'warehouse') }}"
+    schema: "{{ 'dbo' if target.type == 'fabric' else 'raw' }}"
+    loader: "extract/ (Python + spaCy)" # the pipeline that fills these tables; shows in lineage
+    description: "Tidy tables landed by the standalone Python extractor (extract/)."
+    config:
+      loaded_at_field: loaded_at
+      freshness:
+        error_after: { count: 24, period: hour }
+    tables:
+      # raw_works is the freshness heartbeat: filter.py full-overwrites it every
+      - name: raw_works # grain: one row per work
+      - name: raw_measurements # grain: one row per work × metric (tidy/long)
+        config:
+          freshness: null
+      - name: raw_vocab # grain: one row per work × content-word term
+        config:
+          freshness: null

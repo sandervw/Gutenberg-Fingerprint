@@ -1,0 +1,28 @@
+gutenberg_fingerprint:
+  target: duckdb
+  outputs:
+    duckdb:
+      type: duckdb
+      # Absolute on purpose: dbt-duckdb resolves a RELATIVE path against the
+      # current working dir (not the project)
+      path: C:/Users/Sander/Documents/Github/Gutenberg-Fingerprint/dbt/warehouse.duckdb
+      threads: 4
+    postgres:
+      type: postgres
+      # Unix socket dir, not a hostname: peer auth, no password anywhere.
+      host: /var/run/postgresql
+      user: gufime
+      password: ""
+      port: 5432
+      dbname: gufime
+      schema: gold
+      threads: 4
+    fabric:
+      type: fabric
+      driver: "ODBC Driver 18 for SQL Server"
+      host: fr7xv35iil4ehegy7wuqkoukpi-ja423pz3n3vu5dxbjbpa6r6ipm.datawarehouse.fabric.microsoft.com
+      database: wh_gold
+      schema: dbo
+      # Service principal via AZURE_CLIENT_* env vars off .env.
+      authentication: environment
+      threads: 4
