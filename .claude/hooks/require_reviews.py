@@ -13,7 +13,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-MERGE_COMMAND = re.compile(r"(?:^|[;&|(\n\"'])\s*gh\s+pr\s+merge\b(?P<rest>[^;&|\n\"']*)")
+MERGE_COMMAND = re.compile(r"\bgh\b[^;&|\n]*?\bpr\s+merge\b(?P<rest>[^;&|\n]*)")
+REPOSITORY_FLAGS = ("-R", "--repo")
 TRUSTED_AUTHOR = "OWNER"
 
 
@@ -67,7 +68,10 @@ def merge_problem(command: str) -> str | None:
     match = MERGE_COMMAND.search(command)
     if match is None:
         return None
-    target = target_in(match.group("rest"))
+    rest = match.group("rest")
+    if any(word.startswith(REPOSITORY_FLAGS) for word in rest.split()):
+        return f"Merge blocked: merge only this repository's PRs, not {rest.strip()!r}."
+    target = target_in(rest)
     view = ["gh", "pr", "view"] if target is None else ["gh", "pr", "view", target]
     details = json.loads(github([*view, "--json", "number,headRefOid,files,comments"]))
     number = details["number"]

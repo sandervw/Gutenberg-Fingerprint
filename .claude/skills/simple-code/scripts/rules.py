@@ -139,7 +139,7 @@ def word_problem(word: str, word_count: int) -> str | None:
         return f"'{word}' is a short form; spell it out"
     if word in SMALL_WORDS and word_count > 1:
         return None
-    if len(word) < 3:
+    if len(word) < LIMITS["minNameLength"]:
         return f"'{word}' is too short to be descriptive"
     return None
 

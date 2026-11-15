@@ -2,7 +2,11 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
-      "Bash(uv run *)",
+      "Bash(uv run dbt *)",
+      "Bash(uv run --frozen dbt *)",
+      "Bash(uv run dagster *)",
+      "Bash(uv run --frozen dagster *)",
+      "Bash(uv run python -m python.workflow.*)",
       "Bash(uv sync*)",
       "Bash(npm --prefix evidence run *)",
       "Bash(npx playwright test*)",

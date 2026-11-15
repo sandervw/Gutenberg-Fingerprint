@@ -49,7 +49,7 @@ export default defineConfig(
       "max-params": ["error", LIMITS.maxParameters],
       "no-else-return": ["error", { allowElseIf: false }],
       "no-empty": ["error", { allowEmptyCatch: false }],
-      "id-length": ["error", { min: 3, exceptions: [...LIMITS.allowedShortNames, ...LIMITS.exemptNames], properties: "never" }],
+      "id-length": ["error", { min: LIMITS.minNameLength, exceptions: [...LIMITS.allowedShortNames, ...LIMITS.exemptNames], properties: "never" }],
       "@typescript-eslint/naming-convention": [
         "error",
         {

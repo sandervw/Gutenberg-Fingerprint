@@ -9,7 +9,7 @@ import re
 import shlex
 import sys
 
-PUSH_COMMAND = re.compile(r"(?:^|[;&|(\n\"'])\s*git(?:\s+-C\s+\S+)*\s+push\b(?P<rest>[^;&|\n]*)")
+PUSH_COMMAND = re.compile(r"\bgit\b[^;&|\n]*?\bpush\b(?P<rest>[^;&|\n]*)")
 BRANCH = re.compile(r"claude/[A-Za-z0-9._/-]+")
 UPSTREAM_FLAGS = {"-u", "--set-upstream"}
 REMOTE = "origin"
@@ -21,7 +21,7 @@ def push_problem(rest: str) -> str | None:
     is_one_claude_branch = len(words) == 2 and words[0] == REMOTE and BRANCH.fullmatch(words[1]) is not None
     if is_one_claude_branch and ".." not in words[1]:
         return None
-    return f"Push blocked: use `git push -u {REMOTE} claude/<branch>` with one branch and no other options."
+    return f"Push blocked for {rest.strip()!r}: use `git push -u {REMOTE} claude/<branch>`, nothing else."
 
 
 def command_problem(command: str) -> str | None:

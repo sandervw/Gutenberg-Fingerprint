@@ -10,5 +10,6 @@
   "exemptNames": [
     "self",
     "_"
-  ]
+  ],
+  "minNameLength": 3
 }
