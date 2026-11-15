@@ -7,6 +7,8 @@
 | Merge to `main` | `.github/workflows/deploy.yml` syncs `/code/gufime` on the box, runs `dbt parse --target postgres`, and restarts Dagster |
 | Nightly run with new works | The `site` asset builds Evidence on the box and runs `wrangler pages deploy` to gufime.com |
 
+`main` is protected for everyone, admins included: changes land only through PRs with the CI `checks` job green, with no force pushes or deletions.
+
 A merge goes live on the box within minutes. The site changes on the next run with new works, or on *Materialize all*.
 
 ## The box
