@@ -9,7 +9,8 @@ from pathlib import Path
 REMOTE = "origin"
 MAIN_BRANCH = "main"
 MAIN_REFERENCE = f"{REMOTE}/{MAIN_BRANCH}"
-COMMAND_TEXT = r"[^;&|\n]"
+SEPARATORS = ";&|\n"
+COMMAND_TEXT = f"[^{SEPARATORS}]"
 
 
 def project_root() -> Path:

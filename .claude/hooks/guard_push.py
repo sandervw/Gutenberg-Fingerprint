@@ -9,7 +9,11 @@ import re
 import shlex
 import sys
 
-from hook_settings import COMMAND_TEXT, REMOTE
+try:
+    from hook_settings import COMMAND_TEXT, REMOTE
+except (ImportError, SyntaxError) as error:
+    print(f"Hook settings failed to load, call blocked: {error!r}", file=sys.stderr)
+    sys.exit(2)
 
 PUSH_COMMAND = re.compile(rf"\bgit\b{COMMAND_TEXT}*?\bpush\b(?P<rest>{COMMAND_TEXT}*)")
 BRANCH = re.compile(r"claude/[A-Za-z0-9._/-]+")

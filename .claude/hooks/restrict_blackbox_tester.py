@@ -15,10 +15,14 @@ import sys
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from hook_settings import project_root as configured_root
-from hook_settings import project_section
+try:
+    from hook_settings import SEPARATORS, project_section
+    from hook_settings import project_root as configured_root
+except (ImportError, SyntaxError) as error:
+    print(f"Hook settings failed to load, call blocked: {error!r}", file=sys.stderr)
+    sys.exit(2)
 
-UNSAFE_CHARACTERS = re.compile(r"[;&|`><$\n\r\x00]")
+UNSAFE_CHARACTERS = re.compile(f"[{SEPARATORS}`><$\r\x00]")
 URL_UNSAFE = re.compile(r"[\s\x00-\x1f\\]")
 PATH_TOOLS = {"Read": "file_path", "Write": "file_path", "Edit": "file_path", "Grep": "path", "Glob": "path"}
 

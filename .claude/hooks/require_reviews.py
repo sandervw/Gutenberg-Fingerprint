@@ -12,7 +12,11 @@ import subprocess
 import sys
 from dataclasses import dataclass
 
-from hook_settings import COMMAND_TEXT, project_section
+try:
+    from hook_settings import COMMAND_TEXT, SEPARATORS, project_section
+except (ImportError, SyntaxError) as error:
+    print(f"Hook settings failed to load, call blocked: {error!r}", file=sys.stderr)
+    sys.exit(2)
 
 MERGE_COMMAND = re.compile(rf"\bgh\b{COMMAND_TEXT}*?\bpr\s+merge\b(?P<rest>{COMMAND_TEXT}*)")
 METHOD_FLAGS = {"--merge", "--squash", "--rebase", "--delete-branch", "-m", "-s", "-r", "-d"}
@@ -21,7 +25,7 @@ PIN_FLAG = "--match-head-commit"
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 MERGE_USAGE = f"`gh pr merge <number> --merge {PIN_FLAG} <full sha>`"
 FILES_QUERY = ".[] | .filename, (.previous_filename // empty)"
-CHAINING = re.compile(r"[;&|\n`]|\$\(")
+CHAINING = re.compile(f"[{SEPARATORS}`]|\\$\\(")
 
 
 @dataclass(frozen=True)
@@ -38,13 +42,15 @@ class ReviewSettings:
 
     code_suffixes: tuple[str, ...]
     security_paths: tuple[str, ...]
+    instruction_files: frozenset[str]
 
 
 def review_settings() -> ReviewSettings:
     """Parse the reviews block of the project config."""
     config = project_section("reviews")
     security_paths = tuple(path.lower() for path in config["securityPaths"])
-    return ReviewSettings(tuple(config["codeSuffixes"]), security_paths)
+    instruction_files = frozenset(config["instructionFiles"])
+    return ReviewSettings(tuple(config["codeSuffixes"]), security_paths, instruction_files)
 
 
 def verdict(review: str, head: str) -> str:
@@ -52,12 +58,19 @@ def verdict(review: str, head: str) -> str:
     return f"{review} review: PASS ({head[:7]})"
 
 
+def is_security_path(path: str, settings: ReviewSettings) -> bool:
+    """Say whether a changed path needs a security review."""
+    lowered = path.lower()
+    is_instruction_file = lowered.rsplit("/", 1)[-1] in settings.instruction_files
+    return is_instruction_file or lowered.startswith(settings.security_paths)
+
+
 def required_reviews(paths: list[str], settings: ReviewSettings) -> list[str]:
     """Name the reviews a PR with these changed paths needs."""
     reviews = []
     if any(path.endswith(settings.code_suffixes) for path in paths):
         reviews.extend(["Simplicity", "Architecture"])
-    if any(path.lower().startswith(settings.security_paths) for path in paths):
+    if any(is_security_path(path, settings) for path in paths):
         reviews.append("Security")
     return reviews
 

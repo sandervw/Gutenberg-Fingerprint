@@ -11,20 +11,19 @@
       ".sh"
     ],
     "securityPaths": [
+      ".claude/",
       ".github/",
-      ".claude/hooks/",
-      ".claude/settings.json",
-      ".claude/project.json",
       ".mcp.json",
       "infra/",
       "dbt/profiles.yml",
       "evidence/functions/",
       "evidence/sources/warehouse/connection.yaml",
       "python/dagster/alert.py",
-      "python/workflow/backup.py",
-      ".claude/agents/",
-      ".claude/skills/",
-      "CLAUDE.md"
+      "python/workflow/backup.py"
+    ],
+    "instructionFiles": [
+      "claude.md",
+      "claude.local.md"
     ]
   },
   "blackbox": {
