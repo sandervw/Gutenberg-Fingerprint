@@ -31,8 +31,9 @@ Current state and next work. Rewrite when stale; never log history.
 
 ## Gotchas
 
-- `gh pr merge` is blocked by `.claude/hooks/require_reviews.py` until the review PASS comments name the head commit. Re-review after every push.
+- `gh pr merge` is blocked by `.claude/hooks/require_reviews.py` until the review PASS comments name the head commit. Re-review after every push. The gate also matches that phrase quoted inside a command; pass PR bodies with `--body-file`.
 - A PR body's `Fixes #a, #b` closes only the first; write `Fixes` before each number.
+- Push only `claude/*` branches by name: `git push -u origin claude/<branch>`.
 - Auto-merge is off: `gh pr checks N --watch`, then `gh pr merge N --merge`.
 - Every merge to `main` restarts Dagster on the box. Never merge while a run is in progress; check the Dagster UI first.
 - Inspect production data over `ssh gufime`; Postgres is `psql gufime` with peer auth.

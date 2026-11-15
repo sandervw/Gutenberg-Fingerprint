@@ -30,7 +30,7 @@ Dagster on the box, nightly schedule 03:00 America/Chicago
         site            → npm run sources, build, wrangler pages deploy → gufime.com
 ```
 
-`catalog.main()` returns `new_count`, New plus Changed Works, as asset metadata; the gate reads it. A quiet night runs nothing past `catalog`. *Materialize all* in the UI is the manual rebuild. The `failure_alert` sensor emails through Cloudflare Email Sending on any run failure. Python assets import and call `main()`; dbt, Evidence, and backups shell out. Manually uploaded works live in `/files/gufime/bronze/self/` with a `_manifest.csv`; a changed `loaded_at` re-measures one.
+`catalog_ingest.main()` returns `new_count`, New plus Changed Works, as asset metadata; the gate reads it. A quiet night runs nothing past `catalog`. *Materialize all* in the UI is the manual rebuild. The `failure_alert` sensor emails through Cloudflare Email Sending on any run failure. Python assets import and call `main()`; dbt, Evidence, and backups shell out. Manually uploaded works live in `/files/gufime/bronze/self/` with a `_manifest.csv`; a changed `loaded_at` re-measures one.
 
 ## 3. Change detection
 
@@ -46,7 +46,7 @@ Dagster on the box, nightly schedule 03:00 America/Chicago
 sources (raw) → stg_* (views) → int_* (views) → dim_* / fact_* (tables) → mart_* (tables)
 ```
 
-`int_` models may also read dimensions; marts may read other marts.
+`int_` and `fact_` models may also read dimensions; marts may read other marts.
 
 | Table | Grain and notes |
 |---|---|
@@ -82,7 +82,7 @@ Files under `/files/gufime/` (`bronze/texts/`, `bronze/catalog/`, `bronze/self/`
 
 ## 7. Site
 
-Evidence extracts data at build time; the deployed SPA never queries a database. Each query selects from the mart at its own grain. Postbuild scripts `cdn-wasm.js` and `copy-404.js` handle the Pages file-size cap and 404s.
+Evidence extracts data at build time; the deployed SPA never queries a database. Each query selects from the `gold` table at its own grain. Postbuild scripts `cdn-wasm.js` and `copy-404.js` handle the Pages file-size cap and 404s.
 
 ## 8. Security
 

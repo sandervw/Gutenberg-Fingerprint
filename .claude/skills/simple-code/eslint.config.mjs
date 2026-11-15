@@ -1,20 +1,9 @@
 // Simple-code lint rules for TypeScript; numbers refer to SKILL.md.
+import { readFileSync } from "node:fs";
 import { defineConfig } from "eslint/config";
 import typescriptEslint from "typescript-eslint";
 
-// Keep in sync with BANNED_WORDS in scripts/rules.py.
-const BANNED_WORDS = [
-  "acc", "addr", "arg", "args", "attr", "attrs", "avg", "btn", "buf",
-  "calc", "cfg", "cls", "cmd", "cnt", "conf", "conn", "csv", "ctx",
-  "cur", "curr", "desc", "dest", "dict", "dir", "doc", "dst", "elem",
-  "env", "err", "evt", "exc", "exe", "expr", "fmt", "func", "gen",
-  "hdr", "html", "http", "https", "idx", "img", "impl", "init", "iter",
-  "json", "kwargs", "len", "lib", "lst", "mgr", "msg", "num", "obj",
-  "opt", "opts", "param", "params", "pkg", "pos", "prev", "proc",
-  "prop", "ptr", "pwd", "qty", "recv", "ref", "req", "res", "resp",
-  "ret", "seq", "sql", "src", "srv", "str", "tmp", "txt", "usr",
-  "util", "utils", "uuid", "val", "vals", "var", "vars", "xml",
-];
+const BANNED_WORDS = JSON.parse(readFileSync(new URL("./banned-words.json", import.meta.url), "utf8"));
 
 const lowerWords = BANNED_WORDS.join("|");
 const capitalWords = BANNED_WORDS.map((word) => word[0].toUpperCase() + word.slice(1)).join("|");
@@ -43,6 +32,7 @@ const CLOCK_READ = {
   message: "Core code reads the clock (1); pass the time in.",
 };
 
+/** The simple-code ESLint rules for TypeScript and JavaScript. */
 export default defineConfig(
   { ignores: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/*.d.ts"] },
   {

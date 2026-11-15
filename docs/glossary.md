@@ -8,6 +8,7 @@
 | **Corpus** | Every in-scope Work with a stripped text. |
 | **In scope** | English, `Type = Text`, and science fiction, fantasy, or horror. |
 | **Genre** | One of `Sci-Fi`, `Fantasy`, `Horror`, or `Undetermined` when several match. |
+| **Prose type** | `short-story` under 10k words, `novella` under 40k, else `novel`. |
 | **Flags** | `is_translation`, `is_juvenile`, `is_play`, `is_poetry`. |
 | **Metric** | One measured concept, such as Yule's K. There are 15. |
 | **Series** | One measured value stream of a Metric. There are 63. |

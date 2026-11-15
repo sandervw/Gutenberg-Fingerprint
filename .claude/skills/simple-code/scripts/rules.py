@@ -22,18 +22,7 @@ SMALL_WORDS = {
     "a", "an", "as", "at", "be", "by", "do", "go", "if", "in", "is",
     "it", "me", "my", "no", "of", "on", "or", "so", "to", "up", "we",
 }
-BANNED_WORDS = {
-    "acc", "addr", "arg", "args", "attr", "attrs", "avg", "btn", "buf",
-    "calc", "cfg", "cls", "cmd", "cnt", "conf", "conn", "csv", "ctx",
-    "cur", "curr", "desc", "dest", "dict", "dir", "doc", "dst", "elem",
-    "env", "err", "evt", "exc", "exe", "expr", "fmt", "func", "gen",
-    "hdr", "html", "http", "https", "idx", "img", "impl", "init", "iter",
-    "json", "kwargs", "len", "lib", "lst", "mgr", "msg", "num", "obj",
-    "opt", "opts", "param", "params", "pkg", "pos", "prev", "proc",
-    "prop", "ptr", "pwd", "qty", "recv", "ref", "req", "res", "resp",
-    "ret", "seq", "sql", "src", "srv", "str", "tmp", "txt", "usr",
-    "util", "utils", "uuid", "val", "vals", "var", "vars", "xml",
-}
+BANNED_WORDS = frozenset(json.loads((Path(__file__).resolve().parent.parent / "banned-words.json").read_text(encoding="utf-8")))
 CORE_FOLDER_NAMES = {"core"}
 CORE_FORBIDDEN_IMPORTS = {
     "sqlite3", "requests", "httpx", "urllib", "socket", "subprocess",
@@ -156,7 +145,8 @@ def word_problem(word: str, word_count: int) -> str | None:
 
 def name_problem(name: str) -> str | None:
     """Explain why a name breaks the naming rule, or return None."""
-    if name in EXEMPT_NAMES or (name.startswith("__") and name.endswith("__")):
+    is_dunder = name.startswith("__") and name.endswith("__")
+    if name in EXEMPT_NAMES or is_dunder:
         return None
     words = [word.lower() for word in WORD_PATTERN.findall(name) if not word.isdigit()]
     for word in words:

@@ -45,7 +45,8 @@ def skip_string(source: str, position: int) -> int:
 def starts_line_comment(source: str, position: int) -> bool:
     """Return true for a line comment, but not a URL's double slash."""
     is_slashes = source.startswith("//", position)
-    return is_slashes and (position == 0 or source[position - 1] != ":")
+    follows_colon = position > 0 and source[position - 1] == ":"
+    return is_slashes and not follows_colon
 
 
 def find_comments(source: str) -> list[tuple[int, str]]:

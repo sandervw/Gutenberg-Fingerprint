@@ -1,6 +1,6 @@
 # Vision
 
-Gutenberg Fingerprint measures the style of every English science-fiction, fantasy, and horror book in Project Gutenberg and publishes the comparison at [gufime.com](https://gufime.com/). A reader browses which works and authors are most distinctive, and how the CEO's own fiction compares.
+Gutenberg Fingerprint measures the style of every English science-fiction, fantasy, and horror Work in Project Gutenberg and publishes the comparison at [gufime.com](https://gufime.com/). A reader browses which works and authors are most distinctive, and how the CEO's own fiction compares.
 
 **For:** readers and writers curious how genre prose differs.
 
