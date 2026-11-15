@@ -16,31 +16,29 @@ from pathlib import Path
 MAX_COMMENT_WORDS = 12
 MAX_CODE_LINES = 300
 MAX_MARKDOWN_WORDS = 700
-LIMITS = json.loads((Path(__file__).resolve().parent.parent / "checker-settings.json").read_text(encoding="utf-8"))
-ALLOWED_SHORT_NAMES = frozenset(LIMITS["allowedShortNames"])
-EXEMPT_NAMES = frozenset(LIMITS["exemptNames"])
+SKILL_FOLDER = Path(__file__).resolve().parent.parent
+SETTINGS = json.loads((SKILL_FOLDER / "checker-settings.json").read_text(encoding="utf-8"))
+ALLOWED_SHORT_NAMES = frozenset(SETTINGS["allowedShortNames"])
+EXEMPT_NAMES = frozenset(SETTINGS["exemptNames"])
 SMALL_WORDS = {
     "a", "an", "as", "at", "be", "by", "do", "go", "if", "in", "is",
     "it", "me", "my", "no", "of", "on", "or", "so", "to", "up", "we",
 }
-BANNED_WORDS = frozenset(json.loads((Path(__file__).resolve().parent.parent / "banned-words.json").read_text(encoding="utf-8")))
-CORE_FOLDER_NAMES = {"core"}
+BANNED_WORDS = frozenset(json.loads((SKILL_FOLDER / "banned-words.json").read_text(encoding="utf-8")))
+CORE_FOLDER_NAMES = {SETTINGS["coreFolder"]}
 CORE_FORBIDDEN_IMPORTS = {
     "sqlite3", "requests", "httpx", "urllib", "socket", "subprocess",
     "shutil", "pyodbc", "psycopg2", "sqlalchemy", "boto3", "random",
 }
 CORE_FORBIDDEN_CALLS = {"open", "print", "input"}
 CORE_FORBIDDEN_METHODS = {"now", "today", "utcnow"}
-SKIPPED_FOLDERS = {
-    ".git", ".venv", "venv", "node_modules", "__pycache__", "dist",
-    "build", "target", "coverage", "playwright-report", "test-results",
-    "vendor", "worktrees",
-}
+SKIPPED_FOLDERS = frozenset(SETTINGS["skippedFolders"])
+DECLARATION_SUFFIX = SETTINGS["declarationSuffix"]
 OTHER_CODE_SUFFIXES = {
     ".c", ".h", ".cc", ".cpp", ".hpp", ".rs", ".go", ".java", ".kt",
     ".cs", ".swift", ".rb", ".lua", ".sh", ".sql", ".zig", ".dart",
 }
-RUFF_CONFIG = Path(__file__).resolve().parent.parent / "ruff.toml"
+RUFF_CONFIG = SKILL_FOLDER / "ruff.toml"
 WORD_PATTERN = re.compile(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+|\d+")
 
 
@@ -67,6 +65,23 @@ class Finding:
         return f"{self.severity.value} {location} [{self.rule}] {self.message}"
 
 
+def comment_length_findings(path: str, line: int, word_count: int) -> list[Finding]:
+    """Fail a comment longer than the word limit."""
+    if word_count <= MAX_COMMENT_WORDS:
+        return []
+    message = f"comment has {word_count} words; limit is {MAX_COMMENT_WORDS}"
+    return [Finding(path, line, "comment-length", message, Severity.FAIL)]
+
+
+def file_length_findings(path: str, source: str) -> list[Finding]:
+    """Warn when a code file runs past the line limit."""
+    line_count = len(source.splitlines())
+    if line_count <= MAX_CODE_LINES:
+        return []
+    message = f"file has {line_count} lines; consider splitting past {MAX_CODE_LINES}"
+    return [Finding(path, 1, "file-length", message, Severity.WARN)]
+
+
 def check_comment_length(path: str, source: str) -> list[Finding]:
     """Fail any hash comment longer than the word limit."""
     findings = []
@@ -74,10 +89,7 @@ def check_comment_length(path: str, source: str) -> list[Finding]:
     for token in tokens:
         if token.type != tokenize.COMMENT:
             continue
-        word_count = len(token.string.lstrip("#").split())
-        if word_count > MAX_COMMENT_WORDS:
-            message = f"comment has {word_count} words; limit is {MAX_COMMENT_WORDS}"
-            findings.append(Finding(path, token.start[0], "comment-length", message, Severity.FAIL))
+        findings += comment_length_findings(path, token.start[0], len(token.string.lstrip("#").split()))
     return findings
 
 
@@ -139,7 +151,7 @@ def word_problem(word: str, word_count: int) -> str | None:
         return f"'{word}' is a short form; spell it out"
     if word in SMALL_WORDS and word_count > 1:
         return None
-    if len(word) < LIMITS["minNameLength"]:
+    if len(word) < SETTINGS["minNameLength"]:
         return f"'{word}' is too short to be descriptive"
     return None
 
@@ -215,10 +227,10 @@ def check_core_purity(path: str, tree: ast.Module) -> list[Finding]:
 def ruff_limit_options() -> list[str]:
     """Pass the shared limits to ruff as config overrides."""
     overrides = {
-        "lint.mccabe.max-complexity": LIMITS["maxComplexity"],
-        "lint.pylint.max-branches": LIMITS["maxComplexity"],
-        "lint.pylint.max-args": LIMITS["maxParameters"],
-        "lint.pylint.max-nested-blocks": LIMITS["maxNesting"],
+        "lint.mccabe.max-complexity": SETTINGS["maxComplexity"],
+        "lint.pylint.max-branches": SETTINGS["maxComplexity"],
+        "lint.pylint.max-args": SETTINGS["maxParameters"],
+        "lint.pylint.max-nested-blocks": SETTINGS["maxNesting"],
     }
     return [option for key, value in overrides.items() for option in ("--config", f"{key} = {value}")]
 

@@ -17,7 +17,19 @@ from hook_settings import project_section
 MERGE_COMMAND = re.compile(r"\bgh\b[^;&|\n]*?\bpr\s+merge\b(?P<rest>[^;&|\n]*)")
 METHOD_FLAGS = {"--merge", "--squash", "--rebase", "--delete-branch", "-m", "-s", "-r", "-d"}
 TRUSTED_AUTHOR = "OWNER"
+PIN_FLAG = "--match-head-commit"
+FULL_SHA = re.compile(r"[0-9a-f]{40}")
+MERGE_USAGE = f"`gh pr merge <number> --merge {PIN_FLAG} <full sha>`"
+FILES_QUERY = ".[] | .filename, (.previous_filename // empty)"
 CHAINING = re.compile(r"[;&|\n`]|\$\(")
+
+
+@dataclass(frozen=True)
+class MergeRequest:
+    """A plain merge of one PR, pinned to one head commit."""
+
+    number: str
+    head: str
 
 
 @dataclass(frozen=True)
@@ -54,12 +66,22 @@ def missing_reviews(required: list[str], comments: list[str], head: str) -> list
     return [review for review in required if not any(verdict(review, head) in comment for comment in comments)]
 
 
-def pull_request_in(rest: str) -> str | None:
-    """Return the one PR number when the arguments are plain, else None."""
+def parse_merge(rest: str) -> MergeRequest | None:
+    """Parse a plain, head-pinned merge, or return None."""
     words = shlex.split(rest)
-    numbers = [word for word in words if word.isdigit()]
-    others_are_methods = all(word in METHOD_FLAGS for word in words if not word.isdigit())
-    return numbers[0] if len(numbers) == 1 and others_are_methods else None
+    pin_at = words.index(PIN_FLAG) if PIN_FLAG in words else len(words)
+    pinned = words[pin_at + 1] if pin_at + 1 < len(words) else ""
+    others = words[:pin_at] + words[pin_at + 2:]
+    numbers = [word for word in others if word.isdigit()]
+    others_are_methods = all(word in METHOD_FLAGS for word in others if not word.isdigit())
+    is_plain = len(numbers) == 1 and others_are_methods and FULL_SHA.fullmatch(pinned) is not None
+    return MergeRequest(numbers[0], pinned) if is_plain else None
+
+
+def changed_paths(number: str) -> list[str]:
+    """List every path a PR touches, including rename sources."""
+    endpoint = f"repos/{{owner}}/{{repo}}/pulls/{number}/files"
+    return github(["gh", "api", endpoint, "--paginate", "--jq", FILES_QUERY]).splitlines()
 
 
 def github(command: list[str]) -> str:
@@ -71,20 +93,22 @@ def merge_problem(command: str) -> str | None:
     """Explain why any merge in this command may not run, or None."""
     matches = list(MERGE_COMMAND.finditer(command))
     if matches and CHAINING.search(command):
-        return "Merge blocked: run `gh pr merge <number> --merge` as its own command."
+        return f"Merge blocked: run {MERGE_USAGE} as its own command."
     problems = (pull_request_problem(match.group("rest")) for match in matches)
     return next((problem for problem in problems if problem), None)
 
 
 def pull_request_problem(rest: str) -> str | None:
     """Explain why one merge may not run, or None if it may."""
-    number = pull_request_in(rest)
-    if number is None:
-        return f"Merge blocked for {rest.strip()!r}: use `gh pr merge <number> --merge`, nothing else."
-    details = json.loads(github(["gh", "pr", "view", number, "--json", "number,headRefOid,comments"]))
-    number = details["number"]
+    request = parse_merge(rest)
+    if request is None:
+        return f"Merge blocked for {rest.strip()!r}: use {MERGE_USAGE}, nothing else."
+    number = request.number
+    details = json.loads(github(["gh", "pr", "view", number, "--json", "headRefOid,comments"]))
     head = details["headRefOid"]
-    paths = github(["gh", "pr", "diff", number, "--name-only"]).splitlines()
+    if request.head != head:
+        return f"Merge blocked: PR #{number} head is {head}, not {request.head}. Re-review it."
+    paths = changed_paths(number)
     owner_comments = [
         comment["body"] for comment in details["comments"] if comment["authorAssociation"] == TRUSTED_AUTHOR
     ]
@@ -94,7 +118,7 @@ def pull_request_problem(rest: str) -> str | None:
     names = " and ".join(f"{review.lower()}-reviewer" for review in missing)
     verdicts = ", ".join(f'"{verdict(review, head)}"' for review in missing)
     return (
-        f"Merge blocked: PR #{number} needs {names} on commit {head[:7]}. "
+        f"Merge blocked: PR #{number} needs {names} on commit {head}. "
         f"Run each, fix every FAIL, then post {verdicts} with gh pr comment {number}."
     )
 

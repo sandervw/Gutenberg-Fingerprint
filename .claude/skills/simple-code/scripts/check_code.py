@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 
 from rules import (
-    MAX_CODE_LINES,
     MAX_MARKDOWN_WORDS,
     OTHER_CODE_SUFFIXES,
     SKIPPED_FOLDERS,
@@ -19,6 +18,7 @@ from rules import (
     check_docstring_length,
     check_docstring_presence,
     check_names,
+    file_length_findings,
     run_ruff,
 )
 from typescript_rules import TYPESCRIPT_SUFFIXES, check_typescript, run_eslint
@@ -36,11 +36,7 @@ def check_python(path: str, source: str) -> list[Finding]:
     findings = check_comment_length(path, source)
     for check in (check_docstring_length, check_docstring_presence, check_names, check_core_purity):
         findings += check(path, tree)
-    line_count = len(source.splitlines())
-    if line_count > MAX_CODE_LINES:
-        message = f"file has {line_count} lines; consider splitting past {MAX_CODE_LINES}"
-        findings.append(Finding(path, 1, "file-length", message, Severity.WARN))
-    return findings + run_ruff(path)
+    return findings + file_length_findings(path, source) + run_ruff(path)
 
 
 def check_markdown(path: str, text: str) -> list[Finding]:
@@ -56,11 +52,7 @@ def check_markdown(path: str, text: str) -> list[Finding]:
 
 def check_other_code(path: str, text: str) -> list[Finding]:
     """Warn when a file in a language without a pack runs long."""
-    line_count = len(text.splitlines())
-    if line_count <= MAX_CODE_LINES:
-        return []
-    message = f"file has {line_count} lines; consider splitting past {MAX_CODE_LINES}"
-    return [Finding(path, 1, "file-length", message, Severity.WARN)]
+    return file_length_findings(path, text)
 
 
 def check_file(path: Path) -> list[Finding]:

@@ -4,9 +4,9 @@ import { defineConfig } from "eslint/config";
 import typescriptEslint from "typescript-eslint";
 
 const BANNED_WORDS = JSON.parse(readFileSync(new URL("./banned-words.json", import.meta.url), "utf8"));
-const LIMITS = JSON.parse(readFileSync(new URL("./checker-settings.json", import.meta.url), "utf8"));
+const SETTINGS = JSON.parse(readFileSync(new URL("./checker-settings.json", import.meta.url), "utf8"));
 
-const scriptGlob = `{${LIMITS.typescriptSuffixes.map((suffix) => suffix.slice(1)).join(",")}}`;
+const scriptGlob = `{${SETTINGS.typescriptSuffixes.map((suffix) => suffix.slice(1)).join(",")}}`;
 const lowerWords = BANNED_WORDS.join("|");
 const capitalWords = BANNED_WORDS.map((word) => word[0].toUpperCase() + word.slice(1)).join("|");
 const upperWords = BANNED_WORDS.map((word) => word.toUpperCase()).join("|");
@@ -17,26 +17,29 @@ const bannedNamePattern = [
   `(^|_)(${upperWords})($|_)`,
 ].join("|");
 
+const BOOLEAN_FLAG_MESSAGE = "Boolean flag parameter (2, 5); split the function or use an enum.";
+const CLOCK_MESSAGE = "Core code reads the clock (1); pass the time in.";
+
 const MODULE_STATE = {
   selector: "Program > VariableDeclaration[kind=/^(let|var)$/]",
   message: "Module-level mutable state (4); pass state in instead.",
 };
 const BOOLEAN_FLAG = {
   selector: ":matches(FunctionDeclaration, MethodDefinition > FunctionExpression) > Identifier[typeAnnotation.typeAnnotation.type='TSBooleanKeyword']",
-  message: "Boolean flag parameter (2, 5); split the function or use an enum.",
+  message: BOOLEAN_FLAG_MESSAGE,
 };
 const BOOLEAN_DEFAULT = {
   selector: ":matches(FunctionDeclaration, MethodDefinition > FunctionExpression) > AssignmentPattern[right.raw=/^(true|false)$/]",
-  message: "Boolean flag parameter (2, 5); split the function or use an enum.",
+  message: BOOLEAN_FLAG_MESSAGE,
 };
 const CLOCK_READ = {
   selector: "NewExpression[callee.name='Date'][arguments.length=0]",
-  message: "Core code reads the clock (1); pass the time in.",
+  message: CLOCK_MESSAGE,
 };
 
 /** The simple-code ESLint rules for TypeScript and JavaScript. */
 export default defineConfig(
-  { ignores: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/*.d.ts"] },
+  { ignores: [...SETTINGS.skippedFolders.map((folder) => `**/${folder}/**`), `**/*${SETTINGS.declarationSuffix}`] },
   {
     files: [`**/*.${scriptGlob}`],
     languageOptions: {
@@ -45,12 +48,12 @@ export default defineConfig(
     },
     plugins: { "@typescript-eslint": typescriptEslint.plugin },
     rules: {
-      complexity: ["error", LIMITS.maxComplexity],
-      "max-depth": ["error", LIMITS.maxNesting],
-      "max-params": ["error", LIMITS.maxParameters],
+      complexity: ["error", SETTINGS.maxComplexity],
+      "max-depth": ["error", SETTINGS.maxNesting],
+      "max-params": ["error", SETTINGS.maxParameters],
       "no-else-return": ["error", { allowElseIf: false }],
       "no-empty": ["error", { allowEmptyCatch: false }],
-      "id-length": ["error", { min: LIMITS.minNameLength, exceptions: [...LIMITS.allowedShortNames, ...LIMITS.exemptNames], properties: "never" }],
+      "id-length": ["error", { min: SETTINGS.minNameLength, exceptions: [...SETTINGS.allowedShortNames, ...SETTINGS.exemptNames], properties: "never" }],
       "@typescript-eslint/naming-convention": [
         "error",
         {
@@ -63,7 +66,7 @@ export default defineConfig(
     },
   },
   {
-    files: [`**/core/**/*.${scriptGlob}`],
+    files: [`**/${SETTINGS.coreFolder}/**/*.${scriptGlob}`],
     rules: {
       "no-restricted-globals": [
         "error",
@@ -74,7 +77,7 @@ export default defineConfig(
       ],
       "no-restricted-properties": [
         "error",
-        { object: "Date", property: "now", message: "Core code reads the clock (1); pass the time in." },
+        { object: "Date", property: "now", message: CLOCK_MESSAGE },
         { object: "Math", property: "random", message: "Core code uses randomness (1); pass a seed in." },
       ],
       "no-restricted-imports": [

@@ -80,7 +80,7 @@ def url_violation(url: object, settings: BlackboxSettings) -> str | None:
     is_suffix_host = any(hostname.endswith(suffix) for suffix in settings.allowed_host_suffixes)
     if is_web and (is_exact_host or is_suffix_host):
         return None
-    return f"Navigation to '{url}' is blocked. Allowed hosts are listed in .claude/project.json."
+    return f"Navigation to '{url}' is blocked. Allowed hosts are in the project config."
 
 
 def argument_violation(argument: str, root: str, settings: BlackboxSettings) -> str | None:

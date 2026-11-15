@@ -31,10 +31,10 @@ Current state and next work. Rewrite when stale; never log history.
 
 ## Gotchas
 
-- `gh pr merge` is blocked by `.claude/hooks/require_reviews.py` until the review PASS comments name the head commit. Re-review after every push. The gate also matches that phrase quoted inside a command; pass PR bodies with `--body-file`.
+- `gh pr merge` is blocked by `.claude/hooks/require_reviews.py` until the review PASS comments name the head commit. Re-review after every push. Pass PR bodies with `--body-file`.
 - A PR body's `Fixes #a, #b` closes only the first; write `Fixes` before each number.
 - `.claude/hooks/guard_push.py` allows only `git push -u origin claude/<branch>`, one branch, no other options.
-- Auto-merge is off: `gh pr checks N --watch`, then `gh pr merge N --merge`.
+- Auto-merge is off: `gh pr checks N --watch`, then `gh pr merge N --merge --match-head-commit <full sha>` as a standalone command.
 - Every merge to `main` restarts Dagster on the box. Never merge while a run is in progress; check the Dagster UI first.
 - Inspect production data over `ssh gufime`; Postgres is `psql gufime` with peer auth.
 - `dbt/profiles.yml` holds the laptop's absolute path for the DuckDB target. `dbt parse` ignores it; `dbt build --target duckdb` elsewhere needs it changed.

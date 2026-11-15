@@ -8,10 +8,18 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from rules import LIMITS, MAX_CODE_LINES, MAX_COMMENT_WORDS, Finding, Severity
+from rules import (
+    DECLARATION_SUFFIX,
+    SETTINGS,
+    SKILL_FOLDER,
+    Finding,
+    Severity,
+    comment_length_findings,
+    file_length_findings,
+)
 
-TYPESCRIPT_SUFFIXES = frozenset(LIMITS["typescriptSuffixes"])
-ESLINT_CONFIG = Path(__file__).resolve().parent.parent / "eslint.config.mjs"
+TYPESCRIPT_SUFFIXES = frozenset(SETTINGS["typescriptSuffixes"])
+ESLINT_CONFIG = SKILL_FOLDER / "eslint.config.mjs"
 QUOTES = {"'", '"', "`"}
 EXPORT_PATTERN = re.compile(
     r"export\s+(default\s+)?(declare\s+)?(async\s+)?(abstract\s+)?(function|class)\b"
@@ -75,10 +83,7 @@ def check_comment_length(path: str, source: str) -> list[Finding]:
     """Fail any comment or JSDoc block longer than the word limit."""
     findings = []
     for line, text in find_comments(source):
-        word_count = len(text.replace("*", " ").split())
-        if word_count > MAX_COMMENT_WORDS:
-            message = f"comment has {word_count} words; limit is {MAX_COMMENT_WORDS}"
-            findings.append(Finding(path, line, "comment-length", message, Severity.FAIL))
+        findings += comment_length_findings(path, line, len(text.replace("*", " ").split()))
     return findings
 
 
@@ -134,7 +139,7 @@ def run_eslint(paths: list[str]) -> list[Finding]:
     """Run ESLint once per project folder and convert its findings."""
     projects: dict[tuple[str, Path], list[str]] = {}
     findings = []
-    for path in (path for path in paths if not path.endswith(".d.ts")):
+    for path in (path for path in paths if not path.endswith(DECLARATION_SUFFIX)):
         located = find_eslint(path)
         if located is None:
             findings.append(Finding(path, 1, "eslint", "eslint is not installed; lint checks skipped", Severity.WARN))
@@ -164,11 +169,6 @@ def lint_project(executable: str, project_folder: Path, paths: list[str]) -> lis
 
 def check_typescript(path: str, source: str) -> list[Finding]:
     """Run every TypeScript check except ESLint on one file's source."""
-    if path.endswith(".d.ts"):
+    if path.endswith(DECLARATION_SUFFIX):
         return []
-    findings = check_comment_length(path, source) + check_jsdoc_presence(path, source)
-    line_count = len(source.splitlines())
-    if line_count > MAX_CODE_LINES:
-        message = f"file has {line_count} lines; consider splitting past {MAX_CODE_LINES}"
-        findings.append(Finding(path, 1, "file-length", message, Severity.WARN))
-    return findings
+    return check_comment_length(path, source) + check_jsdoc_presence(path, source) + file_length_findings(path, source)

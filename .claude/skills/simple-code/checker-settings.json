@@ -21,5 +21,22 @@
     ".jsx",
     ".mjs",
     ".cjs"
+  ],
+  "coreFolder": "core",
+  "declarationSuffix": ".d.ts",
+  "skippedFolders": [
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    "__pycache__",
+    "dist",
+    "build",
+    "target",
+    "coverage",
+    "playwright-report",
+    "test-results",
+    "vendor",
+    "worktrees"
   ]
 }

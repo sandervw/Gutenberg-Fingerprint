@@ -5,14 +5,13 @@
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
 
+from guard_push import PUSH_COMMAND
 from hook_settings import MAIN_BRANCH, MAIN_REFERENCE, REMOTE
 
-PUSH_COMMAND = re.compile(r"\bgit\s+push\b")
 WORKTREE_FOLDER = "/.claude/worktrees/"
 
 
