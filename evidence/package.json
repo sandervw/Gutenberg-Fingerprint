@@ -29,6 +29,6 @@
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.10",
-    "cross-env": "^7.0.3"
+    "cross-env": "^10.1.0"
   }
 }
