@@ -49,7 +49,7 @@ def review_settings() -> ReviewSettings:
     """Parse the reviews block of the project config."""
     config = project_section("reviews")
     security_paths = tuple(path.lower() for path in config["securityPaths"])
-    instruction_files = frozenset(config["instructionFiles"])
+    instruction_files = frozenset(name.lower() for name in config["instructionFiles"])
     return ReviewSettings(tuple(config["codeSuffixes"]), security_paths, instruction_files)
 
 

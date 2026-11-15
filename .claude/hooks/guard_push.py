@@ -16,7 +16,8 @@ except (ImportError, SyntaxError) as error:
     sys.exit(2)
 
 PUSH_COMMAND = re.compile(rf"\bgit\b{COMMAND_TEXT}*?\bpush\b(?P<rest>{COMMAND_TEXT}*)")
-BRANCH = re.compile(r"claude/[A-Za-z0-9._/-]+")
+BRANCH_PREFIX = "claude/"
+BRANCH = re.compile(re.escape(BRANCH_PREFIX) + r"[A-Za-z0-9._/-]+")
 UPSTREAM_FLAGS = {"-u", "--set-upstream"}
 
 
@@ -26,7 +27,7 @@ def push_problem(rest: str) -> str | None:
     is_one_claude_branch = len(words) == 2 and words[0] == REMOTE and BRANCH.fullmatch(words[1]) is not None
     if is_one_claude_branch and ".." not in words[1]:
         return None
-    return f"Push blocked for {rest.strip()!r}: use `git push -u {REMOTE} claude/<branch>`, nothing else."
+    return f"Push blocked for {rest.strip()!r}: use `git push -u {REMOTE} {BRANCH_PREFIX}<branch>`, nothing else."
 
 
 def command_problem(command: str) -> str | None:
