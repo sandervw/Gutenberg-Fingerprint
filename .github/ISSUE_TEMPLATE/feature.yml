@@ -1,0 +1,17 @@
+name: Feature request
+description: A metric, chart, or page you would like to see.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: What do you want to find out?
+      description: The question about style or genre you are trying to answer.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+    validations:
+      required: true

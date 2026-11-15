@@ -23,19 +23,19 @@ Dagster on the box — nightly schedule 08:00 UTC
         site           → npm build + wrangler pages deploy → gufime.com
 ```
 
-Dagster OSS on the box holds the schedule, the CDC gate, and the run logs (Postgres `dagster` schema). The `nightly` schedule materializes `catalog`; a `gate` asset sensor reads its `new_count` and launches the downstream chain only when new works exist. On a quiet night nothing past `catalog` runs. Push to `main` triggers a GitHub Actions deploy hook (`deploy.yml`) that syncs the box's checkout and restarts Dagster. The Dagster UI is served at [dagster.gufime.com](https://dagster.gufime.com) behind a Cloudflare Tunnel + Access. Files live under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`) over the unix socket with peer auth.
+Dagster OSS on the box holds the schedule, the CDC gate, and the run logs (Postgres `dagster` schema). The `nightly` schedule materializes `catalog`; a `gate` asset sensor reads its `new_count` and launches the downstream chain only when new works exist. Push to `main` triggers a GitHub Actions deploy hook (`deploy.yml`) that syncs the box's checkout and restarts Dagster. The Dagster UI is served at [dagster.gufime.com](https://dagster.gufime.com) behind a Cloudflare Tunnel + Access. Files live under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`) over the unix socket with peer auth.
 
-**Change detection.** A `bronze.watermark` table keyed on `gutenberg_id` marks a book new when its ID is absent, changed when its catalog row hash differs, and retried when it last failed. `text_ingest` sniffs each fetched text for PG's copyrighted-donation header and stamps those with a terminal `copyrighted` status that is never retried. The diff runs against the **in-scope subset only**; the ~78,000 out-of-scope books never enter the watermark.
+**Change detection.** A `bronze.watermark` table keyed on `gutenberg_id` marks a book new when its ID is absent, changed when its catalog row hash differs, and retried when it last failed. `text_ingest` sniffs each fetched text for PG's copyrighted-donation header and stamps those with a terminal `copyrighted` status that is never retried. The diff runs against the **in-scope subset only**.
 
 ## Measurement
 
 Cleaning and measurement are plain Python modules in `python/workflow/`, with tunables in `python/helpers/`.
 
 - `strip.py` cuts the PG boilerplate.
-- `measure.py` parses with spaCy, chunking text to stay under spaCy's max length. Only new/changed works re-parse.
+- `measure.py` parses with spaCy in chunks under its max length. Only new/changed works re-parse.
 - `lexicons.py`, `vocab.py`, and `stylometrics.py` hold the tunable parts, one function per metric returning a dict of series.
 
-**15 metric concepts → 63 measured series.** Three concepts fan out, function-word frequency alone tracking 40 words individually.
+**15 metric concepts → 63 measured series.** Three concepts fan out; function-word frequency tracks 40 words.
 
 | Category    | Metrics                                                                               |
 | ----------- | ------------------------------------------------------------------------------------- |
@@ -55,7 +55,7 @@ sources (raw)  →  stg_*  →  int_*  →  dim_*/fact_*  →  mart_*
 A fact constellation: `fact_style_measurement` at work × series grain, `fact_vocab_overlap` at author-pair grain, sharing conformed `dim_work`, `dim_author`, `dim_metric`, and `dim_date` (a calendar dimension for load-date FKs). The marts on top are split by the grain the charts read at: `mart_style_long` (work × series), `mart_work` (work-grain listings, the outlier ranking), `mart_author` (author-grain rollups). Every Evidence query selects from the table already at its own grain.
 
 - **Portability.** Every model compiles against both DuckDB (local dev) and Postgres (prod) from one codebase.
-- **Derived stamps.** `dim_work.ingested_at` is `min(loaded_at)` over the work's measurement rows. The dimension inner-joins measurements, keeping unmeasured catalog rows out.
+- **Derived stamps.** `dim_work.ingested_at` is `min(loaded_at)` over the work's measurement rows. The dimension inner-joins measurements.
 - **Source freshness.** `raw_works` is the heartbeat at `error_after: 24 hours`; measurement tables are exempt.
 - **Snapshots.** SCD2 on `dim_work`.
 - **Audit hook.** `on-run-end` writes one row per node into `gold.dbt_run_log`.
@@ -84,7 +84,8 @@ python/      pipeline: workflow steps + helpers, storage seam (storage.py)
 dbt/         dbt Core project (models, macros, snapshots, tests)
 evidence/    Evidence.dev site + build scripts
 infra/tofu/  OpenTofu: OVH VPS + Cloudflare, provision.sh + Dagster/tunnel services
-docs/        project outline, analysis write-ups, reference notes
+docs/        vision, architecture, deploys, glossary, use cases, reference notes
+.claude/     agents, hooks, and skills for the agent workflow
 ```
 
 ## Running it locally
@@ -105,3 +106,7 @@ npm run dev               # serves the extraction cached in evidence/data/
 ```
 
 Pipeline steps also run locally against DuckDB: `uv run python -m python.workflow.<step>`, files under `data/files/`. `GUFIME_TARGET=postgres` switches a step to the box's stack. `npm run sources` needs the box's Postgres socket; fresh extractions run there.
+
+## How it's built
+
+Agent-built through pull requests. A CTO agent (Claude Code) plans, builds, reviews, and merges; `CLAUDE.md` is its manual and the `handoff` skill its running notes. Every code PR passes simplicity and architecture reviewers, plus a security reviewer for sensitive paths, and a hook blocks merging until they pass on the latest commit. CI runs the simple-code checks, `dbt parse` on both targets, and a Dagster definitions check.

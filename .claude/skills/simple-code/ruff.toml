@@ -1,0 +1,30 @@
+# Ruff rules backing the simple-code practices. Numbers refer to SKILL.md.
+
+[lint]
+preview = true
+select = [
+  "C901",                               # 6: cyclomatic complexity
+  "PLR0912",                            # 6: too many branches
+  "PLR1702",                            # 6: nesting too deep
+  "RET505", "RET506", "RET507", "RET508", # 6: else after return or raise
+  "PLR0913",                            # 2: too many parameters
+  "FBT001", "FBT002",                   # 2, 5: boolean flag parameters
+  "PLW0602", "PLW0603",                 # 4: global state
+  "E722", "BLE001", "S110", "S112",     # 7: bare or swallowed exceptions
+  "I001", "I002",                       # Python rules: import order, future annotations
+  "ANN001", "ANN201", "ANN202",         # Python rules: annotated parameters and returns
+  "B006", "F403",                       # Python rules: mutable defaults, wildcard imports
+  "UP031", "UP032",                     # Python rules: f-strings only
+  "SIM115",                             # Python rules: open files with `with`
+]
+
+[lint.mccabe]
+max-complexity = 8
+
+[lint.pylint]
+max-args = 4
+max-branches = 8
+max-nested-blocks = 3
+
+[lint.isort]
+required-imports = ["from __future__ import annotations"]

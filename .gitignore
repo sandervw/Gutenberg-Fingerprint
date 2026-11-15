@@ -26,6 +26,7 @@ evidence/static/data/
 
 # --- Secrets (service principal creds, Cloudflare deploy hook URL) ---
 .env
+.env.*
 
 # --- Local data cache (PG texts live in the Lakehouse, not the repo) ---
 data/
@@ -38,8 +39,15 @@ extract/
 Thumbs.db
 desktop.ini
 
-# --- Hook state (runtime counters, not source) ---
-.claude/hooks/.state/
+# --- Local agent state ---
+.claude/settings.local.json
+.claude/agent-memory-local/
+.claude/worktrees/
+.playwright-mcp/
+
+# --- Playwright output ---
+playwright-report/
+test-results/
 
 # --- Personal learning notes (local only) ---
 docs/Personal-Notes.md

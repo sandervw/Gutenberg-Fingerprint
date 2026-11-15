@@ -1,0 +1,53 @@
+# Checks every PR and every merge to main.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install tools and dependencies
+        run: |
+          python -m pip install ruff uv
+          uv sync --frozen
+
+      # Changed files only, until python/ meets simple-code.
+      - name: Simple-code checks
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ -n "$BASE_REF" ]; then base="origin/$BASE_REF"; else base="$BEFORE"; fi
+          mapfile -t changed < <(git diff --name-only --diff-filter=d "$base"...HEAD -- '*.py' '*.md' '*.js' '*.mjs' '*.cjs' '*.ts')
+          if [ ${#changed[@]} -eq 0 ]; then echo "No checkable files changed."; exit 0; fi
+          python .claude/skills/simple-code/scripts/check_code.py "${changed[@]}"
+
+      - name: dbt parses on both targets
+        working-directory: dbt
+        run: |
+          uv run --frozen dbt deps
+          uv run --frozen dbt parse --target duckdb
+          uv run --frozen dbt parse --target postgres
+
+      - name: Dagster definitions load
+        run: uv run --frozen dagster definitions validate -m python.dagster.definitions
