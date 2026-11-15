@@ -50,11 +50,6 @@ def check_markdown(path: str, text: str) -> list[Finding]:
     return [Finding(path, 1, "document-length", message, Severity.WARN)]
 
 
-def check_other_code(path: str, text: str) -> list[Finding]:
-    """Warn when a file in a language without a pack runs long."""
-    return file_length_findings(path, text)
-
-
 def check_file(path: Path) -> list[Finding]:
     """Dispatch one file to the checks for its type."""
     text = path.read_text(encoding="utf-8")
@@ -64,7 +59,7 @@ def check_file(path: Path) -> list[Finding]:
         return check_markdown(str(path), text)
     if path.suffix in TYPESCRIPT_SUFFIXES:
         return check_typescript(str(path), text)
-    return check_other_code(str(path), text)
+    return file_length_findings(str(path), text)
 
 
 def collect_files(targets: list[str]) -> list[Path]:

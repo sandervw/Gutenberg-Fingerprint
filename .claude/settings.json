@@ -52,7 +52,9 @@
       "Bash(git push * HEAD*)",
       "Bash(git push *--all*)",
       "Bash(git push *--mirror*)",
-      "Bash(git push * @*)"
+      "Bash(git push * @*)",
+      "Bash(git diff *--output*)",
+      "Bash(git log *--output*)"
     ],
     "ask": [
       "Bash(tofu apply*)",

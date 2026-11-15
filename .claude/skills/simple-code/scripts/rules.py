@@ -34,6 +34,10 @@ CORE_FORBIDDEN_CALLS = {"open", "print", "input"}
 CORE_FORBIDDEN_METHODS = {"now", "today", "utcnow"}
 SKIPPED_FOLDERS = frozenset(SETTINGS["skippedFolders"])
 DECLARATION_SUFFIX = SETTINGS["declarationSuffix"]
+MIN_NAME_LENGTH = int(SETTINGS["minNameLength"])
+MAX_COMPLEXITY = int(SETTINGS["maxComplexity"])
+MAX_PARAMETERS = int(SETTINGS["maxParameters"])
+MAX_NESTING = int(SETTINGS["maxNesting"])
 OTHER_CODE_SUFFIXES = {
     ".c", ".h", ".cc", ".cpp", ".hpp", ".rs", ".go", ".java", ".kt",
     ".cs", ".swift", ".rb", ".lua", ".sh", ".sql", ".zig", ".dart",
@@ -151,7 +155,7 @@ def word_problem(word: str, word_count: int) -> str | None:
         return f"'{word}' is a short form; spell it out"
     if word in SMALL_WORDS and word_count > 1:
         return None
-    if len(word) < SETTINGS["minNameLength"]:
+    if len(word) < MIN_NAME_LENGTH:
         return f"'{word}' is too short to be descriptive"
     return None
 
@@ -227,10 +231,10 @@ def check_core_purity(path: str, tree: ast.Module) -> list[Finding]:
 def ruff_limit_options() -> list[str]:
     """Pass the shared limits to ruff as config overrides."""
     overrides = {
-        "lint.mccabe.max-complexity": SETTINGS["maxComplexity"],
-        "lint.pylint.max-branches": SETTINGS["maxComplexity"],
-        "lint.pylint.max-args": SETTINGS["maxParameters"],
-        "lint.pylint.max-nested-blocks": SETTINGS["maxNesting"],
+        "lint.mccabe.max-complexity": MAX_COMPLEXITY,
+        "lint.pylint.max-branches": MAX_COMPLEXITY,
+        "lint.pylint.max-args": MAX_PARAMETERS,
+        "lint.pylint.max-nested-blocks": MAX_NESTING,
     }
     return [option for key, value in overrides.items() for option in ("--config", f"{key} = {value}")]
 

@@ -12,9 +12,9 @@ import subprocess
 import sys
 from dataclasses import dataclass
 
-from hook_settings import project_section
+from hook_settings import COMMAND_TEXT, project_section
 
-MERGE_COMMAND = re.compile(r"\bgh\b[^;&|\n]*?\bpr\s+merge\b(?P<rest>[^;&|\n]*)")
+MERGE_COMMAND = re.compile(rf"\bgh\b{COMMAND_TEXT}*?\bpr\s+merge\b(?P<rest>{COMMAND_TEXT}*)")
 METHOD_FLAGS = {"--merge", "--squash", "--rebase", "--delete-branch", "-m", "-s", "-r", "-d"}
 TRUSTED_AUTHOR = "OWNER"
 PIN_FLAG = "--match-head-commit"
@@ -43,7 +43,8 @@ class ReviewSettings:
 def review_settings() -> ReviewSettings:
     """Parse the reviews block of the project config."""
     config = project_section("reviews")
-    return ReviewSettings(tuple(config["codeSuffixes"]), tuple(config["securityPaths"]))
+    security_paths = tuple(path.lower() for path in config["securityPaths"])
+    return ReviewSettings(tuple(config["codeSuffixes"]), security_paths)
 
 
 def verdict(review: str, head: str) -> str:
@@ -56,7 +57,7 @@ def required_reviews(paths: list[str], settings: ReviewSettings) -> list[str]:
     reviews = []
     if any(path.endswith(settings.code_suffixes) for path in paths):
         reviews.extend(["Simplicity", "Architecture"])
-    if any(path.startswith(settings.security_paths) for path in paths):
+    if any(path.lower().startswith(settings.security_paths) for path in paths):
         reviews.append("Security")
     return reviews
 

@@ -1,6 +1,15 @@
 {
   "reviews": {
-    "codeSuffixes": [".py", ".sql", ".js", ".mjs", ".cjs", ".svelte", ".tf", ".sh"],
+    "codeSuffixes": [
+      ".py",
+      ".sql",
+      ".js",
+      ".mjs",
+      ".cjs",
+      ".svelte",
+      ".tf",
+      ".sh"
+    ],
     "securityPaths": [
       ".github/",
       ".claude/hooks/",
@@ -12,15 +21,37 @@
       "evidence/functions/",
       "evidence/sources/warehouse/connection.yaml",
       "python/dagster/alert.py",
-      "python/workflow/backup.py"
+      "python/workflow/backup.py",
+      ".claude/agents/",
+      ".claude/skills/",
+      "CLAUDE.md"
     ]
   },
   "blackbox": {
-    "readablePaths": ["docs/use-cases", "tests/e2e"],
+    "readablePaths": [
+      "docs/use-cases",
+      "tests/e2e"
+    ],
     "specFolder": "tests/e2e",
-    "testCommands": [["npx", "playwright", "test"], ["npm", "run", "test:e2e"]],
+    "testCommands": [
+      [
+        "npx",
+        "playwright",
+        "test"
+      ],
+      [
+        "npm",
+        "run",
+        "test:e2e"
+      ]
+    ],
     "startCommands": [],
-    "safeFlags": ["--project=[\\w.-]+", "--grep=.+", "--headed", "--reporter=[A-Za-z-]+"],
+    "safeFlags": [
+      "--project=[\\w.-]+",
+      "--grep=.+",
+      "--headed",
+      "--reporter=[A-Za-z-]+"
+    ],
     "allowedTools": [
       "mcp__playwright__browser_navigate_back",
       "mcp__playwright__browser_snapshot",
@@ -42,8 +73,14 @@
       "mcp__playwright__browser_resize",
       "mcp__playwright__browser_close"
     ],
-    "navigateTools": ["mcp__playwright__browser_navigate"],
-    "allowedHosts": ["localhost", "127.0.0.1", "gufime.com"],
+    "navigateTools": [
+      "mcp__playwright__browser_navigate"
+    ],
+    "allowedHosts": [
+      "localhost",
+      "127.0.0.1",
+      "gufime.com"
+    ],
     "allowedHostSuffixes": []
   }
 }

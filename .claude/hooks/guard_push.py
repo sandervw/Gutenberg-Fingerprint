@@ -9,9 +9,9 @@ import re
 import shlex
 import sys
 
-from hook_settings import REMOTE
+from hook_settings import COMMAND_TEXT, REMOTE
 
-PUSH_COMMAND = re.compile(r"\bgit\b[^;&|\n]*?\bpush\b(?P<rest>[^;&|\n]*)")
+PUSH_COMMAND = re.compile(rf"\bgit\b{COMMAND_TEXT}*?\bpush\b(?P<rest>{COMMAND_TEXT}*)")
 BRANCH = re.compile(r"claude/[A-Za-z0-9._/-]+")
 UPSTREAM_FLAGS = {"-u", "--set-upstream"}
 
