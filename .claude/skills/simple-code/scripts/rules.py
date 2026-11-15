@@ -16,8 +16,9 @@ from pathlib import Path
 MAX_COMMENT_WORDS = 12
 MAX_CODE_LINES = 300
 MAX_MARKDOWN_WORDS = 700
-ALLOWED_SHORT_NAMES = {"id", "url", "api"}
-EXEMPT_NAMES = {"self", "_"}
+LIMITS = json.loads((Path(__file__).resolve().parent.parent / "limits.json").read_text(encoding="utf-8"))
+ALLOWED_SHORT_NAMES = frozenset(LIMITS["allowedShortNames"])
+EXEMPT_NAMES = frozenset(LIMITS["exemptNames"])
 SMALL_WORDS = {
     "a", "an", "as", "at", "be", "by", "do", "go", "if", "in", "is",
     "it", "me", "my", "no", "of", "on", "or", "so", "to", "up", "we",
@@ -211,12 +212,23 @@ def check_core_purity(path: str, tree: ast.Module) -> list[Finding]:
     return findings
 
 
+def ruff_limit_options() -> list[str]:
+    """Pass the shared limits to ruff as config overrides."""
+    overrides = {
+        "lint.mccabe.max-complexity": LIMITS["maxComplexity"],
+        "lint.pylint.max-branches": LIMITS["maxComplexity"],
+        "lint.pylint.max-args": LIMITS["maxParameters"],
+        "lint.pylint.max-nested-blocks": LIMITS["maxNesting"],
+    }
+    return [option for key, value in overrides.items() for option in ("--config", f"{key} = {value}")]
+
+
 def run_ruff(path: str) -> list[Finding]:
     """Run ruff with the kit configuration and convert its findings."""
     ruff_executable = shutil.which("ruff")
     if ruff_executable is None:
         return [Finding(path, 1, "ruff", "ruff is not installed; ruff checks skipped", Severity.WARN)]
-    command = [ruff_executable, "check", "--config", str(RUFF_CONFIG), "--no-cache"]
+    command = [ruff_executable, "check", "--config", str(RUFF_CONFIG), "--no-cache", *ruff_limit_options()]
     command += ["--output-format", "json", "--exit-zero", path]
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     if result.returncode != 0:

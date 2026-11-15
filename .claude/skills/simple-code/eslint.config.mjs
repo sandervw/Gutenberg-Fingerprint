@@ -4,6 +4,7 @@ import { defineConfig } from "eslint/config";
 import typescriptEslint from "typescript-eslint";
 
 const BANNED_WORDS = JSON.parse(readFileSync(new URL("./banned-words.json", import.meta.url), "utf8"));
+const LIMITS = JSON.parse(readFileSync(new URL("./limits.json", import.meta.url), "utf8"));
 
 const lowerWords = BANNED_WORDS.join("|");
 const capitalWords = BANNED_WORDS.map((word) => word[0].toUpperCase() + word.slice(1)).join("|");
@@ -43,12 +44,12 @@ export default defineConfig(
     },
     plugins: { "@typescript-eslint": typescriptEslint.plugin },
     rules: {
-      complexity: ["error", 8],
-      "max-depth": ["error", 3],
-      "max-params": ["error", 4],
+      complexity: ["error", LIMITS.maxComplexity],
+      "max-depth": ["error", LIMITS.maxNesting],
+      "max-params": ["error", LIMITS.maxParameters],
       "no-else-return": ["error", { allowElseIf: false }],
       "no-empty": ["error", { allowEmptyCatch: false }],
-      "id-length": ["error", { min: 3, exceptions: ["id", "_"], properties: "never" }],
+      "id-length": ["error", { min: 3, exceptions: [...LIMITS.allowedShortNames, ...LIMITS.exemptNames], properties: "never" }],
       "@typescript-eslint/naming-convention": [
         "error",
         {

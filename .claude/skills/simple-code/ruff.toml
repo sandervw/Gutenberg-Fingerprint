@@ -18,13 +18,5 @@ select = [
   "SIM115",                             # Python rules: open files with `with`
 ]
 
-[lint.mccabe]
-max-complexity = 8
-
-[lint.pylint]
-max-args = 4
-max-branches = 8
-max-nested-blocks = 3
-
 [lint.isort]
 required-imports = ["from __future__ import annotations"]

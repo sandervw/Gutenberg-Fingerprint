@@ -52,11 +52,11 @@ sources (raw)  →  stg_*  →  int_*  →  dim_*/fact_*  →  mart_*
                   views     views     tables           tables
 ```
 
-A fact constellation: `fact_style_measurement` at work × series grain, `fact_vocab_overlap` at author-pair grain, sharing conformed `dim_work`, `dim_author`, `dim_metric`, and `dim_date` (a calendar dimension for load-date FKs). The marts on top are split by the grain the charts read at: `mart_style_long` (work × series), `mart_work` (work-grain listings, the outlier ranking), `mart_author` (author-grain rollups). Every Evidence query selects from the table already at its own grain.
+A fact constellation: `fact_style_measurement` at work × series grain, `fact_vocab_overlap` at author-pair grain, sharing conformed `dim_work`, `dim_author`, `dim_metric`, and `dim_date` (a calendar dimension for load-date FKs). The marts split by chart grain: `mart_style_long` (work × series), `mart_work` (work-grain listings, the Excess ranking), `mart_author` (author-grain rollups). Each Evidence query selects from the mart at its grain.
 
 - **Portability.** Every model compiles against both DuckDB (local dev) and Postgres (prod) from one codebase.
 - **Derived stamps.** `dim_work.ingested_at` is `min(loaded_at)` over the work's measurement rows. The dimension inner-joins measurements.
-- **Source freshness.** `raw_works` is the heartbeat at `error_after: 24 hours`; measurement tables are exempt.
+- **Source freshness.** `raw_works` uses `error_after: 24 hours`; measurement tables are exempt.
 - **Snapshots.** SCD2 on `dim_work`.
 - **Audit hook.** `on-run-end` writes one row per node into `gold.dbt_run_log`.
 - **Tests.** Keys, relationships, and accepted values, plus asserting every work carries 14 metric concepts.
