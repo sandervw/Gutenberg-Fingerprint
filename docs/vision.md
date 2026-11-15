@@ -4,7 +4,7 @@ Gutenberg Fingerprint measures the style of every English science-fiction, fanta
 
 **For:** readers and writers curious how genre prose differs.
 
-**Success:** a nightly pipeline that picks up every new or corrected in-scope book without a human, and a site that is never more than a day stale.
+**Success:** a nightly pipeline that picks up every New or Changed in-scope Work without a human, and a site that is never more than a day stale.
 
 **Principles:**
 

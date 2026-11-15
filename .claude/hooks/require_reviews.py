@@ -1,7 +1,6 @@
 """Block `gh pr merge` until review verdicts cover the PR's head commit."""
 
-# Verdicts are PR comments the CTO posts after a reviewer passes.
-# Paths and suffixes come from the reviews block of .claude/project.json.
+# Verdicts are owner PR comments posted after a reviewer passes.
 # Fails closed: any error blocks the call with exit code 2.
 
 from __future__ import annotations
@@ -11,38 +10,46 @@ import os
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
-MERGE_COMMAND = re.compile(r"\bgh\s+pr\s+merge\b(?P<rest>[^;&|]*)")
+MERGE_COMMAND = re.compile(r"(?:^|[;&|(\n\"'])\s*gh\s+pr\s+merge\b(?P<rest>[^;&|\n\"']*)")
+TRUSTED_AUTHOR = "OWNER"
 
 
-def review_settings() -> dict:
-    """Read the reviews block from the project config."""
+@dataclass(frozen=True)
+class ReviewSettings:
+    """Which changed paths need which reviews."""
+
+    code_suffixes: tuple[str, ...]
+    security_paths: tuple[str, ...]
+
+
+def review_settings() -> ReviewSettings:
+    """Parse the reviews block of the project config."""
     root = Path(os.environ.get("CLAUDE_PROJECT_DIR", "."))
-    config = json.loads((root / ".claude" / "project.json").read_text(encoding="utf-8"))
-    return config["reviews"]
+    config = json.loads((root / ".claude" / "project.json").read_text(encoding="utf-8"))["reviews"]
+    return ReviewSettings(tuple(config["codeSuffixes"]), tuple(config["securityPaths"]))
 
 
-def required_reviews(paths: list[str], settings: dict) -> list[str]:
+def verdict(review: str, head: str) -> str:
+    """Return the PASS comment text for a review on a commit."""
+    return f"{review} review: PASS ({head[:7]})"
+
+
+def required_reviews(paths: list[str], settings: ReviewSettings) -> list[str]:
     """Name the reviews a PR with these changed paths needs."""
-    code_suffixes = tuple(settings["codeSuffixes"])
-    security_paths = tuple(settings["securityPaths"])
     reviews = []
-    if any(path.endswith(code_suffixes) for path in paths):
+    if any(path.endswith(settings.code_suffixes) for path in paths):
         reviews.extend(["Simplicity", "Architecture"])
-    if any(path.startswith(security_paths) for path in paths):
+    if any(path.startswith(settings.security_paths) for path in paths):
         reviews.append("Security")
     return reviews
 
 
 def missing_reviews(required: list[str], comments: list[str], head: str) -> list[str]:
     """List required reviews with no PASS comment for this head commit."""
-    short_head = head[:7]
-    return [
-        review
-        for review in required
-        if not any(f"{review} review: PASS ({short_head})" in comment for comment in comments)
-    ]
+    return [review for review in required if not any(verdict(review, head) in comment for comment in comments)]
 
 
 def target_in(rest: str) -> str | None:
@@ -52,7 +59,7 @@ def target_in(rest: str) -> str | None:
 
 def github(command: list[str]) -> str:
     """Run a gh command and return its output, raising on failure."""
-    return subprocess.run(command, capture_output=True, text=True, check=True).stdout
+    return subprocess.run(command, capture_output=True, text=True, encoding="utf-8", check=True).stdout
 
 
 def merge_problem(command: str) -> str | None:
@@ -66,12 +73,14 @@ def merge_problem(command: str) -> str | None:
     number = details["number"]
     head = details["headRefOid"]
     paths = [file["path"] for file in details["files"]]
-    comments = [comment["body"] for comment in details["comments"]]
-    missing = missing_reviews(required_reviews(paths, review_settings()), comments, head)
+    owner_comments = [
+        comment["body"] for comment in details["comments"] if comment["authorAssociation"] == TRUSTED_AUTHOR
+    ]
+    missing = missing_reviews(required_reviews(paths, review_settings()), owner_comments, head)
     if not missing:
         return None
     names = " and ".join(f"{review.lower()}-reviewer" for review in missing)
-    verdicts = ", ".join(f'"{review} review: PASS ({head[:7]})"' for review in missing)
+    verdicts = ", ".join(f'"{verdict(review, head)}"' for review in missing)
     return (
         f"Merge blocked: PR #{number} needs {names} on commit {head[:7]}. "
         f"Run each, fix every FAIL, then post {verdicts} with gh pr comment {number}."

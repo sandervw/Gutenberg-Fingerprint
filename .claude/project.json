@@ -44,6 +44,6 @@
     ],
     "navigateTools": ["mcp__playwright__browser_navigate"],
     "allowedHosts": ["localhost", "127.0.0.1", "gufime.com"],
-    "allowedHostSuffixes": [".pages.dev"]
+    "allowedHostSuffixes": []
   }
 }

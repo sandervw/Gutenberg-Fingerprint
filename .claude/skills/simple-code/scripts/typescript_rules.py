@@ -84,7 +84,11 @@ def check_comment_length(path: str, source: str) -> list[Finding]:
 def has_jsdoc_above(lines: list[str], index: int) -> bool:
     """Return true when a JSDoc block sits directly above this line."""
     cursor = index - 1
-    while cursor >= 0 and (not lines[cursor].strip() or lines[cursor].strip().startswith("@")):
+    while cursor >= 0:
+        stripped = lines[cursor].strip()
+        is_blank_or_decorator = not stripped or stripped.startswith("@")
+        if not is_blank_or_decorator:
+            break
         cursor -= 1
     if cursor < 0 or not lines[cursor].rstrip().endswith("*/"):
         return False

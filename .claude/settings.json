@@ -8,7 +8,6 @@
       "Bash(npx playwright test*)",
       "Bash(npm run test:e2e*)",
       "Bash(python .claude/skills/simple-code/scripts/check_code.py *)",
-      "Bash(ssh gufime *)",
       "Bash(git status*)",
       "Bash(git diff *)",
       "Bash(git log *)",
@@ -37,7 +36,10 @@
       "Bash(git push -d*)",
       "Bash(git push * -d *)",
       "Bash(git push * main*)",
-      "Bash(git push * HEAD:main*)"
+      "Bash(git push * HEAD:main*)",
+      "Bash(git push)",
+      "Bash(git push origin)",
+      "Bash(git push * HEAD*)"
     ],
     "ask": [
       "Bash(tofu apply*)",
@@ -53,7 +55,10 @@
       "Bash(gh workflow run deploy*)"
     ]
   },
-  "enabledMcpjsonServers": ["cloudflare", "playwright"],
+  "enabledMcpjsonServers": [
+    "cloudflare",
+    "playwright"
+  ],
   "hooks": {
     "PostToolUse": [
       {

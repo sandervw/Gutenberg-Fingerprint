@@ -11,7 +11,7 @@ A merge goes live on the box within minutes. The site changes on the next run wi
 
 ## The box
 
-OVH VPS-1 (2 vCore, 4 GB, 40 GB NVMe), `ssh gufime`. Code at `/code/gufime`, data at `/files/gufime/`. Two systemd units serve Dagster: `dagster-webserver` on `127.0.0.1:3000` and `dagster-daemon`. The UI is at `dagster.gufime.com` behind a Cloudflare Tunnel and Access. Unattended security upgrades, a firewall opening SSH only, Postgres on the local socket, 6 GB swap.
+OVH VPS-1 (2 vCore, 4 GB, 40 GB NVMe), `ssh gufime`. Code at `/code/gufime`, data at `/files/gufime/`. Two systemd units serve Dagster: `dagster-webserver` on `127.0.0.1:3000` and `dagster-daemon`. The UI is at `dagster.gufime.com` behind a Cloudflare Tunnel and Access. Unattended security upgrades, Postgres on the local socket, 6 GB swap.
 
 ## Infra as code
 
@@ -19,7 +19,7 @@ OVH VPS-1 (2 vCore, 4 GB, 40 GB NVMe), `ssh gufime`. Code at `/code/gufime`, dat
 
 ## Backups
 
-On changed nights `postgres_backup` writes `pg_dump -Fc` to R2 `gufime-backup/postgres/gufime.dump`, then `corpus_backup` tars the corpus into 250 MB parts under `corpus/` with a sha256 `corpus.manifest` uploaded last. Keys are latest-only. Restore: fetch the parts the manifest lists, `cat corpus.tar.gz.* | tar -xz`, and `pg_restore -d gufime`.
+On changed nights `postgres_backup` writes `pg_dump -Fc` to R2 `gufime-backup/postgres/gufime.dump`, then `corpus_backup` tars `/files/gufime/` into 250 MB parts under `corpus/` with a sha256 `corpus.manifest` uploaded last. Keys are latest-only. Restore: fetch the parts the manifest lists, `cat corpus.tar.gz.* | tar -xz`, and `pg_restore -d gufime`.
 
 ## Credentials
 

@@ -12,6 +12,7 @@ import os
 import re
 import shlex
 import sys
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
 UNSAFE_CHARACTERS = re.compile(r"[;&|`><$\n\r\x00]")
@@ -24,10 +25,36 @@ def project_root() -> str:
     return os.path.normcase(os.path.realpath(os.environ.get("CLAUDE_PROJECT_DIR", ".")))
 
 
-def blackbox_settings(root: str) -> dict:
-    """Read the blackbox block from the project config."""
+@dataclass(frozen=True)
+class BlackboxSettings:
+    """What the tester may read, run, use, and open."""
+
+    readable_paths: tuple[str, ...]
+    spec_folder: str
+    test_commands: tuple[tuple[str, ...], ...]
+    start_commands: tuple[tuple[str, ...], ...]
+    safe_flags: tuple[str, ...]
+    allowed_tools: frozenset[str]
+    navigate_tools: frozenset[str]
+    allowed_hosts: frozenset[str]
+    allowed_host_suffixes: tuple[str, ...]
+
+
+def blackbox_settings(root: str) -> BlackboxSettings:
+    """Parse the blackbox block of the project config."""
     with open(os.path.join(root, ".claude", "project.json"), encoding="utf-8") as config_file:
-        return json.load(config_file)["blackbox"]
+        config = json.load(config_file)["blackbox"]
+    return BlackboxSettings(
+        readable_paths=tuple(config["readablePaths"]),
+        spec_folder=config["specFolder"],
+        test_commands=tuple(tuple(command) for command in config["testCommands"]),
+        start_commands=tuple(tuple(command) for command in config["startCommands"]),
+        safe_flags=tuple(config["safeFlags"]),
+        allowed_tools=frozenset(config["allowedTools"]),
+        navigate_tools=frozenset(config["navigateTools"]),
+        allowed_hosts=frozenset(config["allowedHosts"]),
+        allowed_host_suffixes=tuple(config["allowedHostSuffixes"]),
+    )
 
 
 def resolve(raw_path: str, root: str) -> str:
@@ -40,31 +67,31 @@ def is_within(resolved: str, targets: list[str]) -> bool:
     return any(resolved == target or resolved.startswith(target + os.sep) for target in targets)
 
 
-def url_violation(url: object, settings: dict) -> str | None:
+def url_violation(url: object, settings: BlackboxSettings) -> str | None:
     """Return a reason unless the URL points at an allowed host."""
     if not isinstance(url, str) or URL_UNSAFE.search(url):
         return f"Navigation to '{url}' is blocked."
     parts = urlparse(url)
     hostname = parts.hostname or ""
     is_web = parts.scheme in ("http", "https")
-    is_exact_host = hostname in settings["allowedHosts"]
-    is_suffix_host = any(hostname.endswith(suffix) for suffix in settings["allowedHostSuffixes"])
+    is_exact_host = hostname in settings.allowed_hosts
+    is_suffix_host = any(hostname.endswith(suffix) for suffix in settings.allowed_host_suffixes)
     if is_web and (is_exact_host or is_suffix_host):
         return None
     return f"Navigation to '{url}' is blocked. Allowed hosts are listed in .claude/project.json."
 
 
-def argument_violation(argument: str, root: str, settings: dict) -> str | None:
+def argument_violation(argument: str, root: str, settings: BlackboxSettings) -> str | None:
     """Return a reason unless it is a spec path or safe flag."""
-    if any(re.fullmatch(flag, argument) for flag in settings["safeFlags"]):
+    if any(re.fullmatch(flag, argument) for flag in settings.safe_flags):
         return None
-    spec_folder = resolve(settings["specFolder"], root)
+    spec_folder = resolve(settings.spec_folder, root)
     if not argument.startswith("-") and is_within(resolve(argument, root), [spec_folder]):
         return None
-    return f"Argument '{argument}' is not allowed. Use spec paths under {settings['specFolder']}/ or a safe flag."
+    return f"Argument '{argument}' is not allowed. Use spec paths under {settings.spec_folder}/ or a safe flag."
 
 
-def command_violation(command: str, root: str, settings: dict) -> str | None:
+def command_violation(command: str, root: str, settings: BlackboxSettings) -> str | None:
     """Return a reason when Bash is not a test or start command."""
     if UNSAFE_CHARACTERS.search(command):
         return "Bash command has chaining, redirection, or control characters."
@@ -72,34 +99,34 @@ def command_violation(command: str, root: str, settings: dict) -> str | None:
         arguments = shlex.split(command)
     except ValueError as error:
         return f"Bash command cannot be parsed: {error}"
-    if arguments in settings["startCommands"]:
+    if tuple(arguments) in settings.start_commands:
         return None
-    for prefix in settings["testCommands"]:
-        if arguments[: len(prefix)] == prefix:
+    for prefix in settings.test_commands:
+        if tuple(arguments[: len(prefix)]) == prefix:
             extras = [argument for argument in arguments[len(prefix):] if argument != "--"]
             reasons = (argument_violation(argument, root, settings) for argument in extras)
             return next((reason for reason in reasons if reason), None)
     return f"Bash may only run the black-box tests or start the app, not: {command}"
 
 
-def path_violation(tool_name: str, tool_input: dict, root: str, settings: dict) -> str | None:
+def path_violation(tool_name: str, tool_input: dict, root: str, settings: BlackboxSettings) -> str | None:
     """Return a reason when a file tool leaves the allowed folders."""
     pattern = tool_input.get("pattern", "")
     glob_leaves_folders = tool_name == "Glob" and (".." in pattern or os.path.isabs(pattern))
     if glob_leaves_folders:
         return f"Glob pattern leaves the allowed folders: {pattern}"
     raw_path = tool_input.get(PATH_TOOLS[tool_name], "")
-    allowed = [resolve(path, root) for path in settings["readablePaths"]]
+    allowed = [resolve(path, root) for path in settings.readable_paths]
     if not raw_path or not is_within(resolve(raw_path, root), allowed):
-        return f"{tool_name} on '{raw_path}' is blocked. Allowed: {', '.join(settings['readablePaths'])}."
+        return f"{tool_name} on '{raw_path}' is blocked. Allowed: {', '.join(settings.readable_paths)}."
     return None
 
 
-def find_violation(tool_name: str, tool_input: dict, root: str, settings: dict) -> str | None:
+def find_violation(tool_name: str, tool_input: dict, root: str, settings: BlackboxSettings) -> str | None:
     """Return a reason when the call is not allowed, else None."""
-    if tool_name in settings["navigateTools"]:
+    if tool_name in settings.navigate_tools:
         return url_violation(tool_input.get("url"), settings)
-    if tool_name in settings["allowedTools"]:
+    if tool_name in settings.allowed_tools:
         return None
     if tool_name == "Bash":
         return command_violation(tool_input.get("command", ""), root, settings)
@@ -115,7 +142,7 @@ def main() -> None:
         root = project_root()
         settings = blackbox_settings(root)
         reason = find_violation(payload["tool_name"], payload.get("tool_input", {}), root, settings)
-    except Exception as error:  # noqa: BLE001 - fail closed on any surprise
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, re.error) as error:
         reason = f"Hook failed, so the call is blocked: {error!r}"
     if reason:
         print(reason, file=sys.stderr)

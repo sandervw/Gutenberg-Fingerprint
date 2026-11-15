@@ -2,7 +2,7 @@
 
 **Live site: [gufime.com](https://gufime.com/)**
 
-A nightly change-data-capture pipeline that watches the Project Gutenberg catalog, downloads the English science-fiction, fantasy, and horror corpus, measures 15 stylometric properties of every book, and publishes the result as an SPA analytics site. Every published number is a **z-score**.
+A nightly change-data-capture pipeline that watches the Project Gutenberg catalog, downloads the English science-fiction, fantasy, and horror corpus, measures 15 stylometric metrics of every work, and publishes the result as an SPA analytics site. Every published number is a **z-score**.
 
 Runs on one ~$5/month OVH VPS ("the box"): Postgres, plain Python, dbt Core, and Evidence.dev, orchestrated by **Dagster OSS**, published to Cloudflare.
 
@@ -11,7 +11,7 @@ Runs on one ~$5/month OVH VPS ("the box"): Postgres, plain Python, dbt Core, and
 ## Architecture
 
 ```
-Dagster on the box — nightly schedule 08:00 UTC
+Dagster on the box — nightly schedule 03:00 America/Chicago
   catalog                          → postgres bronze.*, raw.raw_works   (prints new_count)
    └─ gate sensor (new_count > 0) launches one linear chain:
         texts          → /files/gufime/bronze/texts/
@@ -23,7 +23,7 @@ Dagster on the box — nightly schedule 08:00 UTC
         site           → npm build + wrangler pages deploy → gufime.com
 ```
 
-Dagster OSS on the box holds the schedule, the CDC gate, and the run logs (Postgres `dagster` schema). The `nightly` schedule materializes `catalog`; a `gate` asset sensor reads its `new_count` and launches the downstream chain only when new works exist. Push to `main` triggers a GitHub Actions deploy hook (`deploy.yml`) that syncs the box's checkout and restarts Dagster. The Dagster UI is served at [dagster.gufime.com](https://dagster.gufime.com) behind a Cloudflare Tunnel + Access. Files live under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`) over the unix socket with peer auth.
+Dagster OSS on the box holds the schedule, the CDC gate, and the run logs (Postgres `dagster` schema). The `nightly` schedule materializes `catalog`; a `gate` asset sensor reads its `new_count` and launches the downstream chain only when New or Changed works exist. Push to `main` triggers a GitHub Actions deploy hook (`deploy.yml`) that syncs the box's checkout and restarts Dagster. The Dagster UI is served at [dagster.gufime.com](https://dagster.gufime.com) behind a Cloudflare Tunnel + Access. Files live under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`) over the unix socket with peer auth.
 
 **Change detection.** A `bronze.watermark` table keyed on `gutenberg_id` marks a book new when its ID is absent, changed when its catalog row hash differs, and retried when it last failed. `text_ingest` sniffs each fetched text for PG's copyrighted-donation header and stamps those with a terminal `copyrighted` status that is never retried. The diff runs against the **in-scope subset only**.
 

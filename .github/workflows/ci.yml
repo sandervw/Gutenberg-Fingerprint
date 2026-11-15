@@ -38,7 +38,7 @@ jobs:
           BEFORE: ${{ github.event.before }}
         run: |
           if [ -n "$BASE_REF" ]; then base="origin/$BASE_REF"; else base="$BEFORE"; fi
-          mapfile -t changed < <(git diff --name-only --diff-filter=d "$base"...HEAD -- '*.py' '*.md' '*.js' '*.mjs' '*.cjs' '*.ts')
+          mapfile -t changed < <(git diff --name-only --diff-filter=d "$base"...HEAD)
           if [ ${#changed[@]} -eq 0 ]; then echo "No checkable files changed."; exit 0; fi
           python .claude/skills/simple-code/scripts/check_code.py "${changed[@]}"
 

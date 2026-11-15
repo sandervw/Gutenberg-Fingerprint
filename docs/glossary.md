@@ -17,6 +17,7 @@
 | **Watermark** | `bronze.watermark`: per-Work hashes and status driving change detection. |
 | **New, Changed, Retry** | Why a Work reprocesses: absent, catalog hash differs, or last attempt failed. |
 | **Status** | `ingested`, `failed`, or `copyrighted`. |
-| **Gate** | The sensor that launches the downstream job when `new_count > 0`. |
+| **Gate** | The sensor that launches the downstream job when `new_count`, New plus Changed Works, is above 0. |
 | **Bronze, Silver, Gold** | Raw landed data, stripped texts, and the dbt layer. |
+| **Reader** | An anonymous visitor to gufime.com. |
 | **The box** | The OVH VPS running Postgres, Dagster, and the site build. |

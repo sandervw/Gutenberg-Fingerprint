@@ -6,11 +6,11 @@ Terms follow [the glossary](glossary.md). Sections 1, 4, and 5 are binding; chan
 
 | Part | Folder | Does | May import |
 |---|---|---|---|
-| Steps | `python/workflow/` | One module per pipeline step, each with a `main()` | `python/helpers/` |
-| Logic and seam | `python/helpers/` | Pure metric, filter, and cleaning functions; `storage.py` is the only storage access | standard library, spaCy |
+| Steps | `python/workflow/` | One module per pipeline step | `python/helpers/` |
+| Logic and seam | `python/helpers/` | Metric, filter, and cleaning functions; `storage.py` is the only storage access | standard library, spaCy, polars; `storage.py` also psycopg and duckdb |
 | Orchestration | `python/dagster/` | Assets, schedule, gate sensor, failure alert | `python/workflow/` |
 | Warehouse | `dbt/` | Staging, star schema, marts | sources in `raw` |
-| Site | `evidence/` | Pages over the marts | `gold` marts and dimensions |
+| Site | `evidence/` | Pages over the marts | `gold` dimensions, facts, and marts |
 | Infra | `infra/` | The box, Cloudflare, systemd units | none |
 
 Metric, filter, and cleaning functions do no I/O and read no clock. `GUFIME_TARGET` picks `duckdb` (local default) or `postgres`; `GUFIME_FILES_ROOT`, `GUFIME_PG_DSN`, and `GUFIME_DUCKDB_PATH` override paths.
@@ -18,7 +18,7 @@ Metric, filter, and cleaning functions do no I/O and read no clock. `GUFIME_TARG
 ## 2. Data flow
 
 ```
-Dagster on the box, nightly schedule 08:00 UTC
+Dagster on the box, nightly schedule 03:00 America/Chicago
   catalog          → bronze.catalog, bronze.watermark, raw.raw_works, bronze.ingest_audit
    └─ gate sensor (new_count > 0) launches downstream_job:
         texts           → /files/gufime/bronze/texts/, watermark
@@ -30,7 +30,7 @@ Dagster on the box, nightly schedule 08:00 UTC
         site            → npm run sources, build, wrangler pages deploy → gufime.com
 ```
 
-`catalog.main()` returns the new count as asset metadata; the gate reads it. A quiet night runs nothing past `catalog`. *Materialize all* in the UI is the manual rebuild. The `failure_alert` sensor emails through Cloudflare Email Sending on any run failure. Python assets import and call `main()`; dbt, Evidence, and backups shell out. Manually uploaded works live in `/files/gufime/bronze/self/` with a `_manifest.csv`; a changed `loaded_at` re-measures one.
+`catalog.main()` returns `new_count`, New plus Changed Works, as asset metadata; the gate reads it. A quiet night runs nothing past `catalog`. *Materialize all* in the UI is the manual rebuild. The `failure_alert` sensor emails through Cloudflare Email Sending on any run failure. Python assets import and call `main()`; dbt, Evidence, and backups shell out. Manually uploaded works live in `/files/gufime/bronze/self/` with a `_manifest.csv`; a changed `loaded_at` re-measures one.
 
 ## 3. Change detection
 
@@ -45,6 +45,8 @@ Dagster on the box, nightly schedule 08:00 UTC
 ```
 sources (raw) → stg_* (views) → int_* (views) → dim_* / fact_* (tables) → mart_* (tables)
 ```
+
+`int_` models may also read dimensions; marts may read other marts.
 
 | Table | Grain and notes |
 |---|---|
@@ -84,4 +86,4 @@ Evidence extracts data at build time; the deployed SPA never queries a database.
 
 ## 8. Security
 
-No database password exists. The box opens SSH only; the Dagster UI sits behind a Cloudflare Tunnel and Access. Credentials and their homes are in [deploy.md](deploy.md).
+No database password exists. Postgres listens on the local socket only; the Dagster UI sits behind a Cloudflare Tunnel and Access. Credentials and their homes are in [deploy.md](deploy.md).

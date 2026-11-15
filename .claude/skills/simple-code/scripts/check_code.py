@@ -80,7 +80,7 @@ def collect_files(targets: list[str]) -> list[Path]:
     files = []
     for target in map(Path, targets):
         if target.is_file():
-            files.append(target)
+            files += [target] if target.suffix in CHECKED_SUFFIXES else []
             continue
         for folder, subfolders, names in os.walk(target):
             subfolders[:] = sorted(set(subfolders) - SKIPPED_FOLDERS)
@@ -100,7 +100,8 @@ def run_as_hook() -> int:
     """Check the file Claude just edited and report back through the hook."""
     payload = json.load(sys.stdin)
     file_path = payload.get("tool_input", {}).get("file_path")
-    if not file_path or Path(file_path).suffix not in CHECKED_SUFFIXES or not Path(file_path).is_file():
+    is_checkable_file = bool(file_path) and Path(file_path).suffix in CHECKED_SUFFIXES
+    if not is_checkable_file or not Path(file_path).is_file():
         return 0
     findings = check_files([Path(file_path)])
     failures = [finding for finding in findings if finding.severity is Severity.FAIL]
