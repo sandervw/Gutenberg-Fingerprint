@@ -1,0 +1,42 @@
+{
+  "maxComplexity": 8,
+  "maxParameters": 4,
+  "maxNesting": 3,
+  "allowedShortNames": [
+    "id",
+    "url",
+    "api"
+  ],
+  "exemptNames": [
+    "self",
+    "_"
+  ],
+  "minNameLength": 3,
+  "typescriptSuffixes": [
+    ".ts",
+    ".tsx",
+    ".mts",
+    ".cts",
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".cjs"
+  ],
+  "coreFolder": "core",
+  "declarationSuffix": ".d.ts",
+  "skippedFolders": [
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    "__pycache__",
+    "dist",
+    "build",
+    "target",
+    "coverage",
+    "playwright-report",
+    "test-results",
+    "vendor",
+    "worktrees"
+  ]
+}

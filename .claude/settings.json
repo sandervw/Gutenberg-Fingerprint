@@ -1,24 +1,147 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(uv sync)",
+      "Bash(uv sync --frozen)",
+      "Bash(uv run dbt deps)",
+      "Bash(uv run dbt parse --target duckdb)",
+      "Bash(uv run dbt parse --target postgres)",
+      "Bash(uv run dbt build)",
+      "Bash(uv run dbt test)",
+      "Bash(uv run dagster definitions validate)",
+      "Bash(uv run --frozen dbt deps)",
+      "Bash(uv run --frozen dbt parse --target duckdb)",
+      "Bash(uv run --frozen dbt parse --target postgres)",
+      "Bash(uv run --frozen dbt build)",
+      "Bash(uv run --frozen dbt test)",
+      "Bash(uv run --frozen dagster definitions validate)",
+      "Bash(uv run python -m python.workflow.catalog_ingest)",
+      "Bash(uv run python -m python.workflow.text_ingest)",
+      "Bash(uv run python -m python.workflow.strip)",
+      "Bash(uv run python -m python.workflow.measure)",
+      "Bash(npm --prefix evidence run dev)",
+      "Bash(npm --prefix evidence run build)",
+      "Bash(npm --prefix evidence run sources)",
+      "Bash(python .claude/skills/simple-code/scripts/check_code.py *)",
+      "Bash(git status*)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git push -u origin claude/*)",
+      "Bash(git push origin claude/*)",
+      "Bash(gh issue view *)",
+      "Bash(gh issue list*)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr merge *)",
+      "Bash(gh run view *)",
+      "Bash(gh run list*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./infra/tofu/*.tfvars)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push * +*)",
+      "Bash(git push *:*)",
+      "Bash(git push *refs/heads/main*)",
+      "Bash(git push * --delete*)",
+      "Bash(git push --delete*)",
+      "Bash(git push -d*)",
+      "Bash(git push * -d *)",
+      "Bash(git push * main*)",
+      "Bash(git push * HEAD:main*)",
+      "Bash(git push)",
+      "Bash(git push origin)",
+      "Bash(git push * HEAD*)",
+      "Bash(git push *--all*)",
+      "Bash(git push *--mirror*)",
+      "Bash(git push * @*)",
+      "Bash(git diff *--output*)",
+      "Bash(git log *--output*)"
+    ],
+    "ask": [
+      "Bash(tofu apply*)",
+      "Bash(tofu destroy*)",
+      "Bash(tofu import*)",
+      "Bash(tofu state *)",
+      "Bash(npx wrangler pages deploy*)",
+      "Bash(npx wrangler r2 object delete*)",
+      "Bash(npx wrangler r2 bucket *)",
+      "Bash(npx wrangler * delete*)",
+      "Bash(gh secret *)",
+      "Bash(gh repo *)",
+      "Bash(gh workflow run deploy*)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "cloudflare",
+    "playwright"
+  ],
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Edit",
+        "matcher": "Write|Edit|MultiEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"${CLAUDE_PROJECT_DIR}/.claude/hooks/code-comment-edit-check.ps1\""
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/skills/simple-code/scripts/check_code.py\" --hook"
           }
         ]
       },
       {
-        "matcher": "Write",
+        "matcher": "Write|Edit|MultiEdit|Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"${CLAUDE_PROJECT_DIR}/.claude/hooks/code-comment-write-check.ps1\""
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/cut_docs.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/prune_worktrees.py\""
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "doc-cutter",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/cut_docs.py\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/require_reviews.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_push.py\""
           }
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "cloudflare@cloudflare": true,
+    "security-guidance@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true
   }
 }
