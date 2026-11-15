@@ -4,8 +4,9 @@ import { defineConfig } from "eslint/config";
 import typescriptEslint from "typescript-eslint";
 
 const BANNED_WORDS = JSON.parse(readFileSync(new URL("./banned-words.json", import.meta.url), "utf8"));
-const LIMITS = JSON.parse(readFileSync(new URL("./limits.json", import.meta.url), "utf8"));
+const LIMITS = JSON.parse(readFileSync(new URL("./checker-settings.json", import.meta.url), "utf8"));
 
+const scriptGlob = `{${LIMITS.typescriptSuffixes.map((suffix) => suffix.slice(1)).join(",")}}`;
 const lowerWords = BANNED_WORDS.join("|");
 const capitalWords = BANNED_WORDS.map((word) => word[0].toUpperCase() + word.slice(1)).join("|");
 const upperWords = BANNED_WORDS.map((word) => word.toUpperCase()).join("|");
@@ -37,7 +38,7 @@ const CLOCK_READ = {
 export default defineConfig(
   { ignores: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/*.d.ts"] },
   {
-    files: ["**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
+    files: [`**/*.${scriptGlob}`],
     languageOptions: {
       parser: typescriptEslint.parser,
       parserOptions: { ecmaFeatures: { jsx: true } },
@@ -62,7 +63,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["**/core/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
+    files: [`**/core/**/*.${scriptGlob}`],
     rules: {
       "no-restricted-globals": [
         "error",

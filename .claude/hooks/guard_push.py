@@ -9,7 +9,7 @@ import re
 import shlex
 import sys
 
-from git_names import REMOTE
+from hook_settings import REMOTE
 
 PUSH_COMMAND = re.compile(r"\bgit\b[^;&|\n]*?\bpush\b(?P<rest>[^;&|\n]*)")
 BRANCH = re.compile(r"claude/[A-Za-z0-9._/-]+")

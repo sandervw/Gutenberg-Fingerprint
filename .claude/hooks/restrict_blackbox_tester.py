@@ -15,6 +15,9 @@ import sys
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
+from hook_settings import project_root as configured_root
+from hook_settings import project_section
+
 UNSAFE_CHARACTERS = re.compile(r"[;&|`><$\n\r\x00]")
 URL_UNSAFE = re.compile(r"[\s\x00-\x1f\\]")
 PATH_TOOLS = {"Read": "file_path", "Write": "file_path", "Edit": "file_path", "Grep": "path", "Glob": "path"}
@@ -22,7 +25,7 @@ PATH_TOOLS = {"Read": "file_path", "Write": "file_path", "Edit": "file_path", "G
 
 def project_root() -> str:
     """Return the project root with symlinks resolved."""
-    return os.path.normcase(os.path.realpath(os.environ.get("CLAUDE_PROJECT_DIR", ".")))
+    return os.path.normcase(os.path.realpath(configured_root()))
 
 
 @dataclass(frozen=True)
@@ -40,10 +43,9 @@ class BlackboxSettings:
     allowed_host_suffixes: tuple[str, ...]
 
 
-def blackbox_settings(root: str) -> BlackboxSettings:
+def blackbox_settings() -> BlackboxSettings:
     """Parse the blackbox block of the project config."""
-    with open(os.path.join(root, ".claude", "project.json"), encoding="utf-8") as config_file:
-        config = json.load(config_file)["blackbox"]
+    config = project_section("blackbox")
     return BlackboxSettings(
         readable_paths=tuple(config["readablePaths"]),
         spec_folder=config["specFolder"],
@@ -140,7 +142,7 @@ def main() -> None:
     try:
         payload = json.load(sys.stdin)
         root = project_root()
-        settings = blackbox_settings(root)
+        settings = blackbox_settings()
         reason = find_violation(payload["tool_name"], payload.get("tool_input", {}), root, settings)
     except (OSError, ValueError, KeyError, TypeError, AttributeError, re.error) as error:
         reason = f"Hook failed, so the call is blocked: {error!r}"

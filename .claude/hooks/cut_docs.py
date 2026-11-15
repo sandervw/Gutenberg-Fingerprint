@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from git_names import MAIN_REFERENCE
+from hook_settings import MAIN_REFERENCE
 
 CUTTER = "doc-cutter"
 

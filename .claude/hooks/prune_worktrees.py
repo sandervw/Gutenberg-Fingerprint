@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from git_names import MAIN_BRANCH, MAIN_REFERENCE, REMOTE
+from hook_settings import MAIN_BRANCH, MAIN_REFERENCE, REMOTE
 
 PUSH_COMMAND = re.compile(r"\bgit\s+push\b")
 WORKTREE_FOLDER = "/.claude/worktrees/"

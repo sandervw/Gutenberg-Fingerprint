@@ -11,5 +11,15 @@
     "self",
     "_"
   ],
-  "minNameLength": 3
+  "minNameLength": 3,
+  "typescriptSuffixes": [
+    ".ts",
+    ".tsx",
+    ".mts",
+    ".cts",
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".cjs"
+  ]
 }

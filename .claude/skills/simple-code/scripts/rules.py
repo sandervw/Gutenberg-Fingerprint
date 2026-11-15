@@ -16,7 +16,7 @@ from pathlib import Path
 MAX_COMMENT_WORDS = 12
 MAX_CODE_LINES = 300
 MAX_MARKDOWN_WORDS = 700
-LIMITS = json.loads((Path(__file__).resolve().parent.parent / "limits.json").read_text(encoding="utf-8"))
+LIMITS = json.loads((Path(__file__).resolve().parent.parent / "checker-settings.json").read_text(encoding="utf-8"))
 ALLOWED_SHORT_NAMES = frozenset(LIMITS["allowedShortNames"])
 EXEMPT_NAMES = frozenset(LIMITS["exemptNames"])
 SMALL_WORDS = {

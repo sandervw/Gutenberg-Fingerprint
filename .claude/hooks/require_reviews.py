@@ -6,17 +6,18 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import shlex
 import subprocess
 import sys
 from dataclasses import dataclass
-from pathlib import Path
+
+from hook_settings import project_section
 
 MERGE_COMMAND = re.compile(r"\bgh\b[^;&|\n]*?\bpr\s+merge\b(?P<rest>[^;&|\n]*)")
 METHOD_FLAGS = {"--merge", "--squash", "--rebase", "--delete-branch", "-m", "-s", "-r", "-d"}
 TRUSTED_AUTHOR = "OWNER"
+CHAINING = re.compile(r"[;&|\n`]|\$\(")
 
 
 @dataclass(frozen=True)
@@ -29,8 +30,7 @@ class ReviewSettings:
 
 def review_settings() -> ReviewSettings:
     """Parse the reviews block of the project config."""
-    root = Path(os.environ.get("CLAUDE_PROJECT_DIR", "."))
-    config = json.loads((root / ".claude" / "project.json").read_text(encoding="utf-8"))["reviews"]
+    config = project_section("reviews")
     return ReviewSettings(tuple(config["codeSuffixes"]), tuple(config["securityPaths"]))
 
 
@@ -69,7 +69,10 @@ def github(command: list[str]) -> str:
 
 def merge_problem(command: str) -> str | None:
     """Explain why any merge in this command may not run, or None."""
-    problems = (pull_request_problem(match.group("rest")) for match in MERGE_COMMAND.finditer(command))
+    matches = list(MERGE_COMMAND.finditer(command))
+    if matches and CHAINING.search(command):
+        return "Merge blocked: run `gh pr merge <number> --merge` as its own command."
+    problems = (pull_request_problem(match.group("rest")) for match in matches)
     return next((problem for problem in problems if problem), None)
 
 
@@ -78,10 +81,10 @@ def pull_request_problem(rest: str) -> str | None:
     number = pull_request_in(rest)
     if number is None:
         return f"Merge blocked for {rest.strip()!r}: use `gh pr merge <number> --merge`, nothing else."
-    details = json.loads(github(["gh", "pr", "view", number, "--json", "number,headRefOid,files,comments"]))
+    details = json.loads(github(["gh", "pr", "view", number, "--json", "number,headRefOid,comments"]))
     number = details["number"]
     head = details["headRefOid"]
-    paths = [file["path"] for file in details["files"]]
+    paths = github(["gh", "pr", "diff", number, "--name-only"]).splitlines()
     owner_comments = [
         comment["body"] for comment in details["comments"] if comment["authorAssociation"] == TRUSTED_AUTHOR
     ]

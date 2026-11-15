@@ -8,9 +8,9 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from rules import MAX_CODE_LINES, MAX_COMMENT_WORDS, Finding, Severity
+from rules import LIMITS, MAX_CODE_LINES, MAX_COMMENT_WORDS, Finding, Severity
 
-TYPESCRIPT_SUFFIXES = {".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"}
+TYPESCRIPT_SUFFIXES = frozenset(LIMITS["typescriptSuffixes"])
 ESLINT_CONFIG = Path(__file__).resolve().parent.parent / "eslint.config.mjs"
 QUOTES = {"'", '"', "`"}
 EXPORT_PATTERN = re.compile(
