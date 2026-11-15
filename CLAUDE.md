@@ -20,7 +20,7 @@ Python 3.12 via `uv`, Dagster OSS, Postgres, dbt Core (DuckDB locally, Postgres 
 
 - Checks: `python .claude/skills/simple-code/scripts/check_code.py <paths>`
 - dbt, from `dbt/`: `uv run dbt parse --target duckdb`, `uv run dbt parse --target postgres`, `uv run dbt build`
-- Dagster: `uv run dagster definitions validate -m python.dagster.definitions`
+- Dagster: `uv run dagster definitions validate`
 - Site: `npm --prefix evidence run dev`, `npm --prefix evidence run build`
 - Box: `ssh gufime`; files under `/files/gufime/`, Postgres via `psql gufime` with peer auth.
 

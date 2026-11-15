@@ -9,10 +9,11 @@ import re
 import shlex
 import sys
 
+from git_names import REMOTE
+
 PUSH_COMMAND = re.compile(r"\bgit\b[^;&|\n]*?\bpush\b(?P<rest>[^;&|\n]*)")
 BRANCH = re.compile(r"claude/[A-Za-z0-9._/-]+")
 UPSTREAM_FLAGS = {"-u", "--set-upstream"}
-REMOTE = "origin"
 
 
 def push_problem(rest: str) -> str | None:

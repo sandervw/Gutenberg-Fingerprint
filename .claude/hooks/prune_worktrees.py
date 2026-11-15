@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from git_names import MAIN_BRANCH, MAIN_REFERENCE, REMOTE
+
 PUSH_COMMAND = re.compile(r"\bgit\s+push\b")
 WORKTREE_FOLDER = "/.claude/worktrees/"
 
@@ -39,7 +41,7 @@ def is_stale(folder: str, path: str) -> bool:
     if git(path, "status", "--porcelain"):
         return False
     head = git(path, "rev-parse", "HEAD").strip()
-    command = ["git", "merge-base", "--is-ancestor", head, "origin/main"]
+    command = ["git", "merge-base", "--is-ancestor", head, MAIN_REFERENCE]
     merged = subprocess.run(command, cwd=folder, capture_output=True, text=True, check=False)
     if merged.returncode not in (0, 1):
         raise subprocess.CalledProcessError(merged.returncode, command, merged.stdout, merged.stderr)
@@ -48,7 +50,7 @@ def is_stale(folder: str, path: str) -> bool:
 
 def prune(folder: str) -> list[str]:
     """Remove the stale agent worktrees and return their paths."""
-    git(folder, "fetch", "--quiet", "origin", "main")
+    git(folder, "fetch", "--quiet", REMOTE, MAIN_BRANCH)
     git(folder, "worktree", "prune")
     removed = [path for path in agent_worktrees(folder) if is_stale(folder, path)]
     for path in removed:

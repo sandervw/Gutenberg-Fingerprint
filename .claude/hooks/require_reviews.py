@@ -8,13 +8,14 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 MERGE_COMMAND = re.compile(r"\bgh\b[^;&|\n]*?\bpr\s+merge\b(?P<rest>[^;&|\n]*)")
-REPOSITORY_FLAGS = ("-R", "--repo")
+METHOD_FLAGS = {"--merge", "--squash", "--rebase", "--delete-branch", "-m", "-s", "-r", "-d"}
 TRUSTED_AUTHOR = "OWNER"
 
 
@@ -53,9 +54,12 @@ def missing_reviews(required: list[str], comments: list[str], head: str) -> list
     return [review for review in required if not any(verdict(review, head) in comment for comment in comments)]
 
 
-def target_in(rest: str) -> str | None:
-    """Take the PR number, URL, or branch from the merge arguments."""
-    return next((word for word in rest.split() if not word.startswith("-")), None)
+def pull_request_in(rest: str) -> str | None:
+    """Return the one PR number when the arguments are plain, else None."""
+    words = shlex.split(rest)
+    numbers = [word for word in words if word.isdigit()]
+    others_are_methods = all(word in METHOD_FLAGS for word in words if not word.isdigit())
+    return numbers[0] if len(numbers) == 1 and others_are_methods else None
 
 
 def github(command: list[str]) -> str:
@@ -64,16 +68,17 @@ def github(command: list[str]) -> str:
 
 
 def merge_problem(command: str) -> str | None:
-    """Explain why this command may not run, or None if it may."""
-    match = MERGE_COMMAND.search(command)
-    if match is None:
-        return None
-    rest = match.group("rest")
-    if any(word.startswith(REPOSITORY_FLAGS) for word in rest.split()):
-        return f"Merge blocked: merge only this repository's PRs, not {rest.strip()!r}."
-    target = target_in(rest)
-    view = ["gh", "pr", "view"] if target is None else ["gh", "pr", "view", target]
-    details = json.loads(github([*view, "--json", "number,headRefOid,files,comments"]))
+    """Explain why any merge in this command may not run, or None."""
+    problems = (pull_request_problem(match.group("rest")) for match in MERGE_COMMAND.finditer(command))
+    return next((problem for problem in problems if problem), None)
+
+
+def pull_request_problem(rest: str) -> str | None:
+    """Explain why one merge may not run, or None if it may."""
+    number = pull_request_in(rest)
+    if number is None:
+        return f"Merge blocked for {rest.strip()!r}: use `gh pr merge <number> --merge`, nothing else."
+    details = json.loads(github(["gh", "pr", "view", number, "--json", "number,headRefOid,files,comments"]))
     number = details["number"]
     head = details["headRefOid"]
     paths = [file["path"] for file in details["files"]]

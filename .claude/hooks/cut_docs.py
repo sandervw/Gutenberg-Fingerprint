@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from git_names import MAIN_REFERENCE
+
 CUTTER = "doc-cutter"
 
 
@@ -20,7 +22,7 @@ def git(folder: Path, *arguments: str) -> str:
 
 def changed_markdown(repository: Path) -> dict[str, str]:
     """Hash each Markdown file changed on this branch, committed or not."""
-    base = git(repository, "merge-base", "HEAD", "origin/main").strip()
+    base = git(repository, "merge-base", "HEAD", MAIN_REFERENCE).strip()
     tracked = git(repository, "diff", "--name-only", base).splitlines()
     untracked = git(repository, "ls-files", "--others", "--exclude-standard").splitlines()
     paths = {path for path in tracked + untracked if path.endswith(".md") and (repository / path).is_file()}

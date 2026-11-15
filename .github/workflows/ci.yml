@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.12"
+          python-version-file: .python-version
 
       - name: Install tools and dependencies
         run: |
@@ -50,4 +50,4 @@ jobs:
           uv run --frozen dbt parse --target postgres
 
       - name: Dagster definitions load
-        run: uv run --frozen dagster definitions validate -m python.dagster.definitions
+        run: uv run --frozen dagster definitions validate
