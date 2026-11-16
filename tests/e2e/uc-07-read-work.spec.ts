@@ -41,13 +41,11 @@ test("UC-07 author link opens the author's page", async ({ page }) => {
 });
 
 test("UC-07 work page shows the genre when it is Undetermined", async ({ page }) => {
-  test.fail(true, "Known site bug: Undetermined genre is not shown.");
   await openWorkFromList(page, "The Night Land");
   await expect(bylineOf(page)).toContainText("Undetermined");
 });
 
 test("UC-07 work charts are perceivable", async ({ page }) => {
-  test.fail(true, "Known site bug: charts have no accessible name.");
   await openWorkFromList(page, "The Mysterious Island");
   for (const heading of chartHeadings) {
     await expectChart(page, heading);

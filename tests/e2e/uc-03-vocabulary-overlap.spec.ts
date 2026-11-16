@@ -9,7 +9,6 @@ test("UC-03 home shows the Vocabulary Overlap section", async ({ page }) => {
 });
 
 test("UC-03 Vocabulary Overlap chart is perceivable", async ({ page }) => {
-  test.fail(true, "Known site bug: charts have no accessible name.");
   await openPage(page, "/");
   await expectChart(page, /Vocabulary Overlap/);
 });

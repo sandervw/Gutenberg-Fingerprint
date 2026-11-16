@@ -30,6 +30,8 @@ group by display_name
 order by abs(avg(zscore)) desc
 ```
 
+<div role="img" aria-label="Signature Stylometrics chart">
+
 <BarChart
     data={distinctive}
     x=display_name
@@ -38,6 +40,8 @@ order by abs(avg(zscore)) desc
     yFmt=num2
     sort=false
 />
+
+</div>
 
 ```sql metric_defs
 select
@@ -73,6 +77,8 @@ group by series_label
 order by proportion desc
 ```
 
+<div role="img" aria-label="Sentence Breakdown chart">
+
 <BarChart
     data={sentence_types}
     x=sentence_type
@@ -81,6 +87,8 @@ order by proportion desc
     yFmt=pct1
     sort=false
 />
+
+</div>
 
 ## Punctuation Preferences
 
@@ -95,6 +103,8 @@ group by series_label
 order by zscore desc
 ```
 
+<div role="img" aria-label="Punctuation Preferences chart">
+
 <BarChart
     data={punctuation}
     x=mark
@@ -103,6 +113,8 @@ order by zscore desc
     yFmt=num2
     sort=false
 />
+
+</div>
 
 ## Function-word Loves/Hates
 
@@ -122,6 +134,8 @@ from (
 order by abs(zscore) desc
 ```
 
+<div role="img" aria-label="Function-word Loves/Hates chart">
+
 <BarChart
     data={function_words}
     x=word
@@ -130,6 +144,8 @@ order by abs(zscore) desc
     yFmt=num2
     sort=false
 />
+
+</div>
 
 ## Works
 
