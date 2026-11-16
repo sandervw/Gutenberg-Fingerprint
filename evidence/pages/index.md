@@ -58,6 +58,8 @@ order by fvo.jaccard desc
 limit 25
 ```
 
+<div role="img" aria-label="Vocabulary Overlap chart">
+
 <BarChart
     data={kinship}
     x=author
@@ -65,6 +67,8 @@ limit 25
     swapXY=true
     yFmt=pct2
 />
+
+</div>
 
 ---
 

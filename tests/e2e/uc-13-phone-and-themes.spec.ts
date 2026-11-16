@@ -3,7 +3,6 @@ import { expect, test, type Page } from "@playwright/test";
 import { openPage } from "./site";
 
 const samplePages = ["/", "/works", "/authors", "/works/10662", "/authors/Bond, Nelson S."];
-const overflowingPages = new Set(["/", "/works", "/authors", "/authors/Bond, Nelson S."]);
 
 /** Pixels the page can scroll sideways beyond the viewport. */
 function sidewaysOverflow(page: Page): Promise<number> {
@@ -65,7 +64,6 @@ async function chooseTheme(page: Page, theme: "Light" | "Dark"): Promise<void> {
 for (const path of samplePages) {
   test(`UC-13 ${path} has no sideways scrolling at phone width`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "phone", "phone width only");
-    test.fail(overflowingPages.has(path), "Known site bug: phone layout overflows and covers the Menu button.");
     await openPage(page, path);
     const overflow = await sidewaysOverflow(page);
     expect(overflow, `${path} scrolls sideways by ${overflow}px`).toBeLessThanOrEqual(0);
@@ -73,8 +71,7 @@ for (const path of samplePages) {
 }
 
 for (const theme of ["Light", "Dark"] as const) {
-  test(`UC-13 ${theme} theme keeps text readable`, async ({ page }, testInfo) => {
-    test.fail(testInfo.project.name === "phone", "Known site bug: phone layout overflows and covers the Menu button.");
+  test(`UC-13 ${theme} theme keeps text readable`, async ({ page }) => {
     await openPage(page, "/");
     await chooseTheme(page, theme);
     const shades = await headingLuminance(page);

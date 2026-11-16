@@ -34,7 +34,6 @@ test("UC-10 Definitions opens to list each metric", async ({ page }) => {
 });
 
 test("UC-10 author charts are perceivable", async ({ page }) => {
-  test.fail(true, "Known site bug: charts have no accessible name.");
   await openSampleAuthor(page);
   await expectChart(page, /^Signature Stylometrics/);
   await expectChart(page, /^Sentence Breakdown/);

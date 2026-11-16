@@ -19,7 +19,7 @@ where work_id = '${params.work}'
 
 # {#if work[0]?.work_link}<a href={work[0]?.work_link} class="link"><Value data={work} column=title/></a>{:else}<Value data={work} column=title/>{/if}
 
-By <a href={work[0]?.author_link}><Value data={work} column=author/></a> - {work[0]?.genre === 'Undetermined' ? "" : work[0]?.genre + ' '}<Value data={work} column=prose_type/>, <Value data={work} column=word_count fmt=num0/> words.
+By <a href={work[0]?.author_link}><Value data={work} column=author/></a> - <Value data={work} column=genre/> <Value data={work} column=prose_type/>, <Value data={work} column=word_count fmt=num0/> words.
 
 ## Departure from the Author's Norm*
 
@@ -48,6 +48,8 @@ where msl.work_id = '${params.work}'
 order by abs(msl.zscore - a.author_z) desc
 ```
 
+<div role="img" aria-label="Departure from the Author's Norm chart">
+
 <BarChart
     data={deviation}
     x=display_name
@@ -56,6 +58,8 @@ order by abs(msl.zscore - a.author_z) desc
     yFmt=num2
     sort=false
 />
+
+</div>
 
 ## Work Signature
 
@@ -71,6 +75,8 @@ where work_id = '${params.work}'
 order by abs(zscore) desc
 ```
 
+<div role="img" aria-label="Work Signature chart">
+
 <BarChart
     data={signature}
     x=display_name
@@ -79,6 +85,8 @@ order by abs(zscore) desc
     yFmt=num2
     sort=false
 />
+
+</div>
 
 ## Sentence Type Mix
 
@@ -94,6 +102,8 @@ where work_id = '${params.work}'
 order by proportion desc
 ```
 
+<div role="img" aria-label="Sentence Type Mix chart">
+
 <BarChart
     data={sentence_types}
     x=sentence_type
@@ -102,6 +112,8 @@ order by proportion desc
     yFmt=pct1
     sort=false
 />
+
+</div>
 
 ## Punctuation
 
@@ -117,6 +129,8 @@ where work_id = '${params.work}'
 order by zscore desc
 ```
 
+<div role="img" aria-label="Punctuation chart">
+
 <BarChart
     data={punctuation}
     x=mark
@@ -125,6 +139,8 @@ order by zscore desc
     yFmt=num2
     sort=false
 />
+
+</div>
 
 ## Function-word Loves/Hates
 
@@ -145,6 +161,8 @@ from (
 order by abs(zscore) desc
 ```
 
+<div role="img" aria-label="Function-word Loves/Hates chart">
+
 <BarChart
     data={function_words}
     x=word
@@ -153,6 +171,8 @@ order by abs(zscore) desc
     yFmt=num2
     sort=false
 />
+
+</div>
 
 ```sql metric_defs
 select

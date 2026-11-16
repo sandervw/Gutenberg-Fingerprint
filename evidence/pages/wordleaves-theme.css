@@ -76,3 +76,8 @@ article#evidence-main-article > p.markdown {
 .link:hover {
 	color: var(--wl-accent);
 }
+
+/* Contain table screen-reader links so phones don't scroll sideways */
+.scrollbox {
+	position: relative;
+}
