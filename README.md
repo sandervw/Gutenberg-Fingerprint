@@ -29,7 +29,7 @@ Dagster OSS on the box holds the schedule, the CDC gate, and the run logs (Postg
 
 ## Measurement
 
-Cleaning and measurement are plain Python modules in `python/workflow/`, with tunables in `python/helpers/`.
+Cleaning and measurement rules are pure Python in `python/core/`; the steps in `python/workflow/` read, call them, and write.
 
 - `strip.py` cuts the PG boilerplate.
 - `measure.py` parses with spaCy in chunks under its max length. Only new/changed works re-parse.
@@ -80,7 +80,7 @@ Credentials: an SSH key in Actions secrets (the deploy hook), a Cloudflare API t
 ## Repo layout
 
 ```
-python/      pipeline: workflow steps + helpers, storage seam (storage.py)
+python/      pipeline: pure core/, workflow/ steps, dagster/ wiring, storage.py seam
 dbt/         dbt Core project (models, macros, snapshots, tests)
 evidence/    Evidence.dev site + build scripts
 infra/tofu/  OpenTofu: OVH VPS + Cloudflare, provision.sh + Dagster/tunnel services

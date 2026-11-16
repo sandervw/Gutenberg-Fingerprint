@@ -17,6 +17,7 @@ dev = [
     "deltalake>=1.6.2",
     "duckdb>=1.1.0",
     "en-core-web-sm",
+    "import-linter>=2.16",
     "polars>=1.42.1",
     "psycopg[binary]>=3.2.0",
     "pyarrow>=25.0.0",
@@ -26,6 +27,29 @@ dev = [
 
 [tool.uv.sources]
 en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
+
+[tool.importlinter]
+root_package = "python"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "core stays pure: no shells, storage, network, or process calls"
+type = "forbidden"
+source_modules = ["python.core"]
+forbidden_modules = [
+    "python.storage",
+    "python.workflow",
+    "python.dagster",
+    "dagster",
+    "dagster_dbt",
+    "duckdb",
+    "psycopg",
+    "requests",
+    "shutil",
+    "subprocess",
+    "tempfile",
+    "urllib",
+]
 
 [tool.dagster]
 module_name = "python.dagster.definitions"

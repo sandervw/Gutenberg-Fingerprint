@@ -6,14 +6,15 @@ Terms follow [the glossary](glossary.md). Sections 1, 4, and 5 are binding; chan
 
 | Part | Folder | Does | May import |
 |---|---|---|---|
-| Steps | `python/workflow/` | One module per pipeline step | `python/helpers/` |
-| Logic and seam | `python/helpers/` | Metric, filter, and cleaning functions; `storage.py` is the only storage access | standard library, spaCy, polars; `storage.py` also psycopg and duckdb |
+| Core | `python/core/` | Metric, filter, cleaning, strip, and change-detection rules | standard library, spaCy, polars |
+| Storage seam | `python/storage.py` | The only storage access | psycopg, duckdb, polars |
+| Steps | `python/workflow/` | One shell per pipeline step: read, call core, write | `python/core/`, `python/storage.py`, requests |
 | Orchestration | `python/dagster/` | Assets, schedule, gate sensor, failure alert | `python/workflow/` |
 | Warehouse | `dbt/` | Staging, star schema, marts | sources in `raw` |
 | Site | `evidence/` | Pages over the marts | `gold` dimensions, facts, and marts |
 | Infra | `infra/` | The box, Cloudflare, systemd units | none |
 
-Metric, filter, and cleaning functions do no I/O and read no clock. `GUFIME_TARGET` picks `duckdb` (local default) or `postgres`; `GUFIME_FILES_ROOT`, `GUFIME_PG_DSN`, and `GUFIME_DUCKDB_PATH` override paths.
+Core does no I/O and reads no clock. An import-linter contract in `pyproject.toml` (`uv run lint-imports`) and the simple-code checker enforce it in CI. `GUFIME_TARGET` picks `duckdb` (local default) or `postgres`; `GUFIME_FILES_ROOT`, `GUFIME_PG_DSN`, and `GUFIME_DUCKDB_PATH` override paths.
 
 ## 2. Data flow
 
@@ -66,7 +67,7 @@ Every model compiles on DuckDB and Postgres. Every model full-rebuilds. `raw_wor
 
 ## 5. Measurement
 
-`strip.py` cuts PG boilerplate at the earliest end marker of either era and normalizes quotes. `measure.py` parses with spaCy in chunks under its maximum length. `lexicons.py`, `vocab.py`, and `stylometrics.py` hold one function per metric, each returning a dict of series. **15 metric concepts → 63 series.**
+`core/strip.py` cuts PG boilerplate at the earliest end marker of either era and normalizes quotes. `core/measure.py` parses with spaCy in chunks under its maximum length. `core/lexicons.py`, `core/vocab.py`, and `core/stylometrics.py` hold one function per metric, each returning a dict of series. **15 metric concepts → 63 series.**
 
 | Category | Metrics |
 |---|---|

@@ -7,44 +7,31 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import polars as pl
+import polars
 import requests
 
-from python.helpers import filter, storage
+from python import storage
+from python.core.filter import is_copyrighted
+from python.core.watermark import (
+    IngestCounts,
+    count_changes,
+    ingest_audit_row,
+    pick_downloads,
+    update_watermark,
+)
 
 TEXTS_ROOT: Path = storage.file_path("bronze/texts")
 MIRROR: str = "https://gutenberg.pglaf.org"
 
-SLEEP_S: float = 2.0  # PG's stated politeness gap
+POLITENESS_SECONDS: float = 2.0  # PG's stated politeness gap
 MAX_CONSECUTIVE_FAILURES: int = 5  # a streak means blocked or mirror down
 MAX_DOWNLOADS_PER_RUN: int = 200  # caps a run to a predictable length
-
-# %% Diff - roster vs watermark ledger
-
-
-def pick_downloads(roster: pl.DataFrame, watermark: pl.DataFrame) -> pl.DataFrame:
-    """New, changed, or previously failed works."""
-    seen = watermark.select(
-        "gutenberg_id",
-        pl.col("catalog_row_hash").alias("seen_hash"),
-        "status",
-    )
-    return (
-        roster.select("gutenberg_id", "catalog_row_hash")
-        .join(seen, on="gutenberg_id", how="left")
-        .filter(
-            pl.col("seen_hash").is_null()
-            | (pl.col("seen_hash") != pl.col("catalog_row_hash"))
-            | (pl.col("status") == "failed")
-        )
-        .sort("gutenberg_id")
-    )
-
 
 # %% Download - raw bytes, one file per work, rate-limited
 
 
 def text_urls(gutenberg_id: int) -> list[str]:
+    """Mirror URLs to try for one work, best first."""
     digit_path = "/".join(str(gutenberg_id)[:-1]) or "0"
     return [
         f"{MIRROR}/cache/epub/{gutenberg_id}/pg{gutenberg_id}.txt",
@@ -55,9 +42,10 @@ def text_urls(gutenberg_id: int) -> list[str]:
 
 
 def fetch_text(gutenberg_id: int, session: requests.Session) -> bytes:
+    """Fetch the first mirror URL that exists for one work."""
     for index, url in enumerate(text_urls(gutenberg_id)):
         if index:
-            time.sleep(SLEEP_S)
+            time.sleep(POLITENESS_SECONDS)
         response = session.get(url, timeout=60)
         if response.status_code == 404:
             continue
@@ -66,7 +54,8 @@ def fetch_text(gutenberg_id: int, session: requests.Session) -> bytes:
     raise FileNotFoundError(f"no text file for {gutenberg_id}")
 
 
-def download_texts(todo: pl.DataFrame) -> pl.DataFrame:
+def download_texts(todo: polars.DataFrame) -> polars.DataFrame:
+    """Download each work; return its id, hash, text hash, and status."""
     TEXTS_ROOT.mkdir(parents=True, exist_ok=True)
     session = requests.Session()
     session.headers["User-Agent"] = storage.USER_AGENT
@@ -75,13 +64,13 @@ def download_texts(todo: pl.DataFrame) -> pl.DataFrame:
     consecutive_failures = 0
     for index, row in enumerate(todo.iter_rows(named=True)):
         if index:
-            time.sleep(SLEEP_S)
+            time.sleep(POLITENESS_SECONDS)
         if index % 50 == 0:
             print(f"{index:,}/{todo.height:,}...")
         gutenberg_id = row["gutenberg_id"]
         try:
             raw_bytes = fetch_text(gutenberg_id, session)
-            if filter.is_copyrighted(raw_bytes):
+            if is_copyrighted(raw_bytes):
                 (TEXTS_ROOT / f"{gutenberg_id}.txt").unlink(missing_ok=True)
                 rows.append((gutenberg_id, row["catalog_row_hash"], None, "copyrighted"))
                 consecutive_failures = 0
@@ -91,77 +80,29 @@ def download_texts(todo: pl.DataFrame) -> pl.DataFrame:
             rows.append((gutenberg_id, row["catalog_row_hash"], text_hash, "ingested"))
             consecutive_failures = 0
         # OSError covers the all-mirrors-404 FileNotFoundError
-        except (requests.RequestException, OSError) as exc:
-            print(f"{gutenberg_id}: {exc}")
+        except (requests.RequestException, OSError) as error:
+            print(f"{gutenberg_id}: {error}")
             rows.append((gutenberg_id, row["catalog_row_hash"], None, "failed"))
             consecutive_failures += 1
             if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
                 print(f"{consecutive_failures} failures in a row, stopping early")
                 break
-    return pl.DataFrame(
+    return polars.DataFrame(
         rows,
         schema={
-            "gutenberg_id": pl.Int64,
-            "catalog_row_hash": pl.Utf8,
-            "text_hash": pl.Utf8,
-            "status": pl.Utf8,
+            "gutenberg_id": polars.Int64,
+            "catalog_row_hash": polars.String,
+            "text_hash": polars.String,
+            "status": polars.String,
         },
         orient="row",
     )
 
 
-# %% Watermark - carry untouched rows, upsert processed ones
-
-
-def update_watermark(
-    watermark: pl.DataFrame, processed: pl.DataFrame, run_ts: datetime
-) -> pl.DataFrame:
-    carried = watermark.filter(
-        ~pl.col("gutenberg_id").is_in(processed["gutenberg_id"].implode())
-    )
-    updated = (
-        processed.join(
-            watermark.select("gutenberg_id", "first_seen"), on="gutenberg_id", how="left"
-        )
-        .with_columns(
-            pl.col("first_seen").fill_null(pl.lit(run_ts, dtype=storage.UTC_DATETIME_TYPE)),
-            pl.lit(run_ts, dtype=storage.UTC_DATETIME_TYPE).alias("last_changed"),
-        )
-        .select(watermark.columns)
-    )
-    return pl.concat([carried, updated])
-
-
-def write_audit(
-    roster_size: int, new: int, changed: int, downloaded: int, failed: int, run_ts: datetime
-) -> None:
-    row = pl.DataFrame(
-        {
-            "run_ts": [run_ts],
-            "run_type": ["text_ingest"],
-            "books_in_catalog": [roster_size],
-            "candidate_new": [new],
-            "candidate_changed": [changed],
-            "downloaded": [downloaded],
-            "failed": [failed],
-        },
-        schema={
-            "run_ts": storage.UTC_DATETIME_TYPE,
-            "run_type": pl.Utf8,
-            "books_in_catalog": pl.Int64,
-            "candidate_new": pl.Int64,
-            "candidate_changed": pl.Int64,
-            "downloaded": pl.Int64,
-            "failed": pl.Int64,
-        },
-    )
-    storage.write_table("bronze.ingest_audit", row, mode="append")
-
-
 # %% Prune - bronze mirrors roster; drop files for departed works
 
 
-def prune_orphans(roster: pl.DataFrame, texts_root: Path) -> int:
+def prune_orphans(roster: polars.DataFrame, texts_root: Path) -> int:
     """Delete bronze texts whose work left the roster."""
     if not texts_root.exists():
         return 0
@@ -176,23 +117,20 @@ def prune_orphans(roster: pl.DataFrame, texts_root: Path) -> int:
 
 # %% Run
 
+
 def main() -> None:
-    run_ts: datetime = datetime.now(timezone.utc)
-    roster: pl.DataFrame = storage.read_table("raw.raw_works")
-    watermark: pl.DataFrame = storage.read_table("bronze.watermark")
+    """Download the backlog, then update the watermark and audit."""
+    run_time: datetime = datetime.now(timezone.utc)
+    roster: polars.DataFrame = storage.read_table("raw.raw_works")
+    watermark: polars.DataFrame = storage.read_table("bronze.watermark")
     pruned: int = prune_orphans(roster, TEXTS_ROOT)
     if pruned:
         print(f"pruned {pruned:,} orphan bronze texts")
-    backlog: pl.DataFrame = pick_downloads(roster, watermark)
-
-    candidate_new: int = backlog.filter(pl.col("seen_hash").is_null()).height
-    candidate_changed: int = backlog.filter(
-        pl.col("seen_hash").is_not_null()
-        & (pl.col("seen_hash") != pl.col("catalog_row_hash"))
-    ).height
+    backlog: polars.DataFrame = pick_downloads(roster, watermark)
+    candidate_new, candidate_changed = count_changes(backlog)
 
     # Sorted slice is deterministic; next run resumes there
-    todo: pl.DataFrame = backlog.head(MAX_DOWNLOADS_PER_RUN)
+    todo: polars.DataFrame = backlog.head(MAX_DOWNLOADS_PER_RUN)
     deferred: int = backlog.height - todo.height
     print(
         f"roster {roster.height:,} | backlog {backlog.height:,} "
@@ -201,15 +139,18 @@ def main() -> None:
         f"| this run {todo.height:,}, deferred {deferred:,}"
     )
 
-    processed: pl.DataFrame = download_texts(todo)
-    downloaded: int = processed.filter(pl.col("status") == "ingested").height
-    failed: int = processed.filter(pl.col("status") == "failed").height
-    copyrighted: int = processed.filter(pl.col("status") == "copyrighted").height
+    processed: polars.DataFrame = download_texts(todo)
+    downloaded: int = processed.filter(polars.col("status") == "ingested").height
+    failed: int = processed.filter(polars.col("status") == "failed").height
+    copyrighted: int = processed.filter(polars.col("status") == "copyrighted").height
 
     storage.write_table(
-        "bronze.watermark", update_watermark(watermark, processed, run_ts), mode="overwrite"
+        "bronze.watermark", update_watermark(watermark, processed, run_time), mode=storage.WriteMode.OVERWRITE
     )
-    write_audit(roster.height, candidate_new, candidate_changed, downloaded, failed, run_ts)
+    counts = IngestCounts(roster.height, candidate_new, candidate_changed, downloaded, failed)
+    storage.write_table(
+        "bronze.ingest_audit", ingest_audit_row("text_ingest", run_time, counts), mode=storage.WriteMode.APPEND
+    )
 
     print(
         f"texts: {downloaded:,} downloaded, {failed:,} failed, {copyrighted:,} copyrighted"

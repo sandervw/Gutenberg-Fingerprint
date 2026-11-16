@@ -1,4 +1,4 @@
-// Serves the SPA shell, not the homepage, for unmatched paths.
+/** Serves the SPA shell, not the homepage, for unmatched paths. */
 export async function onRequest(context) {
 	const response = await context.env.ASSETS.fetch(context.request);
 	if (response.status !== 404) return response;

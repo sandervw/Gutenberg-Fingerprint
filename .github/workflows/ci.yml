@@ -31,16 +31,11 @@ jobs:
           python -m pip install ruff==0.17.2 uv==0.11.21
           uv sync --frozen
 
-      # Changed files only, until python/ meets simple-code.
       - name: Simple-code checks
-        env:
-          BASE_REF: ${{ github.base_ref }}
-          BEFORE: ${{ github.event.before }}
-        run: |
-          if [ -n "$BASE_REF" ]; then base="origin/$BASE_REF"; else base="$BEFORE"; fi
-          mapfile -t changed < <(git diff --name-only --diff-filter=d "$base"...HEAD)
-          if [ ${#changed[@]} -eq 0 ]; then echo "No checkable files changed."; exit 0; fi
-          python .claude/skills/simple-code/scripts/check_code.py "${changed[@]}"
+        run: python .claude/skills/simple-code/scripts/check_code.py .
+
+      - name: Core stays pure
+        run: uv run --frozen lint-imports
 
       - name: dbt parses on both targets
         working-directory: dbt
