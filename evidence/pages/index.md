@@ -68,4 +68,4 @@ limit 25
 
 ---
 
-Built with dbt, Microsoft Fabric, and Evidence — [source on GitHub](https://github.com/sandervw/Gutenberg-Fingerprint).
+Built with dbt, Postgres, Dagster, and Evidence — [source on GitHub](https://github.com/sandervw/Gutenberg-Fingerprint).
