@@ -1,0 +1,78 @@
+// UC-13: no sideways scrolling on phones; readable light and dark themes.
+import { expect, test, type Page } from "@playwright/test";
+import { openPage } from "./site";
+
+const samplePages = ["/", "/works", "/authors", "/works/10662", "/authors/Bond, Nelson S."];
+const overflowingPages = new Set(["/", "/works", "/authors", "/authors/Bond, Nelson S."]);
+
+/** Pixels the page can scroll sideways beyond the viewport. */
+function sidewaysOverflow(page: Page): Promise<number> {
+  return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+}
+
+/** Relative luminance of an "rgb(r, g, b)" colour, per WCAG. */
+function luminance(colour: string): number {
+  const channels = (colour.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+  const linear = channels.map((value) => {
+    const scaled = value / 255;
+    return scaled <= 0.03928 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+/** Luminance of the h1 text and of its nearest painted backdrop. */
+async function headingLuminance(page: Page): Promise<{ text: number; backdrop: number }> {
+  const [text, backdrop] = await page.getByRole("heading", { level: 1 }).first().evaluate((heading) => {
+    let node: Element | null = heading;
+    while (node && getComputedStyle(node).backgroundColor === "rgba(0, 0, 0, 0)") {
+      node = node.parentElement;
+    }
+    return [getComputedStyle(heading).color, node ? getComputedStyle(node).backgroundColor : "rgb(255, 255, 255)"];
+  });
+  return { text: luminance(text), backdrop: luminance(backdrop) };
+}
+
+/** WCAG contrast ratio between two luminances. */
+function contrast(first: number, second: number): number {
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+}
+
+/** Cycle the Appearance menu item until it reads the wanted theme. */
+async function chooseTheme(page: Page, theme: "Light" | "Dark"): Promise<void> {
+  const appearance = page.getByRole("menuitem", { name: /^Appearance/ });
+  // Appearance cycles Light, Dark, System; four checks reach any theme.
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (!(await appearance.isVisible())) {
+      // A short timeout fails fast when the button is covered.
+      await page.getByRole("button", { name: "Menu" }).click({ timeout: 10_000 });
+    }
+    if ((await appearance.innerText()).includes(theme)) {
+      break;
+    }
+    await appearance.click();
+  }
+  await expect(appearance).toContainText(theme);
+  await page.keyboard.press("Escape");
+}
+
+for (const path of samplePages) {
+  test(`UC-13 ${path} has no sideways scrolling at phone width`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "phone", "phone width only");
+    test.fail(overflowingPages.has(path), "Known site bug: phone layout overflows and covers the Menu button.");
+    await openPage(page, path);
+    const overflow = await sidewaysOverflow(page);
+    expect(overflow, `${path} scrolls sideways by ${overflow}px`).toBeLessThanOrEqual(0);
+  });
+}
+
+for (const theme of ["Light", "Dark"] as const) {
+  test(`UC-13 ${theme} theme keeps text readable`, async ({ page }, testInfo) => {
+    test.fail(testInfo.project.name === "phone", "Known site bug: phone layout overflows and covers the Menu button.");
+    await openPage(page, "/");
+    await chooseTheme(page, theme);
+    const shades = await headingLuminance(page);
+    expect(contrast(shades.text, shades.backdrop)).toBeGreaterThanOrEqual(4.5);
+    // Dark means light text on a dark backdrop, and vice versa.
+    expect(shades.backdrop < shades.text).toBe(theme === "Dark");
+  });
+}

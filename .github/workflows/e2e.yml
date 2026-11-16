@@ -1,0 +1,54 @@
+# Runs the black-box site specs against gufime.com.
+name: Site specs
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # after the nightly run's site deploy
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Site to test
+        default: https://gufime.com
+  pull_request:
+    paths:
+      - tests/e2e/**
+      - package.json
+      - package-lock.json
+      - .github/workflows/e2e.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  specs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Playwright
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run specs at desktop and phone widths
+        run: npm run test:e2e
+        env:
+          BASE_URL: ${{ inputs.base_url || 'https://gufime.com' }}
+
+      - name: Keep the report on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

@@ -4,6 +4,7 @@
       ".py",
       ".sql",
       ".js",
+      ".ts",
       ".mjs",
       ".cjs",
       ".svelte",
