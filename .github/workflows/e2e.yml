@@ -7,8 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: Site to test
-        default: https://gufime.com
+        description: Site to test; blank uses the spec default
   pull_request:
     paths:
       - tests/e2e/**
@@ -32,7 +31,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24
+          node-version-file: evidence/.node-version
           cache: npm
 
       - name: Install Playwright
@@ -43,7 +42,7 @@ jobs:
       - name: Run specs at desktop and phone widths
         run: npm run test:e2e
         env:
-          BASE_URL: ${{ inputs.base_url || 'https://gufime.com' }}
+          BASE_URL: ${{ inputs.base_url }}
 
       - name: Keep the report on failure
         if: failure()

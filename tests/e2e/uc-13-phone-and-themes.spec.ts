@@ -13,6 +13,9 @@ function sidewaysOverflow(page: Page): Promise<number> {
 /** Relative luminance of an "rgb(r, g, b)" colour, per WCAG. */
 function luminance(colour: string): number {
   const channels = (colour.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+  if (channels.length < 3) {
+    throw new Error(`Unparsable colour: "${colour}"`);
+  }
   const linear = channels.map((value) => {
     const scaled = value / 255;
     return scaled <= 0.03928 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
@@ -23,11 +26,15 @@ function luminance(colour: string): number {
 /** Luminance of the h1 text and of its nearest painted backdrop. */
 async function headingLuminance(page: Page): Promise<{ text: number; backdrop: number }> {
   const [text, backdrop] = await page.getByRole("heading", { level: 1 }).first().evaluate((heading) => {
-    let node: Element | null = heading;
-    while (node && getComputedStyle(node).backgroundColor === "rgba(0, 0, 0, 0)") {
-      node = node.parentElement;
+    const textColour = getComputedStyle(heading).color;
+    // Walk up until an ancestor paints a background.
+    for (let node: Element | null = heading; node !== null; node = node.parentElement) {
+      const background = getComputedStyle(node).backgroundColor;
+      if (background !== "rgba(0, 0, 0, 0)") {
+        return [textColour, background];
+      }
     }
-    return [getComputedStyle(heading).color, node ? getComputedStyle(node).backgroundColor : "rgb(255, 255, 255)"];
+    return [textColour, "rgb(255, 255, 255)"];
   });
   return { text: luminance(text), backdrop: luminance(backdrop) };
 }

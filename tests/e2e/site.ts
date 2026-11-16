@@ -45,7 +45,11 @@ export async function columnValues(table: Locator, column: string): Promise<stri
 
 /** Parse a displayed number such as "198,376" or "28.8". */
 export function displayedNumber(text: string): number {
-  return Number(text.replace(/,/g, ""));
+  const value = Number(text.replace(/,/g, ""));
+  if (Number.isNaN(value)) {
+    throw new Error(`Not a displayed number: "${text}"`);
+  }
+  return value;
 }
 
 /** Choose an option from a labelled dropdown, searching by its text. */

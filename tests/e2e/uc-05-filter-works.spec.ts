@@ -6,14 +6,10 @@ const sampleAuthor = "Morris, William";
 const sampleGenre = "Horror";
 const sampleTitle = "Udolpho";
 
-function worksTable(page: Page) {
-  return tableWithColumn(page, "Flags");
-}
-
 /** Wait until every value in a column satisfies the check. */
 async function expectColumn(page: Page, column: string, check: (value: string) => boolean) {
   await expect(async () => {
-    const values = await columnValues(worksTable(page), column);
+    const values = await columnValues(tableWithColumn(page, "Flags"), column);
     expect(values.length).toBeGreaterThan(0);
     expect(values.filter((value) => !check(value))).toEqual([]);
   }).toPass();
