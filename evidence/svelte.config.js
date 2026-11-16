@@ -1,6 +1,6 @@
 import adapter from '@sveltejs/adapter-static';
 
-// SPA mode serves unprerendered routes from this fallback shell.
+/** SPA mode serves unprerendered routes from this fallback shell. */
 export default {
 	kit: {
 		adapter: adapter({

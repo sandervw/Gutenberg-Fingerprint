@@ -1,5 +1,5 @@
-// Cloudflare Pages caps files at 25 MiB; the bundled DuckDB-WASM binaries exceed it.
-// Rewrite their URLs to the identical files on jsDelivr and drop them from the build.
+// Cloudflare Pages caps files at 25 MiB; DuckDB-WASM binaries exceed it.
+// So point their URLs at jsDelivr and drop them from the build.
 import { readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 

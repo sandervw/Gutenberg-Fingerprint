@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import os
 
-import dagster
 from dagster_dbt import DbtCliResource
+
+import dagster
 
 from . import alert, assets
 
@@ -43,6 +44,7 @@ nightly_schedule = dagster.ScheduleDefinition(
 def gate(
     context: dagster.SensorEvaluationContext, asset_event: dagster.EventLogEntry
 ) -> dagster.RunRequest | dagster.SkipReason:
+    """Launch downstream when catalog reports New or Changed Works."""
     materialization = asset_event.asset_materialization
     new_count = materialization.metadata["new_count"].value
     if new_count > 0:
@@ -56,6 +58,7 @@ def gate(
     description="Email on any nightly run failure.",
 )
 def failure_alert(context: dagster.RunFailureSensorContext) -> None:
+    """Email the failed run's job, link, and error."""
     run = context.dagster_run
     body = (
         f"Job {run.job_name} failed.\n"

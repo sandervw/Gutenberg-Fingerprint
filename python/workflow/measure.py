@@ -2,199 +2,114 @@
 
 from __future__ import annotations
 
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-import polars as pl
+import polars
 import spacy
-from spacy.language import Language
-from spacy.tokens import Doc
 
-from python.helpers import storage
-from python.helpers.clean import clean_markdown
-from python.helpers.stylometrics import (
-    adjective_density,
-    adverb_density,
-    alpha_word_count,
-    archaic_word_rate,
-    contraction_rate,
-    dialogue_narration_ratio,
-    function_word_frequency,
-    honore_r,
-    mean_parse_tree_depth,
-    mean_sentence_length,
-    mean_word_length,
-    punctuation_frequency,
-    sentence_length_stdev,
-    sentence_type_mix,
-    yules_k,
+from python import storage
+from python.core.clean import clean_markdown
+from python.core.ledger import UTC_DATETIME_TYPE
+from python.core.measure import (
+    METRIC_FUNCTIONS,
+    Watermarks,
+    build_work_document,
+    collect_vocab,
+    measure_metrics,
+    plan_measures,
 )
-from python.helpers.vocab import vocab_terms
-
-# Chunk size stays under spaCy's 1M-char limit
-MAX_CHUNK_CHARS = 100_000
-
-# Per-work metrics; append new metrics here
-METRIC_FUNCTIONS = (
-    mean_word_length,          # 1
-    yules_k,                   # 2
-    archaic_word_rate,         # 3
-    honore_r,                  # 4
-    function_word_frequency,   # 5  (multi-value)
-    mean_sentence_length,      # 6
-    sentence_length_stdev,     # 7
-    mean_parse_tree_depth,     # 8
-    sentence_type_mix,         # 9  (multi-value)
-    punctuation_frequency,     # 10 (multi-value)
-    contraction_rate,          # 11
-    dialogue_narration_ratio,  # 12
-    adjective_density,         # 13
-    adverb_density,            # 14
-)
-
-# %% Parsing (clean -> chunk -> parse -> reassemble)
-
-
-def chunk_text(text: str, max_chars: int) -> list[str]:
-    """Split below max_chars, breaking only on blank lines."""
-    paragraphs = re.split(r"\n\s*\n", text)
-    chunks: list[str] = []
-    current: list[str] = []
-    size = 0
-    for paragraph in paragraphs:
-        if current and size + len(paragraph) > max_chars:
-            chunks.append("\n\n".join(current))
-            current = []
-            size = 0
-        current.append(paragraph)
-        size += len(paragraph) + 2  # +2 for the "\n\n" rejoin
-    if current:
-        chunks.append("\n\n".join(current))
-    return chunks
-
-
-def build_work_doc(nlp: Language, clean_text: str) -> Doc:
-    """Chunk, parse as a stream, stitch back into one Doc."""
-    chunks = chunk_text(clean_text, MAX_CHUNK_CHARS)
-    docs = list(nlp.pipe(chunks, batch_size=8))
-    return Doc.from_docs(docs)
-
-
-def measure_metrics(work_id: str, doc: Doc) -> list[tuple[str, str, float]]:
-    """Flatten every metric's dict into (work_id, metric, value) rows."""
-    return [
-        (work_id, metric_name, float(value))
-        for metric_function in METRIC_FUNCTIONS
-        for metric_name, value in metric_function(doc).items()
-    ]
-
-
-def collect_vocab(work_id: str, doc: Doc) -> list[tuple[str, str, int]]:
-    """One raw_vocab row per distinct content lemma."""
-    return [(work_id, term, count) for term, count in vocab_terms(doc).items()]
 
 
 def source_work_id(source: Path) -> str:
-    # Gutenberg filename prefix, or the full stem for self works
+    """Gutenberg filename prefix, or the full stem for self works."""
     if source.parent.name == storage.SELF_FOLDER:
         return source.stem
     return source.name.split("-", 1)[0]
 
 
-# %% Run
-
-def main() -> None:
-    corpus_root = storage.file_path("silver/corpus")
-    manifest_path = storage.file_path("bronze/self/_manifest.csv")
-
-    sources = {source_work_id(path): path for path in sorted(corpus_root.rglob("*.md"))}
-
-    # Per-work high-water mark of loaded_at
+def read_watermarks(manifest_path: Path) -> Watermarks:
+    """Last measured, catalog-changed, and manual-upload times per work."""
     try:
-        loaded_at_by_id: dict[str, datetime] = dict(
+        measured_at: dict[str, datetime] = dict(
             storage.read_table("raw.raw_measurements", columns=["work_id", "loaded_at"])
             .group_by("work_id")
-            .agg(pl.col("loaded_at").max())
+            .agg(polars.col("loaded_at").max())
             .iter_rows()
         )
     except storage.TableMissing:
-        loaded_at_by_id = {}
-
-    changed_at: dict[str, datetime] = {
+        measured_at = {}
+    catalog_changed_at: dict[str, datetime] = {
         str(gutenberg_id): last_changed
         for gutenberg_id, last_changed in storage.read_table(
             "bronze.watermark", columns=["gutenberg_id", "last_changed"]
         ).iter_rows()
     }
-
     # Manual works' watermark: the seed manifest's loaded_at stamps
-    manual_changed_at: dict[str, datetime] = dict(
-        pl.read_csv(manifest_path, schema_overrides={"loaded_at": pl.String})
+    self_changed_at: dict[str, datetime] = dict(
+        polars.read_csv(manifest_path, schema_overrides={"loaded_at": polars.String})
         .select(
             "work_id",
-            pl.col("loaded_at").str.to_datetime("%Y-%m-%d %H:%M:%S").dt.replace_time_zone("UTC"),
+            polars.col("loaded_at").str.to_datetime("%Y-%m-%d %H:%M:%S").dt.replace_time_zone("UTC"),
         )
         .iter_rows()
     )
+    return Watermarks(measured_at, catalog_changed_at, self_changed_at)
 
-    def needs_measure(work_id: str, source: Path) -> bool:
-        """Re-parse when unmeasured or the source changed after measuring."""
-        if work_id not in loaded_at_by_id:
-            return True
-        is_self = source.parent.name == storage.SELF_FOLDER
-        changed = (manual_changed_at if is_self else changed_at).get(work_id)
-        return changed is not None and changed > loaded_at_by_id[work_id]
 
-    todo = {
-        work_id: path
-        for work_id, path in sources.items()
-        if needs_measure(work_id, path)
-    }
-    stale_ids = sorted(set(loaded_at_by_id) - set(sources))
-    print(f"corpus {len(sources)}: {len(todo)} to measure, {len(stale_ids)} stale to drop")
+def sync_table(name: str, frame: polars.DataFrame, replaced_ids: list[str], *, first_fill: bool) -> None:
+    """Swap re-measured works' rows in place, drop stale, keep the rest."""
+    if first_fill:
+        storage.write_table(name, frame, mode="overwrite")
+        return
+    storage.delete_where(name, "work_id", replaced_ids)
+    if frame.height:
+        storage.write_table(name, frame, mode="append")
+
+
+def main() -> None:
+    """Measure new and changed works; sync raw_measurements and raw_vocab."""
+    corpus_root = storage.file_path("silver/corpus")
+    sources = {source_work_id(path): path for path in sorted(corpus_root.rglob("*.md"))}
+    self_ids = frozenset(
+        work_id for work_id, path in sources.items() if path.parent.name == storage.SELF_FOLDER
+    )
+    watermarks = read_watermarks(storage.file_path("bronze/self/_manifest.csv"))
+    plan = plan_measures(sources, self_ids, watermarks)
+    print(f"corpus {len(sources)}: {len(plan.todo)} to measure, {len(plan.stale_ids)} stale to drop")
 
     # NER disabled: no metric uses it, skipping speeds parsing
-    nlp = spacy.load("en_core_web_sm", disable=["ner"])
+    language_model = spacy.load("en_core_web_sm", disable=["ner"])
 
     measurement_rows: list[tuple[str, str, float]] = []
     vocab_rows: list[tuple[str, str, int]] = []
-    for done, (work_id, source) in enumerate(todo.items(), start=1):
-        doc = build_work_doc(nlp, clean_markdown(source.read_text(encoding="utf-8")))
-        measurement_rows.extend(measure_metrics(work_id, doc))
-        # word_count rides raw_measurements for dim_work
-        measurement_rows.append((work_id, "word_count", float(alpha_word_count(doc))))
-        vocab_rows.extend(collect_vocab(work_id, doc))
-        if done % 50 == 0 or done == len(todo):
-            print(f"{done}/{len(todo)} works parsed")
+    for done, (work_id, source) in enumerate(plan.todo.items(), start=1):
+        document = build_work_document(language_model, clean_markdown(source.read_text(encoding="utf-8")))
+        measurement_rows.extend(measure_metrics(work_id, document))
+        vocab_rows.extend(collect_vocab(work_id, document))
+        if done % 50 == 0 or done == len(plan.todo):
+            print(f"{done}/{len(plan.todo)} works parsed")
 
     # One batch timestamp shared by both tables
     loaded_at = datetime.now(timezone.utc)
 
-    measurements = pl.DataFrame(
+    measurements = polars.DataFrame(
         measurement_rows,
-        schema={"work_id": pl.String, "metric": pl.String, "value": pl.Float64},
+        schema={"work_id": polars.String, "metric": polars.String, "value": polars.Float64},
         orient="row",
-    ).with_columns(loaded_at=pl.lit(loaded_at, dtype=storage.UTC_DATETIME_TYPE))
-    vocab = pl.DataFrame(
+    ).with_columns(loaded_at=polars.lit(loaded_at, dtype=UTC_DATETIME_TYPE))
+    vocab = polars.DataFrame(
         vocab_rows,
-        schema={"work_id": pl.String, "term": pl.String, "term_count": pl.Int64},
+        schema={"work_id": polars.String, "term": polars.String, "term_count": polars.Int64},
         orient="row",
-    ).with_columns(loaded_at=pl.lit(loaded_at, dtype=storage.UTC_DATETIME_TYPE))
+    ).with_columns(loaded_at=polars.lit(loaded_at, dtype=UTC_DATETIME_TYPE))
 
-    def sync_table(name: str, frame: pl.DataFrame) -> None:
-        """Swap re-measured works' rows in place, drop stale, keep the rest."""
-        if not loaded_at_by_id:  # first fill
-            storage.write_table(name, frame, mode="overwrite")
-            return
-        storage.delete_where(name, "work_id", sorted(set(todo) | set(stale_ids)))
-        if frame.height:
-            storage.write_table(name, frame, mode="append")
-
-    sync_table("raw.raw_measurements", measurements)
-    sync_table("raw.raw_vocab", vocab)
+    replaced_ids = sorted(set(plan.todo) | set(plan.stale_ids))
+    first_fill = not watermarks.measured_at
+    sync_table("raw.raw_measurements", measurements, replaced_ids, first_fill=first_fill)
+    sync_table("raw.raw_vocab", vocab, replaced_ids, first_fill=first_fill)
     print(
-        f"Measured {len(todo)} of {len(sources)} works ({len(stale_ids)} stale dropped); "
+        f"Measured {len(plan.todo)} of {len(sources)} works ({len(plan.stale_ids)} stale dropped); "
         f"{measurements.height:,} rows into raw_measurements "
         f"({len(METRIC_FUNCTIONS)} metrics); {vocab.height:,} rows into raw_vocab."
     )

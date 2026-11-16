@@ -1,0 +1,278 @@
+# Strip rules: raw PG text to clean corpus markdown.
+
+from __future__ import annotations
+
+import re
+import unicodedata
+
+# %% Boilerplate span - modern *** markers, pre-2002 fallbacks
+
+_START = re.compile(r"^\*\*\* ?START OF (?:THE|THIS) PROJECT GUTENBERG EBOOK[^\n]*$", re.M)
+_END = re.compile(r"^\*\*\* ?END OF (?:THE|THIS) PROJECT GUTENBERG EBOOK[^\n]*$", re.M)
+_OLD_START = re.compile(r"^\*END\*THE SMALL PRINT![^\n]*$", re.M)
+_OLD_END = re.compile(r"^End of (?:the |this )?Project Gutenberg", re.M | re.I)
+
+
+def decode(raw_bytes: bytes) -> str:
+    """Decode UTF-8, falling back to cp1252 with replacement."""
+    try:
+        return raw_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return raw_bytes.decode("cp1252", errors="replace")
+
+
+def isolate_body(text: str) -> str:
+    """Cut at the earliest end marker of either era."""
+    start = _START.search(text) or _OLD_START.search(text)
+    if start is None:
+        raise ValueError("no start marker")
+    body = text[start.end() :]
+    ends = [
+        match.start() for match in (_END.search(body), _OLD_END.search(body)) if match
+    ]
+    if not ends:
+        raise ValueError("no end marker")
+    return body[: min(ends)]
+
+
+# %% Dirt - transcriber leavings, contents lists, front-matter repeats
+
+_BRACKET_NOTE = re.compile(r"\[(?:Illustration|Transcriber)[^\]]*\]", re.I | re.S)
+_ETEXT_LINE = re.compile(r"(?im)^.*\[e-?text #\d+\].*$\n?")
+_CONTENTS = re.compile(
+    r"(?i)^(?:table of )?contents\.?$|^list of (?:chapters|illustrations|plates|figures)\.?$"
+    r"|^illustrations\.?$"
+)
+_CREDIT = re.compile(
+    r"(?i)^(?:produced by|(?:this )?e-?text (?:was )?prepared by|prepared by"
+    r"|transcribed|scanned by|proofread|credits?:)"
+)
+_FRONT_CUES = re.compile(
+    r"(?i)^(?:by\b[^\n]{0,40}|illustrated by\b[^\n]*|with illustrations\b[^\n]*"
+    r"|copyright\b[^\n]*|all rights reserved[^\n]*|\[?\d{4}\]?|\([^)\n]*\)"
+    r"|(?:a |an )?(?:romance|novel|tale|fantasy|story|poem)s?|[^\n]{0,30}\d{4})$"
+)
+_FRONT_STRONG = re.compile(
+    r"(?i)^(?:translated (?:from|by)|illustrated by|with illustrations|copyright"
+    r"|all rights reserved|printed in)|(?:& co(?:mpany)?\.?|publishers?|press|avenue|street)\W*$"
+)
+_GUTENBERG_MENTION = re.compile(r"(?i)project gutenberg|\be-?texts?\b")
+_BRACKET_BLOCK = re.compile(r"^\[[^\]]*\]$", re.S)
+_DEDICATION = re.compile(r"(?i)\bdedicat")
+_TAIL = re.compile(r"(?i)^[*_\s]*(?:the\s+)?end[.!]?[*_\s]*$|^finis\.?$")
+
+
+def split_blocks(text: str) -> list[str]:
+    """Split text into non-empty blank-line-separated blocks."""
+    return [
+        block.strip("\n") for block in re.split(r"\n[ \t]*\n", text) if block.strip()
+    ]
+
+
+def drop_contents(blocks: list[str]) -> list[str]:
+    """Drop a contents heading and the short-line blocks after it."""
+    out: list[str] = []
+    skipping = False
+    for block in blocks:
+        lines = [line for line in block.splitlines() if line.strip()]
+        if _CONTENTS.match(lines[0].strip()):
+            skipping = True
+            continue
+        if skipping and len(lines) >= 3 and all(len(line) <= 65 for line in lines):
+            continue
+        skipping = False
+        out.append(block)
+    return out
+
+
+def _squash(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+
+
+def drop_front_matter(blocks: list[str], title: str, author: str) -> list[str]:
+    """Drop title, byline, credit, and dedication blocks from the opening."""
+    main_title = _squash(re.split(r"[:;\n\r]", title)[0])
+    names = [
+        name
+        for name in (_squash(part) for part in author.split(";"))
+        if len(name) >= 4 and name != "unknown"
+    ]
+    out: list[str] = []
+    # Front matter only ever sits in the opening blocks
+    for block in blocks[:8]:
+        stripped = block.strip()
+        lines = [line.strip(" \t_*") for line in stripped.splitlines() if line.strip()]
+        squashed = _squash(block)
+        line_dirt = len(lines) <= 3 and (
+            ((len(squashed) >= 4 or squashed == main_title) and squashed in _squash(title))
+            or (len(main_title) >= 4 and main_title in squashed)
+            or any(name in squashed for name in names)
+            or all(_FRONT_CUES.match(line) for line in lines)
+            or any(_FRONT_STRONG.search(line) for line in lines)
+            or bool(_CREDIT.match(lines[0]))
+        )
+        if (
+            _GUTENBERG_MENTION.search(block)
+            or _BRACKET_BLOCK.match(stripped)
+            or (len(block) <= 300 and (_DEDICATION.search(block) or line_dirt))
+        ):
+            continue
+        out.append(block)
+    return out + blocks[8:]
+
+
+# %% Structure - chapter headings, paragraph unwrap
+
+_ROMAN = r"[IVXLCDM]{1,8}"
+_HEADING_KEYWORD = re.compile(r"(?i)^(?:chapter|book|part|volume|canto|stave|section)\b[^\n]{0,50}$")
+_HEADING_WORD = re.compile(
+    r"(?i)^(?:prologue|epilogue|introduction|induction|preface|foreword"
+    r"|conclusion|appendix|interlude|dedication|author'?s note)\b[^\n]{0,40}$"
+)
+_HEADING_NUMBER = re.compile(
+    rf"^(?:{_ROMAN}|\d{{1,3}})(?:\.?$|[.:][ \t]+[\"']?[A-Z][^\n]{{0,50}}(?<![.!?,])$)"
+)
+
+
+def _caps_line(line: str) -> bool:
+    return (
+        line == line.upper()
+        and 3 <= len(line) <= 60
+        and sum(character.isalpha() for character in line) >= 3
+        and not line.endswith((".", "!", "?"))
+    )
+
+
+def is_heading(block: str) -> bool:
+    """True for a short block that looks like a chapter heading."""
+    lines = [line.strip() for line in block.splitlines() if line.strip()]
+    if not 1 <= len(lines) <= 2 or any(len(line) > 60 for line in lines):
+        return False
+    first = lines[0]
+    return bool(
+        _HEADING_KEYWORD.match(first) or _HEADING_WORD.match(first)
+        or _HEADING_NUMBER.match(first) or _caps_line(first)
+    )
+
+
+def unwrap(block: str) -> str:
+    """Join wrapped prose lines; keep indented verse as is."""
+    lines = block.splitlines()
+    if any(line[:1] in (" ", "\t") for line in lines[1:]):
+        return "\n".join(line.rstrip() for line in lines)
+    return " ".join(line.strip() for line in lines)
+
+
+def render_blocks(blocks: list[str]) -> str:
+    """Render blocks as markdown, headings as level-two titles."""
+    out: list[str] = []
+    index = 0
+    while index < len(blocks):
+        block = blocks[index]
+        if not is_heading(block):
+            out.append(unwrap(block))
+            index += 1
+            continue
+        lines = [line.strip() for line in block.splitlines() if line.strip()]
+        next_block = blocks[index + 1].strip() if index + 1 < len(blocks) else ""
+        if len(lines) == 2:
+            out.append(f"## {lines[0].rstrip('.:')}: {lines[1]}")
+        elif (  # standalone subtitle rides along: "CHAPTER I" + "The Castle"
+            next_block and "\n" not in next_block and len(next_block) <= 60
+            and not is_heading(next_block)
+            and index + 2 < len(blocks) and len(blocks[index + 2]) > 150
+        ):
+            out.append(f"## {lines[0].rstrip('.:')}: {next_block}")
+            index += 1
+        else:
+            out.append(f"## {lines[0]}")
+        index += 1
+    return "\n\n".join(out) + "\n"
+
+
+_EMPHASIS = re.compile(r"_([^_\n]{1,300}?)_")
+
+# %% Single-quote dialogue -> curly double (flagged books only)
+
+_DIALECT = re.compile(r"(?i)^(?:tis|twas|em|e|im|er|un|ere|ave|ow)\b")
+
+
+def has_single_dialogue(body: str) -> bool:
+    """True when single quotes far outnumber double quotes."""
+    singles = len(re.findall(r"(?:^|[\s(—-])'\w", body))
+    return singles >= 30 and singles > 3 * (body.count('"') + body.count("“"))
+
+
+def convert_single_dialogue(paragraph: str) -> str:
+    """Pair-scan straight singles; dialect apostrophes and unpaired spans skip."""
+    chars, inside = list(paragraph), False
+    for match in re.finditer(r"'", paragraph):
+        index = match.start()
+        previous_char = paragraph[index - 1] if index else " "
+        next_char = paragraph[index + 1] if index + 1 < len(paragraph) else " "
+        opens = previous_char in " \t\n(—-_" and (next_char.isalpha() or next_char == "_")
+        if not inside and opens and not _DIALECT.match(paragraph[index + 1 :]):
+            chars[index], inside = "“", True
+        elif inside and (
+            previous_char in ".,!?;:—-_)"
+            or (previous_char.isalpha() and index == len(paragraph) - 1)
+        ):
+            chars[index], inside = "”", False
+    return "".join(chars)
+
+
+# %% Naming - display author/title, folder and file slugs
+
+_PAREN = re.compile(r"\([^)]*\)")
+_ROLE = re.compile(r"\[[^\]]*\]")  # catalog role tags: [Illustrator], [Translator], ...
+_DATE_PART = re.compile(r"\d{4}|^[\d? –-]+$|\bcent(?:ury)?\b", re.I)
+
+
+def display_author(catalog_authors: str) -> str:
+    """'Smith, Clark Ashton, 1893-1961' -> 'Clark Ashton Smith'."""
+    entries = [entry.strip() for entry in catalog_authors.split(";") if entry.strip()]
+    primary = [entry for entry in entries if not _ROLE.search(entry)] or entries
+    names: list[str] = []
+    for entry in primary:
+        parts = [part.strip() for part in _ROLE.sub("", _PAREN.sub("", entry)).split(",")]
+        parts = [part for part in parts if part and not _DATE_PART.search(part)]
+        if parts:
+            names.append(" ".join(parts[1:] + parts[:1]) if len(parts) > 1 else parts[0])
+    return "; ".join(names) or "Unknown"
+
+
+def _asciify(text: str) -> str:
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+
+
+def author_folder(display_name: str) -> str:
+    """Folder slug for the first display author."""
+    folder = _asciify(display_name.split(";")[0])
+    return re.sub(r"[^A-Za-z0-9]+", "-", folder).strip("-") or "Unknown"
+
+
+def display_title(title: str) -> str:
+    """Join a multi-line catalog title with colons."""
+    return re.sub(r"\s*[\r\n]+\s*", ": ", title.strip())
+
+
+def title_slug(title: str) -> str:
+    """Lowercase ASCII slug of the main title, at most 60 characters."""
+    head = re.split(r"[:;\n\r]", title)[0]
+    return re.sub(r"[^a-z0-9]+", "-", _asciify(head).lower()).strip("-")[:60] or "untitled"
+
+
+def to_markdown(raw_bytes: bytes, title: str, author: str) -> str:
+    """Turn one raw PG text into corpus markdown."""
+    text = decode(raw_bytes).replace("\r\n", "\n").replace("\r", "\n")
+    body = _ETEXT_LINE.sub("", _BRACKET_NOTE.sub("", isolate_body(text)))
+    blocks = drop_front_matter(drop_contents(split_blocks(body)), title, author)
+    while blocks and _TAIL.match(blocks[-1].strip()):
+        blocks.pop()
+    body_markdown = render_blocks(blocks)
+    if has_single_dialogue(body_markdown):
+        body_markdown = "\n\n".join(
+            convert_single_dialogue(paragraph) for paragraph in body_markdown.split("\n\n")
+        )
+    header = f"# {display_title(title)}\n\n*{author}*\n\n---\n\n"
+    return _EMPHASIS.sub(r"*\1*", header + body_markdown)
