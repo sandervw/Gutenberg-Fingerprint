@@ -16,6 +16,11 @@ REPO = Path(__file__).resolve().parents[2]
 dbt_project = DbtProject(project_dir=REPO / "dbt")
 dbt_project.prepare_if_dev()
 
+# Two retries, about one then three minutes later, jittered.
+NETWORK_RETRY = dagster.RetryPolicy(
+    max_retries=2, delay=60, backoff=dagster.Backoff.EXPONENTIAL, jitter=dagster.Jitter.PLUS_MINUS
+)
+
 
 def _run_shell(command: str, cwd: Path) -> None:
     """Run a shell command with uv on PATH; fail on error."""
@@ -23,7 +28,7 @@ def _run_shell(command: str, cwd: Path) -> None:
     subprocess.run(command, cwd=cwd, shell=True, check=True, env=environment)
 
 
-@dagster.asset
+@dagster.asset(retry_policy=NETWORK_RETRY)
 def catalog() -> dagster.MaterializeResult:
     """Catalog ingest: PG feed -> bronze catalog table + raw CSV snapshot."""
     new_count = catalog_ingest.main()
@@ -70,7 +75,7 @@ def dbt_models(context, dbt: DbtCliResource) -> Iterator[object]:  # noqa: ANN00
     yield from dbt.cli(["build"], context=context).stream()
 
 
-@dagster.asset(deps=list(dbt_models.keys))
+@dagster.asset(deps=list(dbt_models.keys), retry_policy=NETWORK_RETRY)
 def postgres_backup() -> None:
     """Postgres Backup: dump full gufime postgres DB to cloudflare R2 via wrangler."""
     _run_shell(
@@ -80,7 +85,7 @@ def postgres_backup() -> None:
     )
 
 
-@dagster.asset(deps=[postgres_backup])
+@dagster.asset(deps=[postgres_backup], retry_policy=NETWORK_RETRY)
 def corpus_backup() -> None:
     """Corpus Backup: dump full corpus (bronze+silver) to cloudflare R2 as .tar.gz."""
     _run_shell(
@@ -90,7 +95,7 @@ def corpus_backup() -> None:
     )
 
 
-@dagster.asset(deps=[corpus_backup])
+@dagster.asset(deps=[corpus_backup], retry_policy=NETWORK_RETRY)
 def site() -> None:
     """Gufime Site Deploy: build evidence site and deploy to cloudflare."""
     # Cap node heap so the build can't balloon and OOM the box.
