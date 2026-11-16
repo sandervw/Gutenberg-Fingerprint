@@ -175,13 +175,15 @@ def render_blocks(blocks: list[str]) -> str:
             continue
         lines = [line.strip() for line in block.splitlines() if line.strip()]
         next_block = blocks[index + 1].strip() if index + 1 < len(blocks) else ""
+        # Standalone subtitle rides along: "CHAPTER I" + "The Castle"
+        is_short_subtitle = (
+            bool(next_block) and "\n" not in next_block and len(next_block) <= 60
+            and not is_heading(next_block)
+        )
+        is_prose_after = index + 2 < len(blocks) and len(blocks[index + 2]) > 150
         if len(lines) == 2:
             out.append(f"## {lines[0].rstrip('.:')}: {lines[1]}")
-        elif (  # standalone subtitle rides along: "CHAPTER I" + "The Castle"
-            next_block and "\n" not in next_block and len(next_block) <= 60
-            and not is_heading(next_block)
-            and index + 2 < len(blocks) and len(blocks[index + 2]) > 150
-        ):
+        elif is_short_subtitle and is_prose_after:
             out.append(f"## {lines[0].rstrip('.:')}: {next_block}")
             index += 1
         else:
@@ -205,20 +207,20 @@ def has_single_dialogue(body: str) -> bool:
 
 def convert_single_dialogue(paragraph: str) -> str:
     """Pair-scan straight singles; dialect apostrophes and unpaired spans skip."""
-    chars, inside = list(paragraph), False
+    characters, inside = list(paragraph), False
     for match in re.finditer(r"'", paragraph):
         index = match.start()
         previous_char = paragraph[index - 1] if index else " "
         next_char = paragraph[index + 1] if index + 1 < len(paragraph) else " "
         opens = previous_char in " \t\n(—-_" and (next_char.isalpha() or next_char == "_")
         if not inside and opens and not _DIALECT.match(paragraph[index + 1 :]):
-            chars[index], inside = "“", True
+            characters[index], inside = "“", True
         elif inside and (
             previous_char in ".,!?;:—-_)"
             or (previous_char.isalpha() and index == len(paragraph) - 1)
         ):
-            chars[index], inside = "”", False
-    return "".join(chars)
+            characters[index], inside = "”", False
+    return "".join(characters)
 
 
 # %% Naming - display author/title, folder and file slugs

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -26,6 +27,13 @@ SELF_FOLDER: str = "Sander-VanWilligen"
 
 class TableMissing(Exception):
     """The named table does not exist yet."""
+
+
+class WriteMode(Enum):
+    """Replace a table's rows, or add to them."""
+
+    OVERWRITE = "overwrite"
+    APPEND = "append"
 
 
 def file_path(relative_path: str) -> Path:
@@ -100,7 +108,7 @@ def _copy_rows(cursor: psycopg.Cursor, name: str, dataframe: polars.DataFrame) -
         copy_writer.write(dataframe.write_csv(include_header=False))
 
 
-def write_table(name: str, dataframe: polars.DataFrame, mode: str = "overwrite") -> None:
+def write_table(name: str, dataframe: polars.DataFrame, mode: WriteMode) -> None:
     """Overwrite or append a table, creating schema and table as needed."""
     schema_name = name.split(".")[0]
     if TARGET == "postgres":
@@ -108,7 +116,7 @@ def write_table(name: str, dataframe: polars.DataFrame, mode: str = "overwrite")
 
         with psycopg.connect(POSTGRES_CONNECTION_STRING) as connection, connection.cursor() as cursor:
             cursor.execute(f"create schema if not exists {schema_name}")
-            if mode == "overwrite":
+            if mode is WriteMode.OVERWRITE:
                 cursor.execute(f"drop table if exists {name} cascade")
             cursor.execute(f"create table if not exists {name} ({_column_definitions(dataframe.schema)})")
             if dataframe.height:
@@ -119,7 +127,7 @@ def write_table(name: str, dataframe: polars.DataFrame, mode: str = "overwrite")
     with duckdb.connect(DUCKDB_PATH) as connection:
         connection.execute(f"create schema if not exists {schema_name}")
         connection.register("_dataframe", dataframe.to_arrow())
-        if mode == "overwrite":
+        if mode is WriteMode.OVERWRITE:
             connection.execute(f"drop table if exists {name} cascade")
             connection.execute(f"create table {name} as select * from _dataframe")
         else:

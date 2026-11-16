@@ -8,7 +8,7 @@ from datetime import datetime
 
 import polars
 
-from python.core.ledger import UTC_DATETIME_TYPE
+from python.core.watermark import UTC_DATETIME_TYPE
 
 
 def normalize_column(name: str) -> str:

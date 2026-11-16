@@ -10,15 +10,15 @@ import spacy
 
 from python import storage
 from python.core.clean import clean_markdown
-from python.core.ledger import UTC_DATETIME_TYPE
 from python.core.measure import (
     METRIC_FUNCTIONS,
-    Watermarks,
+    MeasureTimes,
     build_work_document,
     collect_vocab,
     measure_metrics,
     plan_measures,
 )
+from python.core.watermark import UTC_DATETIME_TYPE
 
 
 def source_work_id(source: Path) -> str:
@@ -28,7 +28,7 @@ def source_work_id(source: Path) -> str:
     return source.name.split("-", 1)[0]
 
 
-def read_watermarks(manifest_path: Path) -> Watermarks:
+def read_measure_times(manifest_path: Path) -> MeasureTimes:
     """Last measured, catalog-changed, and manual-upload times per work."""
     try:
         measured_at: dict[str, datetime] = dict(
@@ -54,17 +54,29 @@ def read_watermarks(manifest_path: Path) -> Watermarks:
         )
         .iter_rows()
     )
-    return Watermarks(measured_at, catalog_changed_at, self_changed_at)
+    return MeasureTimes(measured_at, catalog_changed_at, self_changed_at)
 
 
-def sync_table(name: str, frame: polars.DataFrame, replaced_ids: list[str], *, first_fill: bool) -> None:
+def replace_rows(name: str, frame: polars.DataFrame, replaced_ids: list[str]) -> None:
     """Swap re-measured works' rows in place, drop stale, keep the rest."""
-    if first_fill:
-        storage.write_table(name, frame, mode="overwrite")
-        return
     storage.delete_where(name, "work_id", replaced_ids)
     if frame.height:
-        storage.write_table(name, frame, mode="append")
+        storage.write_table(name, frame, mode=storage.WriteMode.APPEND)
+
+
+def parse_works(todo: dict[str, Path]) -> tuple[list[tuple[str, str, float]], list[tuple[str, str, int]]]:
+    """Parse each work; return its measurement and vocabulary rows."""
+    # NER disabled: no metric uses it, skipping speeds parsing
+    language_model = spacy.load("en_core_web_sm", disable=["ner"])
+    measurement_rows: list[tuple[str, str, float]] = []
+    vocab_rows: list[tuple[str, str, int]] = []
+    for done, (work_id, source) in enumerate(todo.items(), start=1):
+        document = build_work_document(language_model, clean_markdown(source.read_text(encoding="utf-8")))
+        measurement_rows.extend(measure_metrics(work_id, document))
+        vocab_rows.extend(collect_vocab(work_id, document))
+        if done % 50 == 0 or done == len(todo):
+            print(f"{done}/{len(todo)} works parsed")
+    return measurement_rows, vocab_rows
 
 
 def main() -> None:
@@ -74,21 +86,11 @@ def main() -> None:
     self_ids = frozenset(
         work_id for work_id, path in sources.items() if path.parent.name == storage.SELF_FOLDER
     )
-    watermarks = read_watermarks(storage.file_path("bronze/self/_manifest.csv"))
-    plan = plan_measures(sources, self_ids, watermarks)
+    measure_times = read_measure_times(storage.file_path("bronze/self/_manifest.csv"))
+    plan = plan_measures(sources, self_ids, measure_times)
     print(f"corpus {len(sources)}: {len(plan.todo)} to measure, {len(plan.stale_ids)} stale to drop")
 
-    # NER disabled: no metric uses it, skipping speeds parsing
-    language_model = spacy.load("en_core_web_sm", disable=["ner"])
-
-    measurement_rows: list[tuple[str, str, float]] = []
-    vocab_rows: list[tuple[str, str, int]] = []
-    for done, (work_id, source) in enumerate(plan.todo.items(), start=1):
-        document = build_work_document(language_model, clean_markdown(source.read_text(encoding="utf-8")))
-        measurement_rows.extend(measure_metrics(work_id, document))
-        vocab_rows.extend(collect_vocab(work_id, document))
-        if done % 50 == 0 or done == len(plan.todo):
-            print(f"{done}/{len(plan.todo)} works parsed")
+    measurement_rows, vocab_rows = parse_works(plan.todo)
 
     # One batch timestamp shared by both tables
     loaded_at = datetime.now(timezone.utc)
@@ -104,10 +106,13 @@ def main() -> None:
         orient="row",
     ).with_columns(loaded_at=polars.lit(loaded_at, dtype=UTC_DATETIME_TYPE))
 
-    replaced_ids = sorted(set(plan.todo) | set(plan.stale_ids))
-    first_fill = not watermarks.measured_at
-    sync_table("raw.raw_measurements", measurements, replaced_ids, first_fill=first_fill)
-    sync_table("raw.raw_vocab", vocab, replaced_ids, first_fill=first_fill)
+    if measure_times.measured_at:
+        replaced_ids = sorted(set(plan.todo) | set(plan.stale_ids))
+        replace_rows("raw.raw_measurements", measurements, replaced_ids)
+        replace_rows("raw.raw_vocab", vocab, replaced_ids)
+    else:  # first fill
+        storage.write_table("raw.raw_measurements", measurements, mode=storage.WriteMode.OVERWRITE)
+        storage.write_table("raw.raw_vocab", vocab, mode=storage.WriteMode.OVERWRITE)
     print(
         f"Measured {len(plan.todo)} of {len(sources)} works ({len(plan.stale_ids)} stale dropped); "
         f"{measurements.height:,} rows into raw_measurements "

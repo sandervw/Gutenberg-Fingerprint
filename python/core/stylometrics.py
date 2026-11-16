@@ -19,7 +19,7 @@ from python.core.lexicons import (
 )
 
 # Dependency labels marking a subordinate clause -> the sentence is "complex".
-SUBORDINATE_DEPS: frozenset[str] = frozenset(
+SUBORDINATE_DEPENDENCIES: frozenset[str] = frozenset(
     {"advcl", "ccomp", "xcomp", "acl", "relcl", "csubj"}
 )
 
@@ -104,7 +104,7 @@ def mean_sentence_length(document: Doc) -> dict[str, float]:
 
 def sentence_length_stdev(document: Doc) -> dict[str, float]:
     """Metric 7: population stdev of sentence length in words - rhythm burstiness."""
-    lengths = [sum(1 for token in sent if token.is_alpha) for sent in document.sents]
+    lengths = [sum(1 for token in sentence if token.is_alpha) for sentence in document.sents]
     if len(lengths) < 2:
         return {"sentence_length_stdev": 0.0}
     return {"sentence_length_stdev": statistics.pstdev(lengths)}
@@ -122,23 +122,23 @@ def _token_depth(token: Token) -> int:
 def mean_parse_tree_depth(document: Doc) -> dict[str, float]:
     """Metric 8: mean over sentences of the deepest token's distance to ROOT."""
     depths = [
-        max((_token_depth(token) for token in sent), default=0)
-        for sent in document.sents
+        max((_token_depth(token) for token in sentence), default=0)
+        for sentence in document.sents
     ]
     if not depths:
         return {"mean_parse_tree_depth": 0.0}
     return {"mean_parse_tree_depth": sum(depths) / len(depths)}
 
 
-def _classify_sentence(sent: Span) -> str:
+def _classify_sentence(sentence: Span) -> str:
     """Simple/compound/complex by dependencies; complex > compound > simple."""
-    if any(token.dep_ in SUBORDINATE_DEPS for token in sent):
+    if any(token.dep_ in SUBORDINATE_DEPENDENCIES for token in sentence):
         return "complex"
     coordinated = any(
         token.dep_ == "conj"
         and token.head.dep_ == "ROOT"
         and token.pos_ in {"VERB", "AUX"}
-        for token in sent
+        for token in sentence
     )
     return "compound" if coordinated else "simple"
 
@@ -146,8 +146,8 @@ def _classify_sentence(sent: Span) -> str:
 def sentence_type_mix(document: Doc) -> dict[str, float]:
     """Metric 9 (multi-value): simple/compound/complex shares, keyed senttype_<kind>."""
     counts = {"simple": 0, "compound": 0, "complex": 0}
-    for sent in document.sents:
-        counts[_classify_sentence(sent)] += 1
+    for sentence in document.sents:
+        counts[_classify_sentence(sentence)] += 1
     total = sum(counts.values())
     if total == 0:
         return {f"senttype_{kind}": 0.0 for kind in counts}

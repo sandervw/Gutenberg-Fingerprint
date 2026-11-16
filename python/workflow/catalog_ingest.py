@@ -12,7 +12,7 @@ import requests
 from python import storage
 from python.core import filter as scope_filter
 from python.core.catalog import parse_catalog
-from python.core.ledger import (
+from python.core.watermark import (
     WATERMARK_SCHEMA,
     IngestCounts,
     count_changes,
@@ -82,12 +82,12 @@ def main() -> int:
     catalog = parse_catalog(polars.read_csv(raw_path, infer_schema_length=0), run_time)
     print(f"parsed {catalog.height:,} rows, {catalog.width} columns")
 
-    storage.write_table("bronze.catalog", catalog, mode="overwrite")
+    storage.write_table("bronze.catalog", catalog, mode=storage.WriteMode.OVERWRITE)
     storage.ensure_table("bronze.watermark", WATERMARK_SCHEMA)
 
     result = scope_filter.filter_catalog(catalog)
     raw_works = result.raw_works
-    storage.write_table("raw.raw_works", raw_works, mode="overwrite")
+    storage.write_table("raw.raw_works", raw_works, mode=storage.WriteMode.OVERWRITE)
 
     by_genre: dict[str, int] = dict(raw_works.group_by("genre").len().sort("genre").iter_rows())
     print(f"raw_works: kept {raw_works.height:,} of {catalog.height:,} catalog rows")
@@ -99,7 +99,7 @@ def main() -> int:
     )
     counts = IngestCounts(catalog.height, candidate_new, candidate_changed)
     storage.write_table(
-        "bronze.ingest_audit", ingest_audit_row("catalog_refresh", run_time, counts), mode="append"
+        "bronze.ingest_audit", ingest_audit_row("catalog_refresh", run_time, counts), mode=storage.WriteMode.APPEND
     )
     print(f"new in-scope works: {candidate_new:,} | changed: {candidate_changed:,}")
     storage.emit("new_count", candidate_new + candidate_changed)

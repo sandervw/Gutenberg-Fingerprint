@@ -54,7 +54,7 @@ METRIC_FUNCTIONS = (
 
 
 @dataclass(frozen=True)
-class Watermarks:
+class MeasureTimes:
     """Per work id: last measured, last catalog change, last manual upload."""
 
     measured_at: dict[str, datetime]
@@ -70,25 +70,23 @@ class MeasurePlan:
     stale_ids: list[str]
 
 
-def _needs_measure(work_id: str, watermarks: Watermarks, *, is_self: bool) -> bool:
+def _needs_measure(measured: datetime | None, changed: datetime | None) -> bool:
     """Re-parse when unmeasured or the source changed after measuring."""
-    if work_id not in watermarks.measured_at:
+    if measured is None:
         return True
-    changed_at = watermarks.self_changed_at if is_self else watermarks.catalog_changed_at
-    changed = changed_at.get(work_id)
-    return changed is not None and changed > watermarks.measured_at[work_id]
+    return changed is not None and changed > measured
 
 
 def plan_measures(
-    sources: dict[str, Path], self_ids: frozenset[str], watermarks: Watermarks
+    sources: dict[str, Path], self_ids: frozenset[str], measure_times: MeasureTimes
 ) -> MeasurePlan:
     """Pick works to parse and measured works to drop."""
-    todo = {
-        work_id: path
-        for work_id, path in sources.items()
-        if _needs_measure(work_id, watermarks, is_self=work_id in self_ids)
-    }
-    return MeasurePlan(todo=todo, stale_ids=sorted(set(watermarks.measured_at) - set(sources)))
+    todo: dict[str, Path] = {}
+    for work_id, path in sources.items():
+        changed_at = measure_times.self_changed_at if work_id in self_ids else measure_times.catalog_changed_at
+        if _needs_measure(measure_times.measured_at.get(work_id), changed_at.get(work_id)):
+            todo[work_id] = path
+    return MeasurePlan(todo=todo, stale_ids=sorted(set(measure_times.measured_at) - set(sources)))
 
 
 # %% Parse and measure (chunk -> parse -> reassemble)

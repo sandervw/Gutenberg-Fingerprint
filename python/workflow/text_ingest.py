@@ -12,7 +12,7 @@ import requests
 
 from python import storage
 from python.core.filter import is_copyrighted
-from python.core.ledger import (
+from python.core.watermark import (
     IngestCounts,
     count_changes,
     ingest_audit_row,
@@ -145,11 +145,11 @@ def main() -> None:
     copyrighted: int = processed.filter(polars.col("status") == "copyrighted").height
 
     storage.write_table(
-        "bronze.watermark", update_watermark(watermark, processed, run_time), mode="overwrite"
+        "bronze.watermark", update_watermark(watermark, processed, run_time), mode=storage.WriteMode.OVERWRITE
     )
     counts = IngestCounts(roster.height, candidate_new, candidate_changed, downloaded, failed)
     storage.write_table(
-        "bronze.ingest_audit", ingest_audit_row("text_ingest", run_time, counts), mode="append"
+        "bronze.ingest_audit", ingest_audit_row("text_ingest", run_time, counts), mode=storage.WriteMode.APPEND
     )
 
     print(

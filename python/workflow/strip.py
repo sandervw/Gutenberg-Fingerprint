@@ -9,8 +9,8 @@ from pathlib import Path
 import polars
 
 from python import storage
-from python.core.ledger import UTC_DATETIME_TYPE
 from python.core.strip import author_folder, display_author, title_slug, to_markdown
+from python.core.watermark import UTC_DATETIME_TYPE
 
 TEXTS_ROOT: Path = storage.file_path("bronze/texts")
 SELF_ROOT: Path = storage.file_path("bronze/self")
@@ -64,7 +64,7 @@ def main() -> None:
         },
         orient="row",
     )
-    storage.write_table("bronze.strip_audit", audit, mode="append")
+    storage.write_table("bronze.strip_audit", audit, mode=storage.WriteMode.APPEND)
     print(f"corpus: {stripped:,} written, {failed:,} failed, {missing:,} missing, {promoted} self -> {corpus_root}")
 
 
