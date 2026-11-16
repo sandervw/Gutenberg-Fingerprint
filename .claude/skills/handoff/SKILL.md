@@ -10,15 +10,12 @@ Current state and next work. Rewrite when stale; never log history.
 ## State
 
 - **Production** runs `main`: the nightly Dagster pipeline on the box and gufime.com on Cloudflare Pages.
-- **Process:** the CTO ships through PRs with reviewer gates. CI checks only changed files until #1 lands.
+- **Process:** the CTO ships through PRs with reviewer gates. CI checks the whole repo; `python/core/` stays pure under import-linter.
+- **Site specs:** `npm run test:e2e` runs `tests/e2e/` against gufime.com, daily in GitHub Actions and on spec PRs.
 
 ## Next
 
-1. #1: bring `python/` to simple-code and a core/shell layout; then CI checks the whole repo.
-2. #4: fix the Fabric credit in the home page footer.
-3. #2: Playwright specs for the site use cases.
-4. #3: retry policies for network-bound assets.
-5. #5: custom frontend; research brief and CEO sign-off first.
+1. #5: custom frontend; research brief and CEO sign-off first.
 
 ## CEO preferences
 

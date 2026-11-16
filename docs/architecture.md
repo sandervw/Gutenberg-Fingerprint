@@ -31,7 +31,7 @@ Dagster on the box, nightly schedule 03:00 America/Chicago
         site            → npm run sources, build, wrangler pages deploy → gufime.com
 ```
 
-`catalog_ingest.main()` returns `new_count`, New plus Changed Works, as asset metadata; the gate reads it. A quiet night runs nothing past `catalog`. *Materialize all* in the UI is the manual rebuild. The `failure_alert` sensor emails through Cloudflare Email Sending on any run failure. Python assets import and call `main()`; dbt, Evidence, and backups shell out. Manually uploaded works live in `/files/gufime/bronze/self/` with a `_manifest.csv`; a changed `loaded_at` re-measures one.
+`catalog_ingest.main()` returns `new_count`, New plus Changed Works, as asset metadata; the gate reads it. A quiet night runs nothing past `catalog`. *Materialize all* in the UI is the manual rebuild. `catalog`, both backups, and `site` retry twice, after 60 then 180 seconds with jitter. `texts` does not retry: a failed download marks that work `failed` for the next night, and a step retry would re-download the batch past the per-run cap. The `failure_alert` sensor emails through Cloudflare Email Sending once, after the last retry. Python assets import and call `main()`; dbt, Evidence, and backups shell out. Manually uploaded works live in `/files/gufime/bronze/self/` with a `_manifest.csv`; a changed `loaded_at` re-measures one.
 
 ## 3. Change detection
 
