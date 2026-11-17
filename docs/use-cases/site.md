@@ -33,3 +33,5 @@
 **UC-12 Missing page.** The Reader opens an address that does not exist. They see "Page Not Found" and a link back to the home page.
 
 **UC-13 Phone and themes.** At phone width every page reads without sideways scrolling. The Reader can switch between light and dark themes, and text stays readable in both.
+
+**UC-14 Crawlers.** A crawler fetches `/robots.txt` as plain text; it allows all agents and names the sitemap. `/sitemap.xml` is XML listing the home page, `/works/`, `/authors/`, and every work and author page.

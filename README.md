@@ -20,7 +20,7 @@ Dagster on the box — nightly schedule 03:00 America/Chicago
         dbt_models     → postgres gold.*   (each dbt node a lineage asset)
         postgres_backup → R2 gufime-backup/postgres/gufime.dump
         corpus_backup  → R2 gufime-backup/corpus/
-        site           → npm build + wrangler pages deploy → gufime.com
+        site           → npm build + sitemap.xml + wrangler pages deploy → gufime.com
 ```
 
 Dagster OSS on the box holds the schedule, the CDC gate, and the run logs (Postgres `dagster` schema). The `nightly` schedule materializes `catalog`; a `gate` asset sensor reads its `new_count` and launches the downstream chain only when New or Changed works exist. Push to `main` triggers a GitHub Actions deploy hook (`deploy.yml`) that syncs the box's checkout and restarts Dagster. The Dagster UI is served at [dagster.gufime.com](https://dagster.gufime.com) behind a Cloudflare Tunnel + Access. Files live under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`) over the unix socket with peer auth.
