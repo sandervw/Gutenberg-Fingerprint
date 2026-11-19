@@ -14,7 +14,7 @@
 	const columns = [
 		{ id: 'title', title: 'Title' },
 		{ id: 'author', title: 'Author' },
-		{ id: 'word_count', title: 'Words', format: 'num0' },
+		{ id: 'word_count', title: 'Words', format: 'wholeNumber' },
 		{ id: 'genre', title: 'Genre' },
 		{ id: 'flags', title: 'Flags' }
 	];
@@ -44,14 +44,15 @@
 		);
 	}
 
-	const matching = $derived(
-		works.filter(
-			(work) =>
-				(author === 'All authors' || work.author === author) &&
-				(genre === 'All genres' || work.genre === genre) &&
-				work.title.toLowerCase().includes(titleSearch.toLowerCase())
-		)
-	);
+	/** True when a work matches the chosen author, genre, and title text. */
+	function passesFilters(work) {
+		const authorMatches = author === 'All authors' || work.author === author;
+		const genreMatches = genre === 'All genres' || work.genre === genre;
+		const titleMatches = work.title.toLowerCase().includes(titleSearch.toLowerCase());
+		return authorMatches && genreMatches && titleMatches;
+	}
+
+	const matching = $derived(works.filter(passesFilters));
 	const shown = $derived(matching.filter((work) => passesFlags(work, null)));
 
 	/** Works with a flag value, given the other filters. */
@@ -86,7 +87,7 @@
 					aria-pressed={wantedFlags[flag] === choice.wanted}
 					onclick={() => toggleFlag(flag, choice.wanted)}
 				>
-					{choice.name} <span>{formatValue(flagCount(flag, choice.wanted), 'num0')}</span>
+					{choice.name} <span>{formatValue(flagCount(flag, choice.wanted), 'wholeNumber')}</span>
 				</button>
 			{/each}
 		</div>

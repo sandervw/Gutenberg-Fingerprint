@@ -3,7 +3,8 @@ import process from 'node:process';
 
 /** Open DuckDB read-only; return a query function and a closer. */
 async function openDuckdb() {
-	const path = process.env.GUFIME_DUCKDB_PATH ?? '../dbt/warehouse.duckdb';
+	const path = process.env.GUFIME_DUCKDB_PATH;
+	if (!path) throw new Error('GUFIME_DUCKDB_PATH is not set');
 	const { DuckDBInstance } = await import('@duckdb/node-api');
 	const instance = await DuckDBInstance.create(path, { access_mode: 'READ_ONLY' });
 	const connection = await instance.connect();

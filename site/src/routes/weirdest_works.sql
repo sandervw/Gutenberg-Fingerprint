@@ -10,6 +10,6 @@ where is_play = 0
     and is_translation = 0
     and is_juvenile = 0
     and is_poetry = 0
-    and word_count >= 10000
+    and prose_type <> 'short-story'
 order by excess desc
 limit 25

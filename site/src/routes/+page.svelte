@@ -6,12 +6,12 @@
 
 	let { data } = $props();
 
-	const outlierColumns = [
+	const weirdestColumns = [
 		{ id: 'title', title: 'Work' },
 		{ id: 'author', title: 'Author' },
 		{ id: 'genre', title: 'Genre' },
-		{ id: 'word_count', title: 'Words', format: 'num0' },
-		{ id: 'excess', title: 'Excess', format: 'num1' }
+		{ id: 'word_count', title: 'Words', format: 'wholeNumber' },
+		{ id: 'excess', title: 'Excess', format: 'oneDecimal' }
 	];
 </script>
 
@@ -25,7 +25,7 @@
 </p>
 <p>
 	<em>
-		There are currently {formatValue(data.summary.work_count, 'num0')} works in this corpus. The lastest Gutenberg work
+		There are currently {formatValue(data.summary.work_count, 'wholeNumber')} works in this corpus. The lastest Gutenberg work
 		of speculative fiction arrived on {longDate(data.summary.refreshed)}.
 	</em>
 </p>
@@ -35,14 +35,14 @@
 	The most statistically distinctive fiction, ranked by <strong>excess</strong>: for each work, the sum of every
 	metric's z-score beyond ±2. Shorter works are excluded.
 </p>
-<DataTable rows={data.outliers} columns={outlierColumns} link={(row) => `/works/${row.work_id}`} />
+<DataTable rows={data.weirdest_works} columns={weirdestColumns} link={(row) => `/works/${row.work_id}`} />
 
 <h2>Vocabulary Overlap</h2>
 <p>
 	Jaccard overlap of vocabulary. How <a href="https://wordleaves.com">my fiction</a> compares to other authors. Higher
 	= more shared words.
 </p>
-<BarChart rows={data.kinship} label="author" value="jaccard" format="pct2" title="Vocabulary Overlap" />
+<BarChart rows={data.vocabulary_overlap} label="author" value="jaccard" format="percentTwoDecimals" title="Vocabulary Overlap" />
 
 <hr />
 <p>

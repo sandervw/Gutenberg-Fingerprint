@@ -1,21 +1,15 @@
+<!-- @component Paged table with optional row links. -->
 <script>
-	// Paged table; optional search box and row links.
 	import { formatValue } from '$lib/format.js';
 
-	let { rows, columns, link = null, pageSize = 25, search = false } = $props();
+	let { rows, columns, link = null, pageSize = 25 } = $props();
 
-	let query = $state('');
 	let pageNumber = $state(0);
 
-	const matching = $derived(
-		query === ''
-			? rows
-			: rows.filter((row) => String(row[columns[0].id]).toLowerCase().includes(query.toLowerCase()))
-	);
-	const size = $derived(pageSize > 0 ? pageSize : Math.max(1, matching.length));
-	const pageCount = $derived(Math.max(1, Math.ceil(matching.length / size)));
+	const size = $derived(pageSize > 0 ? pageSize : Math.max(1, rows.length));
+	const pageCount = $derived(Math.max(1, Math.ceil(rows.length / size)));
 	const current = $derived(Math.min(pageNumber, pageCount - 1));
-	const visible = $derived(matching.slice(current * size, (current + 1) * size));
+	const visible = $derived(rows.slice(current * size, (current + 1) * size));
 
 	/** Open a row's page when any of its cells is clicked. */
 	function openRow(row) {
@@ -23,9 +17,6 @@
 	}
 </script>
 
-{#if search}
-	<input class="control" type="text" aria-label="Search" placeholder="Search" bind:value={query} />
-{/if}
 <div class="scrollbox">
 	<table>
 		<thead>
@@ -55,7 +46,7 @@
 {#if pageCount > 1}
 	<p class="pager">
 		<button type="button" disabled={current === 0} onclick={() => (pageNumber = current - 1)}>Previous page</button>
-		<span>Page {current + 1} of {formatValue(pageCount, 'num0')} ({formatValue(matching.length, 'num0')} rows)</span>
+		<span>Page {current + 1} of {formatValue(pageCount, 'wholeNumber')} ({formatValue(rows.length, 'wholeNumber')} rows)</span>
 		<button type="button" disabled={current >= pageCount - 1} onclick={() => (pageNumber = current + 1)}>Next page</button>
 	</p>
 {/if}

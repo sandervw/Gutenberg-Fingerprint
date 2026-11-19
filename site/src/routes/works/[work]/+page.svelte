@@ -1,5 +1,6 @@
 <script>
 	// One work: byline and style charts.
+	import SerpentMark from '$lib/SerpentMark.svelte';
 	import BarChart from '$lib/BarChart.svelte';
 	import Definitions from '$lib/Definitions.svelte';
 	import { formatValue } from '$lib/format.js';
@@ -12,7 +13,7 @@
 
 <h1><a class="link" href={work.work_link}>{work.title}</a></h1>
 <!-- One line: the byline text must not contain line breaks. -->
-<p>By <a href="/authors/{encodeURIComponent(work.author)}">{work.author}</a> - {work.genre} {work.prose_type}, {formatValue(work.word_count, 'num0')} words.</p>
+<p>By <a href="/authors/{encodeURIComponent(work.author)}">{work.author}</a> - {work.genre} {work.prose_type}, {formatValue(work.word_count, 'wholeNumber')} words.</p>
 
 <h2>Departure from the Author's Norm*</h2>
 <p>This work's z-score minus the author's average.</p>
@@ -20,11 +21,11 @@
 
 <h2>Work Signature</h2>
 <p>The work's z-scores against all measured works.</p>
-<BarChart rows={data.signature} label="display_name" value="zscore" title="Work Signature" shape="serpent" />
+<BarChart rows={data.signature} label="display_name" value="zscore" title="Work Signature" mark={SerpentMark} />
 
 <h2>Sentence Type Mix</h2>
 <p>Share of simple, compound, and complex sentences.</p>
-<BarChart rows={data.sentence_types} label="sentence_type" value="proportion" format="pct1" title="Sentence Type Mix" />
+<BarChart rows={data.sentence_types} label="sentence_type" value="proportion" format="percentOneDecimal" title="Sentence Type Mix" />
 
 <h2>Punctuation</h2>
 <p>How this work's punctuation rates sit against the whole corpus (z-scores).</p>
@@ -34,4 +35,4 @@
 <p>The work's 12 most unusual function-word rates vs the whole corpus.</p>
 <BarChart rows={data.function_words} label="word" value="zscore" title="Function-word Loves/Hates" />
 
-<Definitions rows={data.metric_defs} />
+<Definitions rows={data.metric_definitions} />

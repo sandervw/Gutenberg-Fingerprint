@@ -1,5 +1,5 @@
+<!-- @component Searchable single-choice dropdown. -->
 <script>
-	// Searchable single-choice dropdown.
 	let { label, options, value = $bindable() } = $props();
 
 	const optionLimit = 100;

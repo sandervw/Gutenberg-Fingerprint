@@ -3,11 +3,16 @@
 	import DataTable from '$lib/DataTable.svelte';
 
 	let { data } = $props();
+	let query = $state('');
+
+	const matching = $derived(
+		data.authors.filter((author) => author.name.toLowerCase().includes(query.toLowerCase()))
+	);
 
 	const columns = [
 		{ id: 'name', title: 'Author' },
-		{ id: 'works', title: 'Works', format: 'num0' },
-		{ id: 'words', title: 'Words', format: 'num0' }
+		{ id: 'works', title: 'Works', format: 'wholeNumber' },
+		{ id: 'words', title: 'Words', format: 'wholeNumber' }
 	];
 </script>
 
@@ -15,4 +20,5 @@
 
 <h1>Authors</h1>
 <p>Authors with at least one measured work.</p>
-<DataTable rows={data.authors} {columns} search={true} link={(row) => `/authors/${encodeURIComponent(row.name)}`} />
+<input class="control" type="text" aria-label="Search" placeholder="Search" bind:value={query} />
+<DataTable rows={matching} {columns} link={(row) => `/authors/${encodeURIComponent(row.name)}`} />

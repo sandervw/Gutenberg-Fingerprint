@@ -1,5 +1,5 @@
+<!-- @component Collapsible table of metric definitions. -->
 <script>
-	// Collapsible table of metric definitions.
 	import DataTable from '$lib/DataTable.svelte';
 
 	let { rows } = $props();

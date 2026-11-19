@@ -22,6 +22,7 @@ function groupRows(name, column) {
 
 /** Rows of a query whose key column equals the value. */
 export function rowsFor(name, column, value) {
-	if (!groups.has(name)) groups.set(name, groupRows(name, column));
-	return groups.get(name).get(value) ?? [];
+	const key = `${name}:${column}`;
+	if (!groups.has(key)) groups.set(key, groupRows(name, column));
+	return groups.get(key).get(value) ?? [];
 }

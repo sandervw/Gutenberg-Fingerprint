@@ -11,7 +11,7 @@
 		{ id: 'title', title: 'Title' },
 		{ id: 'prose_type', title: 'Type' },
 		{ id: 'genre', title: 'Genre' },
-		{ id: 'word_count', title: 'Words', format: 'num0' }
+		{ id: 'word_count', title: 'Words', format: 'wholeNumber' }
 	];
 </script>
 
@@ -21,20 +21,20 @@
 <div class="big-values">
 	<div>
 		<div class="meta">Works in corpus</div>
-		<div class="big-value">{formatValue(data.summary.works, 'num0')}</div>
+		<div class="big-value">{formatValue(data.summary.works, 'wholeNumber')}</div>
 	</div>
 	<div>
 		<div class="meta">Total words</div>
-		<div class="big-value">{formatValue(data.summary.total_words, 'num0')}</div>
+		<div class="big-value">{formatValue(data.summary.total_words, 'wholeNumber')}</div>
 	</div>
 </div>
 
 <h2>Signature Stylometrics*</h2>
 <BarChart rows={data.distinctive} label="display_name" value="zscore" title="Signature Stylometrics" />
-<Definitions rows={data.metric_defs} />
+<Definitions rows={data.metric_definitions} />
 
 <h2>Sentence Breakdown</h2>
-<BarChart rows={data.sentence_types} label="sentence_type" value="proportion" format="pct1" title="Sentence Breakdown" />
+<BarChart rows={data.sentence_types} label="sentence_type" value="proportion" format="percentOneDecimal" title="Sentence Breakdown" />
 
 <h2>Punctuation Preferences</h2>
 <BarChart rows={data.punctuation} label="mark" value="zscore" title="Punctuation Preferences" />
