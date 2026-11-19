@@ -1,0 +1,69 @@
+/* Site additions on top of sparse.css and wordleaves.css. */
+body {
+  margin: 0;
+}
+.navbar {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--small);
+  z-index: var(--z-nav);
+}
+.navbar nav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--medium);
+}
+.navbar a:hover,
+.page-text a:hover {
+  color: var(--color-accent);
+}
+.page {
+  max-width: 52rem;
+  margin: 0 auto;
+}
+.page-text a {
+  text-decoration: underline;
+  text-decoration-color: var(--color-gray);
+}
+.control {
+  padding: var(--xsmall) var(--small);
+  font-size: var(--medium);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  border: var(--border-width) solid var(--color-gray);
+  border-radius: var(--xsmall);
+  cursor: pointer;
+  max-width: var(--percent-100);
+}
+.control[aria-pressed="true"] {
+  border-color: var(--color-accent);
+}
+.control[aria-pressed="true"] * {
+  color: var(--color-accent);
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--medium);
+  margin-bottom: var(--medium);
+}
+.menu {
+  position: absolute;
+  right: 0;
+  top: var(--xlarge);
+  padding: var(--small);
+  background-color: var(--color-bg-primary);
+  border: var(--border-width) solid var(--color-gray);
+  white-space: nowrap;
+}
+.big-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--xlarge);
+  margin-bottom: var(--medium);
+}
+.big-value {
+  font-size: var(--xlarge);
+  font-weight: var(--weight-bold);
+}

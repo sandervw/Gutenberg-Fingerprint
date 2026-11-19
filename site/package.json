@@ -1,0 +1,25 @@
+{
+  "name": "gufime-site",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "extract": "node scripts/extract.js",
+    "render": "vite build",
+    "build": "node scripts/extract.js && vite build && node scripts/prune.js",
+    "dev": "vite dev"
+  },
+  "dependencies": {
+    "d3-scale": "^4.0.2",
+    "d3-shape": "^3.2.1"
+  },
+  "devDependencies": {
+    "@duckdb/node-api": "latest",
+    "@sveltejs/adapter-static": "^3.0.0",
+    "@sveltejs/kit": "^2.0.0",
+    "@sveltejs/vite-plugin-svelte": "latest",
+    "pg": "^8.13.0",
+    "svelte": "^5.0.0",
+    "vite": "latest"
+  }
+}
