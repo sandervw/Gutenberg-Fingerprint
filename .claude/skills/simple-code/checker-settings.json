@@ -28,7 +28,7 @@
     ".git",
     ".venv",
     "venv",
-    ".evidence",
+    ".svelte-kit",
     ".terraform",
     "dbt_packages",
     "node_modules",

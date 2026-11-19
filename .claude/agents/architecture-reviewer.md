@@ -27,7 +27,7 @@ Grade each rule PASS or FAIL for the changed code. Every FAIL cites `file:line` 
 2. **Shells hold no rules.** Dagster assets and workflow entry points gather inputs, call logic, and store results. *Violation:* an asset or storage function gains a business `if`.
 3. **One storage seam.** All database and file access goes through the storage module. *Violation:* a step opens its own connection or hard-codes a path.
 4. **Ubiquitous language.** One term per concept, matching the glossary. *Violation:* a synonym for a glossary term, or a new domain term missing from the glossary.
-5. **dbt layers point one way.** Sources feed `stg_`; `int_` reads `stg_` and dimensions; `dim_` reads `stg_` and `int_`; `fact_` also reads dimensions; `mart_` reads dimensions, facts, and marts. Evidence reads only `gold` dimensions, facts, and marts. *Violation:* a `ref` or query that reverses a layer, or a source read outside `stg_`.
+5. **dbt layers point one way.** Sources feed `stg_`; `int_` reads `stg_` and dimensions; `dim_` reads `stg_` and `int_`; `fact_` also reads dimensions; `mart_` reads dimensions, facts, and marts. The site reads only `gold` dimensions, facts, and marts. *Violation:* a `ref` or query that reverses a layer, or a source read outside `stg_`.
 6. **Every model declares and tests its grain.** *Violation:* a new or regrained model without a unique or combination-unique test on its grain.
 7. **Both targets compile from one codebase.** *Violation:* dialect-specific SQL outside a dispatched macro.
 8. **Steps are idempotent and incremental.** A rerun gives the same result; only new or changed works reprocess. *Violation:* a step that appends duplicates on rerun or reprocesses the whole corpus.

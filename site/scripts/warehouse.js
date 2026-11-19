@@ -3,8 +3,7 @@ import process from 'node:process';
 
 /** Open DuckDB read-only; return a query function and a closer. */
 async function openDuckdb() {
-	const path = process.env.GUFIME_DUCKDB_PATH;
-	if (!path) throw new Error('GUFIME_DUCKDB_PATH is not set');
+	const path = process.env.GUFIME_DUCKDB_PATH ?? '../dbt/warehouse.duckdb';
 	const { DuckDBInstance } = await import('@duckdb/node-api');
 	const instance = await DuckDBInstance.create(path, { access_mode: 'READ_ONLY' });
 	const connection = await instance.connect();
@@ -14,12 +13,13 @@ async function openDuckdb() {
 	};
 }
 
-/** Open Postgres; return a query function and a closer. */
+/** Open Postgres over the local socket with peer auth. */
 async function openPostgres() {
-	const url = process.env.GUFIME_POSTGRES_URL;
-	if (!url) throw new Error('GUFIME_POSTGRES_URL is not set');
 	const postgres = await import('pg');
-	const client = new postgres.default.Client({ connectionString: url });
+	const client = new postgres.default.Client({
+		host: process.env.PGHOST ?? '/var/run/postgresql',
+		database: process.env.PGDATABASE ?? 'gufime'
+	});
 	await client.connect();
 	return {
 		query: async (sql) => (await client.query(sql)).rows,

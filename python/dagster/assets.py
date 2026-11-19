@@ -8,7 +8,7 @@ from pathlib import Path
 from dagster_dbt import DbtCliResource, DbtProject, dbt_assets
 
 import dagster
-from python.workflow import catalog_ingest, measure, sitemap, strip, text_ingest
+from python.workflow import catalog_ingest, measure, strip, text_ingest
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -97,13 +97,12 @@ def corpus_backup() -> None:
 
 @dagster.asset(deps=[corpus_backup], retry_policy=NETWORK_RETRY)
 def site() -> None:
-    """Gufime Site Deploy: build evidence site and deploy to cloudflare."""
+    """Gufime Site Deploy: build the static site and deploy to cloudflare."""
     # Cap node heap so the build can't balloon and OOM the box.
-    _run_shell("NODE_OPTIONS=--max-old-space-size=1536 npm run sources && npm run build", REPO / "evidence")
-    sitemap.main(REPO / "evidence" / "build" / "sitemap.xml")
+    _run_shell("NODE_OPTIONS=--max-old-space-size=1536 npm run build", REPO / "site")
     _run_shell(
         "CLOUDFLARE_API_TOKEN=$(cat ~/.config/gufime/cf_token) "
         "wrangler pages deploy build "
         "--project-name=gutenberg-fingerprint --branch=main",
-        REPO / "evidence",
+        REPO / "site",
     )

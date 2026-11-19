@@ -28,7 +28,7 @@ su - postgres -c "psql -tc \"SELECT 1 FROM pg_database WHERE datname='gufime'\""
   su - postgres -c "createdb -O gufime gufime"
 su - gufime -c "psql -c 'CREATE SCHEMA IF NOT EXISTS bronze; CREATE SCHEMA IF NOT EXISTS raw; CREATE SCHEMA IF NOT EXISTS gold; CREATE SCHEMA IF NOT EXISTS dagster; DROP SCHEMA IF EXISTS public CASCADE; ALTER ROLE gufime IN DATABASE gufime SET search_path TO dagster;'"
 
-# Node 24 and wrangler for the Evidence build.
+# Node 24 and wrangler for the site build.
 curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
 apt-get install -y nodejs
 npm install -g wrangler
@@ -51,7 +51,7 @@ if [ ! -d /code/gufime/.git ]; then
   su - gufime -c "git clone https://github.com/sandervw/Gutenberg-Fingerprint.git /code/gufime"
 fi
 
-# 6 GB swap: the Evidence build overran 2 GB and OOM-killed on a 4 GB box.
+# 6 GB swap: headroom for the site build beside Postgres and Dagster on a 4 GB box.
 if [ ! -f /swapfile ]; then
   fallocate -l 6G /swapfile
   chmod 600 /swapfile

@@ -15,6 +15,6 @@ updates:
         versions: [">= 2"]
 
   - package-ecosystem: npm
-    directory: /evidence
+    directory: /site
     schedule:
       interval: weekly

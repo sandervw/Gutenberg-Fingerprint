@@ -11,7 +11,7 @@ Terms follow [the glossary](glossary.md). Sections 1, 4, and 5 are binding; chan
 | Steps | `python/workflow/` | One shell per pipeline step: read, call core, write | `python/core/`, `python/storage.py`, requests |
 | Orchestration | `python/dagster/` | Assets, schedule, gate sensor, failure alert | `python/workflow/` |
 | Warehouse | `dbt/` | Staging, star schema, marts | sources in `raw` |
-| Site | `evidence/` | Pages over the marts | `gold` dimensions, facts, and marts |
+| Site | `site/` | Pages over the marts | `gold` dimensions, facts, and marts |
 | Infra | `infra/` | The box, Cloudflare, systemd units | none |
 
 Core does no I/O and reads no clock. An import-linter contract in `pyproject.toml` (`uv run lint-imports`) and the simple-code checker enforce it in CI. `GUFIME_TARGET` picks `duckdb` (local default) or `postgres`; `GUFIME_FILES_ROOT`, `GUFIME_PG_DSN`, and `GUFIME_DUCKDB_PATH` override paths.
@@ -28,10 +28,10 @@ Dagster on the box, nightly schedule 03:00 America/Chicago
         dbt_models      → gold.*  (each dbt node a lineage asset)
         postgres_backup → R2 gufime-backup/postgres/gufime.dump
         corpus_backup   → R2 gufime-backup/corpus/
-        site            → npm run sources, build, sitemap.xml, wrangler pages deploy → gufime.com
+        site            → npm run build, wrangler pages deploy → gufime.com
 ```
 
-`catalog_ingest.main()` returns `new_count`, New plus Changed Works, as asset metadata; the gate reads it. A quiet night runs nothing past `catalog`. *Materialize all* in the UI is the manual rebuild. `catalog`, both backups, and `site` retry twice, after 60 then 180 seconds with jitter. `texts` does not retry: a failed download marks that work `failed` for the next night. The `failure_alert` sensor emails through Cloudflare Email Sending once, after the last retry. Python assets import and call `main()`; dbt, Evidence, and backups shell out. Manually uploaded works live in `/files/gufime/bronze/self/` with a `_manifest.csv`; a changed `loaded_at` re-measures one.
+`catalog_ingest.main()` returns `new_count`, New plus Changed Works, as asset metadata; the gate reads it. A quiet night runs nothing past `catalog`. *Materialize all* in the UI is the manual rebuild. `catalog`, both backups, and `site` retry twice, after 60 then 180 seconds with jitter. `texts` does not retry: a failed download marks that work `failed` for the next night. The `failure_alert` sensor emails through Cloudflare Email Sending once, after the last retry. Python assets import and call `main()`; dbt, the site build, and backups shell out. Manually uploaded works live in `/files/gufime/bronze/self/` with a `_manifest.csv`; a changed `loaded_at` re-measures one.
 
 ## 3. Change detection
 
@@ -83,7 +83,7 @@ Files under `/files/gufime/` (`bronze/texts/`, `bronze/catalog/`, `bronze/self/`
 
 ## 7. Site
 
-Evidence extracts data at build time; the deployed SPA never queries a database. Each query selects from the `gold` table at its own grain. Postbuild scripts `cdn-wasm.js` and `copy-404.js` handle the Pages file-size cap and 404s.
+A SvelteKit static site. Each page's queries are `.sql` files beside it; the build runs each once and prerenders every page to one HTML file with its data and SVG charts inline. Each query selects from the `gold` table at its own grain. Details in [reference/sveltekit.md](reference/sveltekit.md).
 
 ## 8. Security
 
