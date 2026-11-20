@@ -10,17 +10,19 @@ Current state and next work. Rewrite when stale; never log history.
 ## State
 
 - **Production** runs `main`: the nightly Dagster pipeline on the box and gufime.com on Cloudflare Pages.
+- **Site** is a SvelteKit static site in `site/`: one prerendered HTML file per page. `python.workflow.site_extract` runs each page's `.sql` through the storage seam.
 - **Process:** the CTO ships through PRs with reviewer gates. CI checks the whole repo; `python/core/` stays pure under import-linter.
 - **Site specs:** `npm run test:e2e` runs `tests/e2e/` against gufime.com, daily in GitHub Actions and on spec PRs.
 
 ## Next
 
-1. #5: custom frontend; research brief and CEO sign-off first.
+1. No open issues.
+2. Candidates: sortable table columns and a visual check against reference screenshots in the site specs.
 
 ## CEO preferences
 
 - Hands-off: the CTO decides and ships. Bring the CEO only the items `CLAUDE.md` lists, with a recommendation.
-- Site styling mirrors wordleaves.com. New visual design needs the CEO's sign-off.
+- Site styling lives in `site/src/site.css`. New visual design needs the CEO's sign-off.
 - Close issues rather than open new ones. One batch, one PR.
 - Time-box agents to 15 to 30 minutes.
 - Docs state the current design only; no decision logs or history.
@@ -37,6 +39,9 @@ Current state and next work. Rewrite when stale; never log history.
 - `dbt/profiles.yml` holds the laptop's absolute path for the DuckDB target. `dbt parse` ignores it; `dbt build --target duckdb` elsewhere needs it changed.
 - A stale or locked `.venv` gives "uv trampoline failed"; recreate it, or set `UV_PROJECT_ENVIRONMENT` to a fresh folder.
 - Pin `dbt-core` below 2.0.
+- Regenerate `site/package-lock.json` on the box.
+- Compare screenshots against live gufime.com for any visual change.
+- A privacy plugin blocks Bash commands that name the file holding the contact email; use Read and Edit on it.
 - Project Gutenberg politeness: never raise download rates or caps without the CEO.
 - An unquoted `: ` in an agent `description` breaks loading; agent file changes need a session restart.
 - Python's `write_text` on Windows writes CRLF; pass `newline="\n"` or use Edit.
