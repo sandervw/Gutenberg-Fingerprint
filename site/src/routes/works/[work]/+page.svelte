@@ -13,7 +13,7 @@
 
 <h1><a class="link" href={work.work_link}>{work.title}</a></h1>
 <!-- One line: the byline text must not contain line breaks. -->
-<p>By <a href="/authors/{encodeURIComponent(work.author)}">{work.author}</a> - {work.genre} {work.prose_type}, {formatValue(work.word_count, 'wholeNumber')} words.</p>
+<p>By <a class="value" href="/authors/{encodeURIComponent(work.author)}">{work.author}</a> - <span class="value">{work.genre}</span> <span class="value">{work.prose_type}</span>, <span class="value">{formatValue(work.word_count, 'wholeNumber')}</span> words.</p>
 
 <h2>Departure from the Author's Norm*</h2>
 <p>This work's z-score minus the author's average.</p>

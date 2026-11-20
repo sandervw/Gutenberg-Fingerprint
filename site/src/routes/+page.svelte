@@ -25,8 +25,8 @@
 </p>
 <p>
 	<em>
-		There are currently {formatValue(data.summary.work_count, 'wholeNumber')} works in this corpus. The lastest Gutenberg work
-		of speculative fiction arrived on {longDate(data.summary.refreshed)}.
+		There are currently <span class="value">{formatValue(data.summary.work_count, 'wholeNumber')}</span> works in this corpus. The lastest Gutenberg work
+		of speculative fiction arrived on <span class="value">{longDate(data.summary.refreshed)}</span>.
 	</em>
 </p>
 

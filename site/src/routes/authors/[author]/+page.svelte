@@ -20,11 +20,11 @@
 <h1>{data.author}</h1>
 <div class="big-values">
 	<div>
-		<div class="meta">Works in corpus</div>
+		<div class="big-label">Works in corpus</div>
 		<div class="big-value">{formatValue(data.summary.works, 'wholeNumber')}</div>
 	</div>
 	<div>
-		<div class="meta">Total words</div>
+		<div class="big-label">Total words</div>
 		<div class="big-value">{formatValue(data.summary.total_words, 'wholeNumber')}</div>
 	</div>
 </div>

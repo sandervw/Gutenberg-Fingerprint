@@ -8,8 +8,8 @@
 
 	const flagNames = ['Juvenile', 'Play', 'Poetry', 'Translation'];
 	const choices = [
-		{ name: 'Yes', wanted: 1 },
-		{ name: 'No', wanted: 0 }
+		{ name: 'No', wanted: 0 },
+		{ name: 'Yes', wanted: 1 }
 	];
 	const columns = [
 		{ id: 'title', title: 'Title' },
@@ -74,20 +74,24 @@
 <div class="filters">
 	<Dropdown label="Author" options={authors} bind:value={author} />
 	<Dropdown label="Genre" options={genres} bind:value={genre} />
-	<input class="control" type="text" aria-label="Type to search" placeholder="Title contains" bind:value={titleSearch} />
+	<div class="field">
+		<span>Title contains</span>
+		<input class="control" type="text" aria-label="Type to search" placeholder="Type to search" bind:value={titleSearch} />
+	</div>
 </div>
-<div class="filters">
+<div class="flag-filters">
 	{#each flagNames as flag (flag)}
-		<div>
-			<div class="meta">{flag}</div>
+		<div class="flag-filter">
+			<div class="flag-head"><span>{flag}</span><span>Works</span></div>
 			{#each choices as choice (choice.name)}
+				{@const count = flagCount(flag, choice.wanted)}
 				<button
-					class="control"
 					type="button"
 					aria-pressed={wantedFlags[flag] === choice.wanted}
+					style:--share="{(100 * count) / Math.max(1, matching.length)}%"
 					onclick={() => toggleFlag(flag, choice.wanted)}
 				>
-					{choice.name} <span>{formatValue(flagCount(flag, choice.wanted), 'wholeNumber')}</span>
+					<span>{choice.name}</span> <span>{formatValue(count, 'wholeNumber')}</span>
 				</button>
 			{/each}
 		</div>
@@ -95,3 +99,41 @@
 </div>
 
 <DataTable rows={shown} {columns} link={(row) => `/works/${row.work_id}`} />
+
+<style>
+	.flag-filters {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+		gap: 0.5rem 0.25rem;
+		margin-bottom: 1.5rem;
+		font-size: 0.79rem;
+		line-height: 1.1875rem;
+	}
+	.flag-head,
+	.flag-filter button {
+		display: flex;
+		justify-content: space-between;
+		padding: 1px 3px;
+	}
+	.flag-head {
+		font-weight: 700;
+		border-bottom: 1px solid color-mix(in srgb, var(--color-muted) 60%, transparent);
+	}
+	.flag-filter button {
+		width: 100%;
+		border: 0;
+		background: linear-gradient(
+				to right,
+				color-mix(in srgb, var(--color-accent) 15%, transparent) var(--share),
+				transparent var(--share)
+			);
+		cursor: pointer;
+	}
+	.flag-filter button:hover {
+		background-color: var(--color-hover);
+	}
+	.flag-filter button[aria-pressed='true'] {
+		color: var(--color-accent);
+		font-weight: 700;
+	}
+</style>

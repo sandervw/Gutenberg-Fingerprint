@@ -31,7 +31,10 @@
 		aria-haspopup="listbox"
 		onclick={() => (open = !open)}
 	>
-		{label}: {value}
+		<span>{label}</span>
+		<span class="divider"></span>
+		<span>{value}</span>
+		<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 9 4-4 4 4M16 15l-4 4-4-4" /></svg>
 	</button>
 	{#if open}
 		<div class="popup" role="application">
@@ -60,27 +63,48 @@
 	.dropdown {
 		position: relative;
 	}
+	.divider {
+		align-self: stretch;
+		margin: 0.5rem 0;
+		border-left: 1px solid var(--color-border);
+	}
+	svg {
+		width: 0.75rem;
+		height: 0.75rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+	}
 	.popup {
 		position: absolute;
 		left: 0;
-		z-index: var(--z-overlay);
+		z-index: 30;
 		width: 18rem;
 		max-width: 80vw;
-		padding: var(--small);
-		background-color: var(--color-bg-primary);
-		border: var(--border-width) solid var(--color-gray);
+		padding: 0.5rem;
+		background-color: var(--color-bg);
+		border: 1px solid var(--color-border);
+		border-radius: 0.375rem;
+		font-size: 0.875rem;
+	}
+	.popup input {
+		width: 100%;
 	}
 	ul {
 		max-height: 16rem;
 		overflow-y: auto;
+		margin: 0.5rem 0 0;
 		padding: 0;
 		list-style: none;
 	}
 	li {
-		padding: var(--xsmall) var(--small);
+		padding: 0.25rem 0.5rem;
+		border-radius: 0.125rem;
 		cursor: pointer;
 	}
-	li:hover,
+	li:hover {
+		background-color: var(--color-hover);
+	}
 	li[aria-selected='true'] {
 		color: var(--color-accent);
 	}
