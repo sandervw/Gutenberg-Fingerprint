@@ -2,11 +2,40 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openPage } from "./site";
 
-const samplePages = ["/", "/works", "/authors", "/works/10662", "/authors/Bond, Nelson S."];
+const chartPages = ["/", "/works/10662", "/authors/Bond, Nelson S."];
+const samplePages = [...chartPages, "/works", "/authors"];
 
 /** Pixels the page can scroll sideways beyond the viewport. */
 function sidewaysOverflow(page: Page): Promise<number> {
   return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+}
+
+type Box = { left: number; top: number; right: number; bottom: number };
+
+/** True when two boxes share any area. */
+function boxesOverlap(first: Box, second: Box): boolean {
+  const apartSideways = first.right <= second.left || second.right <= first.left;
+  const apartUpright = first.bottom <= second.top || second.bottom <= first.top;
+  return !apartSideways && !apartUpright;
+}
+
+/** Pairs of text labels that overlap inside any chart on the page. */
+async function overlappingChartLabels(page: Page): Promise<number> {
+  const charts = await page.getByRole("img", { name: / chart$/ }).all();
+  const chartBoxes = await Promise.all(
+    charts.map((chart) =>
+      chart.locator("text").evaluateAll((labels) =>
+        labels.map((label) => {
+          const { left, top, right, bottom } = label.getBoundingClientRect();
+          return { left, top, right, bottom };
+        }),
+      ),
+    ),
+  );
+  const pairs = chartBoxes.flatMap((boxes) =>
+    boxes.flatMap((box, position) => boxes.slice(position + 1).filter((other) => boxesOverlap(box, other))),
+  );
+  return pairs.length;
 }
 
 /** Relative luminance of an "rgb(r, g, b)" colour, per WCAG. */
@@ -67,6 +96,16 @@ for (const path of samplePages) {
     await openPage(page, path);
     const overflow = await sidewaysOverflow(page);
     expect(overflow, `${path} scrolls sideways by ${overflow}px`).toBeLessThanOrEqual(0);
+  });
+}
+
+for (const path of chartPages) {
+  test(`UC-13 ${path} chart labels do not overlap at phone width`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "phone", "phone width only");
+    await openPage(page, path);
+    await expect(page.getByRole("img", { name: / chart$/ }).first()).toBeVisible();
+    const overlaps = await overlappingChartLabels(page);
+    expect(overlaps, `${path} has ${overlaps} overlapping chart labels`).toBe(0);
   });
 }
 
