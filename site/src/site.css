@@ -65,7 +65,7 @@
   --color-heading: #070705;
   --color-muted: #717170;
   --color-border: #d1d0cc;
-  --color-hover: #efeee9;
+  --color-hover: #f2f1ed;
   --color-accent: #b87333;
   --sidebar-width: 12rem;
   color-scheme: light;
@@ -271,7 +271,7 @@ input {
   color: var(--color-muted);
 }
 .contents a:hover {
-  color: var(--color-text);
+  text-decoration: underline;
 }
 main {
   flex-grow: 1;
@@ -403,6 +403,19 @@ main p a,
 main p a:hover {
   text-decoration: underline;
 }
+.link {
+  color: inherit;
+  transition: color 0.15s ease;
+}
+h1 .link {
+  color: var(--color-heading);
+}
+.link:hover {
+  color: var(--color-accent);
+}
+main p .link:hover {
+  text-decoration: none;
+}
 main p .value {
   font-family: var(--font-quattro);
 }
@@ -427,7 +440,7 @@ hr {
   cursor: pointer;
   max-width: 100%;
 }
-.control:hover {
+button.control:hover {
   background-color: var(--color-hover);
 }
 input.control {

@@ -108,8 +108,10 @@
 	}
 	.clickable {
 		cursor: pointer;
+		transition: color 0.15s ease;
 	}
 	.clickable:hover {
+		color: var(--color-accent);
 		background-color: var(--color-hover);
 	}
 	.chevron {
