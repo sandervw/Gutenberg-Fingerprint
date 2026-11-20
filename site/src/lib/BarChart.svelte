@@ -34,6 +34,11 @@
 			.nice(5)
 	);
 	const ticks = $derived(scale.ticks(5));
+	const tickLabels = $derived(ticks.map((tick) => formatValue(tick, format)));
+	const tickLabelWidth = $derived(Math.max(...tickLabels.map((text) => text.length)) * characterWidth + labelGap);
+	const tickSpacing = $derived(Math.abs(scale(ticks[1] ?? 0) - scale(ticks[0] ?? 0)) || tickLabelWidth);
+	const labelStride = $derived(Math.ceil(tickLabelWidth / tickSpacing));
+	const zeroPosition = $derived(Math.max(0, ticks.indexOf(0)));
 	const valueName = $derived(value.charAt(0).toUpperCase() + value.slice(1).replace(/_/g, ' '));
 	const maximumLabel = $derived(Math.floor((labelWidth - labelGap) / characterWidth));
 
@@ -52,9 +57,11 @@
 
 <div class="chart-box" bind:clientWidth={width}>
 	<svg class="chart" role="img" aria-label="{title} chart" {width} {height} viewBox="0 0 {width} {height}">
-		{#each ticks as tick (tick)}
+		{#each ticks as tick, position (tick)}
 			<line class="grid" x1={scale(tick)} x2={scale(tick)} y1={axisHeight} y2={height} />
-			<text class="tick" x={scale(tick)} y={axisHeight - 8}>{formatValue(tick, format)}</text>
+			{#if (position - zeroPosition) % labelStride === 0}
+				<text class="tick" x={scale(tick)} y={axisHeight - 8}>{tickLabels[position]}</text>
+			{/if}
 		{/each}
 		{#each rows as row, index (index)}
 			{@const top = axisHeight + index * band}
