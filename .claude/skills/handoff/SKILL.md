@@ -41,7 +41,6 @@ Current state and next work. Rewrite when stale; never log history.
 - Pin `dbt-core` below 2.0.
 - Regenerate `site/package-lock.json` on the box.
 - Compare screenshots against live gufime.com for any visual change.
-- A privacy plugin blocks Bash commands that name the file holding the contact email; use Read and Edit on it.
 - Project Gutenberg politeness: never raise download rates or caps without the CEO.
 - An unquoted `: ` in an agent `description` breaks loading; agent file changes need a session restart.
 - Python's `write_text` on Windows writes CRLF; pass `newline="\n"` or use Edit.

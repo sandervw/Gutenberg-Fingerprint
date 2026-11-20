@@ -1,10 +1,9 @@
-<!-- @component Horizontal bar chart in the Evidence look; `mark` draws bars. -->
+<!-- @component Horizontal bar chart in the Evidence look. -->
 <script>
 	import { scaleLinear } from 'd3-scale';
-	import BarMark from '$lib/BarMark.svelte';
 	import { formatValue } from '$lib/format.js';
 
-	let { rows, label, value, title, format = 'twoDecimals', mark: Mark = BarMark } = $props();
+	let { rows, label, value, title, format = 'twoDecimals' } = $props();
 
 	const axisHeight = 22;
 	const minimumPlotHeight = 150;
@@ -66,7 +65,13 @@
 			>
 				<rect class="hit" x={labelWidth} y={top} width={width - rightPadding - labelWidth} height={band} />
 				<text class="label" x={labelWidth - labelGap} y={top + band / 2}>{shortLabel(String(row[label]))}</text>
-				<Mark start={scale(0)} end={scale(amounts[index])} centre={top + band / 2} thickness={band * 0.7} />
+				<rect
+					class="mark"
+					x={Math.min(scale(0), scale(amounts[index]))}
+					y={top + band * 0.15}
+					width={Math.abs(scale(amounts[index]) - scale(0))}
+					height={band * 0.7}
+				/>
 			</g>
 		{/each}
 		<line class="axis" x1={scale(0)} x2={scale(0)} y1={axisHeight} y2={height} />
@@ -114,7 +119,10 @@
 	.active .hit {
 		fill: var(--color-hover);
 	}
-	.active :global(.mark) {
+	.mark {
+		fill: var(--color-accent);
+	}
+	.active .mark {
 		opacity: 0.8;
 	}
 	.tooltip {
