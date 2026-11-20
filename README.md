@@ -2,9 +2,9 @@
 
 **Live site: [gufime.com](https://gufime.com/)**
 
-A nightly change-data-capture pipeline that watches the Project Gutenberg catalog, downloads the English science-fiction, fantasy, and horror corpus, measures 15 stylometric metrics of every work, and publishes the result as an SPA analytics site. Every published number is a **z-score**.
+A nightly change-data-capture pipeline that watches the Project Gutenberg catalog, downloads the English science-fiction, fantasy, and horror corpus, measures 15 stylometric metrics of every work, and publishes the result as a static analytics site. Every published number is a **z-score**.
 
-Runs on one ~$5/month OVH VPS ("the box"): Postgres, plain Python, dbt Core, and Evidence.dev, orchestrated by **Dagster OSS**, published to Cloudflare.
+Runs on one ~$5/month OVH VPS ("the box"): Postgres, plain Python, dbt Core, and a SvelteKit static site, orchestrated by **Dagster OSS**, published to Cloudflare.
 
 ---
 
@@ -20,7 +20,7 @@ Dagster on the box — nightly schedule 03:00 America/Chicago
         dbt_models     → postgres gold.*   (each dbt node a lineage asset)
         postgres_backup → R2 gufime-backup/postgres/gufime.dump
         corpus_backup  → R2 gufime-backup/corpus/
-        site           → npm build + sitemap.xml + wrangler pages deploy → gufime.com
+        site           → site_extract + npm build + wrangler pages deploy → gufime.com
 ```
 
 Dagster OSS on the box holds the schedule, the CDC gate, and the run logs (Postgres `dagster` schema). The `nightly` schedule materializes `catalog`; a `gate` asset sensor reads its `new_count` and launches the downstream chain only when New or Changed works exist. Push to `main` triggers a GitHub Actions deploy hook (`deploy.yml`) that syncs the box's checkout and restarts Dagster. The Dagster UI is served at [dagster.gufime.com](https://dagster.gufime.com) behind a Cloudflare Tunnel + Access. Files live under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`) over the unix socket with peer auth.
@@ -52,7 +52,7 @@ sources (raw)  →  stg_*  →  int_*  →  dim_*/fact_*  →  mart_*
                   views     views     tables           tables
 ```
 
-A fact constellation: `fact_style_measurement` at work × series grain, `fact_vocab_overlap` at author-pair grain, sharing conformed `dim_work`, `dim_author`, `dim_metric`, and `dim_date` (a calendar dimension for load-date FKs). The marts split by chart grain: `mart_style_long` (work × series), `mart_work` (work-grain listings, the Excess ranking), `mart_author` (author-grain rollups). Each Evidence query selects from the `gold` table at its grain.
+A fact constellation: `fact_style_measurement` at work × series grain, `fact_vocab_overlap` at author-pair grain, sharing conformed `dim_work`, `dim_author`, `dim_metric`, and `dim_date` (a calendar dimension for load-date FKs). The marts split by chart grain: `mart_style_long` (work × series), `mart_work` (work-grain listings, the Excess ranking), `mart_author` (author-grain rollups). Each site query selects from the `gold` table at its grain.
 
 - **Portability.** Every model compiles against both DuckDB (local dev) and Postgres (prod) from one codebase.
 - **Derived stamps.** `dim_work.ingested_at` is `min(loaded_at)` over the work's measurement rows. The dimension inner-joins measurements.
@@ -63,9 +63,7 @@ A fact constellation: `fact_style_measurement` at work × series grain, `fact_vo
 
 ## The site
 
-Evidence extracts data at build time; the deployed SPA never queries a database. The build runs on the box, where `@evidence-dev/postgres` reads the `gold` marts over the unix socket with peer auth. `wrangler pages deploy` ships the static build to Cloudflare Pages.
-
-Postbuild scripts work around Cloudflare Pages' file-size cap and 404 handling. Styling mirrors [wordleaves.com](https://wordleaves.com).
+Each page's queries are `.sql` files beside it. `python.workflow.site_extract` runs each one once through the storage seam and writes a `.json` beside it, then SvelteKit prerenders every page to one HTML file with its data and SVG charts inline. The build runs on the box, reading Postgres over the unix socket with peer auth, and `wrangler pages deploy` ships it to Cloudflare Pages. Styling lives in `site/src/site.css`.
 
 ## Cost
 
@@ -82,7 +80,7 @@ Credentials: an SSH key in Actions secrets (the deploy hook), a Cloudflare API t
 ```
 python/      pipeline: pure core/, workflow/ steps, dagster/ wiring, storage.py seam
 dbt/         dbt Core project (models, macros, snapshots, tests)
-evidence/    Evidence.dev site + build scripts
+site/        SvelteKit static site: pages, their SQL, chart components
 infra/tofu/  OpenTofu: OVH VPS + Cloudflare, provision.sh + Dagster/tunnel services
 docs/        vision, architecture, deploys, glossary, use cases, reference notes
 .claude/     agents, hooks, and skills for the agent workflow
@@ -100,12 +98,14 @@ cd dbt
 uv run dbt deps
 uv run dbt build          # duckdb target by default
 
-cd ../evidence
-npm install
-npm run dev               # serves the extraction cached in evidence/data/
+cd ../site
+npm ci
+(cd .. && uv run python -m python.workflow.site_extract)
+npm run build             # prerenders to build/
+npm run dev
 ```
 
-Pipeline steps also run locally against DuckDB: `uv run python -m python.workflow.<step>`, files under `data/files/`. `GUFIME_TARGET=postgres` switches a step to the box's stack. `npm run sources` needs the box's Postgres socket; fresh extractions run there.
+Pipeline steps also run locally against DuckDB: `uv run python -m python.workflow.<step>`, files under `data/files/`. `GUFIME_TARGET=postgres` switches a step to the box's stack.
 
 ## How it's built
 

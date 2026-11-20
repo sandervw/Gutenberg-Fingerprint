@@ -14,14 +14,14 @@ Agents: `pipeline-engineer`, `dbt-engineer`, `site-engineer`, `blackbox-tester` 
 
 ## Stack
 
-Python 3.12 via `uv`, Dagster OSS, Postgres, dbt Core (DuckDB locally, Postgres in production), spaCy, Evidence.dev on Node 24, Cloudflare Pages, R2, and Email Sending, OpenTofu. One OVH VPS ("the box"). `README.md` is the overview; `docs/architecture.md` the design; `docs/deploy.md` operations; `docs/reference/` verified tech notes.
+Python 3.12 via `uv`, Dagster OSS, Postgres, dbt Core (DuckDB locally, Postgres in production), spaCy, a SvelteKit static site on Node 24, Cloudflare Pages, R2, and Email Sending, OpenTofu. One OVH VPS ("the box"). `README.md` is the overview; `docs/architecture.md` the design; `docs/deploy.md` operations; `docs/reference/` verified tech notes.
 
 ## Commands
 
 - Checks: `python .claude/skills/simple-code/scripts/check_code.py <paths>`
 - dbt, from `dbt/`: `uv run dbt parse --target duckdb`, `uv run dbt parse --target postgres`, `uv run dbt build`
 - Dagster: `uv run dagster definitions validate`
-- Site: `npm --prefix evidence run dev`, `npm --prefix evidence run build`
+- Site: `uv run python -m python.workflow.site_extract`, then `npm --prefix site run build`; `npm --prefix site run dev` serves it
 - Box: `ssh gufime`; files under `/files/gufime/`, Postgres via `psql gufime` with peer auth.
 
 ## Rules
@@ -30,7 +30,7 @@ Python 3.12 via `uv`, Dagster OSS, Postgres, dbt Core (DuckDB locally, Postgres 
 - Every dbt model compiles on both targets.
 - Metric, filter, and cleaning logic is pure; storage goes through the storage seam. Use the names in `docs/glossary.md`.
 - Tests: black-box Playwright specs from use cases for the site; dbt tests for the data. Bugs start with a failing test.
-- Site styling mirrors wordleaves.com (`evidence/sparse.css`, `evidence/wordleaves.css`).
+- Site styling lives in `site/src/site.css`.
 - Check `docs/reference/` before using a library API; if it isn't covered, fetch current docs (Context7 or official sources) and update the reference file.
 
 ## Security

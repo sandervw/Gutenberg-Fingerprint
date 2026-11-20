@@ -78,6 +78,19 @@ def _normalize_utc(dataframe: polars.DataFrame) -> polars.DataFrame:
     return dataframe.with_columns(casts) if casts else dataframe
 
 
+def read_query(query: str) -> polars.DataFrame:
+    """Run one select and return its rows."""
+    if TARGET == "postgres":
+        import psycopg
+
+        with psycopg.connect(POSTGRES_CONNECTION_STRING) as connection:
+            return _normalize_utc(polars.read_database(query, connection))
+    import duckdb
+
+    with duckdb.connect(DUCKDB_PATH) as connection:
+        return connection.sql(query).pl()
+
+
 def read_table(name: str, columns: list[str] | None = None) -> polars.DataFrame:
     """Read a table, or chosen columns; raise TableMissing if absent."""
     selected = ", ".join(f'"{column_name}"' for column_name in columns) if columns else "*"

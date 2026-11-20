@@ -1,0 +1,6 @@
+node_modules
+.svelte-kit
+src/routes/**/*.json
+build
+build-*
+npm-install.log

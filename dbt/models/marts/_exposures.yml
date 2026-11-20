@@ -2,13 +2,12 @@ version: 2
 
 exposures:
   - name: gutenberg_fingerprint_dashboard
-    label: "Prose Fingerprint (Evidence)"
+    label: "gufime.com"
     type: dashboard
     maturity: medium # still evolving; bump to high once stable
-    url: http://localhost:3000
+    url: https://gufime.com
     description: >
-      Evidence.dev site (reports/) comparing the user's prose against studied
-      authors.
+      Static site (site/) showing each work's and author's style measures.
     depends_on:
       - ref('mart_style_long') # measurement OBT behind every stylometric chart
       - ref('mart_work') # work listings, headers, outlier ranking

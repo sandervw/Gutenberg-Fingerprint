@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="icon" href="/favicon.ico" />
+		<script>
+			(() => {
+				const stored = localStorage.getItem('theme') ?? 'system';
+				const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+				const theme = stored === 'system' ? (dark ? 'dark' : 'light') : stored;
+				document.documentElement.dataset.theme = theme;
+			})();
+		</script>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-reload>
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

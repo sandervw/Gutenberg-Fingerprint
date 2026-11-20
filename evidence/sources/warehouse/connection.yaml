@@ -1,8 +1,0 @@
-# Unix socket, peer auth: OS user is the credential, no password.
-name: warehouse
-type: postgres
-options:
-  host: /var/run/postgresql
-  port: 5432
-  database: gufime
-  user: gufime

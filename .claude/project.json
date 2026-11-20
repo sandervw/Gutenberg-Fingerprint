@@ -17,8 +17,6 @@
       ".mcp.json",
       "infra/",
       "dbt/profiles.yml",
-      "evidence/functions/",
-      "evidence/sources/warehouse/connection.yaml",
       "python/dagster/alert.py",
       "python/workflow/backup.py"
     ],
