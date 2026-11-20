@@ -39,9 +39,12 @@
 
 	/** True when a work passes every chosen flag except the skipped one. */
 	function passesFlags(work, skippedFlag) {
-		return flagNames.every(
-			(flag) => flag === skippedFlag || wantedFlags[flag] === undefined || work[flagColumn(flag)] === wantedFlags[flag]
-		);
+		return flagNames.every((flag) => {
+			const isSkipped = flag === skippedFlag;
+			const isUnset = wantedFlags[flag] === undefined;
+			const matchesWanted = work[flagColumn(flag)] === wantedFlags[flag];
+			return isSkipped || isUnset || matchesWanted;
+		});
 	}
 
 	/** True when a work matches the chosen author, genre, and title text. */

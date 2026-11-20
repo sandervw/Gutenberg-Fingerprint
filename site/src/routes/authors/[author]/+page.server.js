@@ -14,7 +14,7 @@ export function load({ params }) {
 	return {
 		author: params.author,
 		summary: rowsFor('authors/[author]/summary', 'author', params.author)[0],
-		metric_definitions: rows('authors/[author]/metric_definitions'),
+		metric_definitions: rows('metric_definitions'),
 		...Object.fromEntries(parts)
 	};
 }

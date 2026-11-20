@@ -1,16 +1,16 @@
-with author_avg as (
-    select author_key, metric_key, avg(zscore) as author_z
+with author_averages as (
+    select author_key, metric_key, avg(zscore) as author_average_zscore
     from gold.mart_style_long
     where is_multivalue = false
     group by author_key, metric_key
 )
 select
-    msl.work_id,
-    msl.display_name,
-    msl.zscore - a.author_z as delta
-from gold.mart_style_long msl
-join author_avg a
-    on a.author_key = msl.author_key
-    and a.metric_key = msl.metric_key
-where msl.is_multivalue = false
-order by msl.work_id, abs(msl.zscore - a.author_z) desc
+    mart_style_long.work_id,
+    mart_style_long.display_name,
+    mart_style_long.zscore - author_averages.author_average_zscore as delta
+from gold.mart_style_long
+join author_averages
+    on author_averages.author_key = mart_style_long.author_key
+    and author_averages.metric_key = mart_style_long.metric_key
+where mart_style_long.is_multivalue = false
+order by mart_style_long.work_id, abs(mart_style_long.zscore - author_averages.author_average_zscore) desc

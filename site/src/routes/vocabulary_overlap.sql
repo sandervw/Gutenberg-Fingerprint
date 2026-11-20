@@ -1,8 +1,8 @@
 select
-    da.name as author,
-    fvo.jaccard
-from gold.fact_vocab_overlap fvo
-join gold.dim_author da
-    on fvo.author_key_b = da.author_key
-order by fvo.jaccard desc
+    dim_author.name as author,
+    fact_vocab_overlap.jaccard
+from gold.fact_vocab_overlap
+join gold.dim_author
+    on fact_vocab_overlap.author_key_b = dim_author.author_key
+order by fact_vocab_overlap.jaccard desc
 limit 25

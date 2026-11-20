@@ -16,7 +16,7 @@
 	let hovered = $state(-1);
 	let pointer = $state({ x: 0, y: 0 });
 
-	/** A row's value; a missing column is an error, a null is zero. */
+	/** A row's value; missing columns throw, nulls count as zero. */
 	function amountOf(row) {
 		if (!(value in row)) throw new Error(`${title}: no column "${value}"`);
 		return row[value] ?? 0;

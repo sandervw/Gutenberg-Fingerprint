@@ -21,7 +21,7 @@ Python 3.12 via `uv`, Dagster OSS, Postgres, dbt Core (DuckDB locally, Postgres 
 - Checks: `python .claude/skills/simple-code/scripts/check_code.py <paths>`
 - dbt, from `dbt/`: `uv run dbt parse --target duckdb`, `uv run dbt parse --target postgres`, `uv run dbt build`
 - Dagster: `uv run dagster definitions validate`
-- Site: `GUFIME_DUCKDB_PATH=../dbt/warehouse.duckdb npm --prefix site run build`, then `npm --prefix site run dev`
+- Site: `uv run python -m python.workflow.site_extract`, then `npm --prefix site run build`; `npm --prefix site run dev` serves it
 - Box: `ssh gufime`; files under `/files/gufime/`, Postgres via `psql gufime` with peer auth.
 
 ## Rules

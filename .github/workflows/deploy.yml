@@ -1,6 +1,6 @@
 name: Deploy to box
 
-# On push to main: sync the box checkout, install site packages, reload Dagster.
+# On push to main: sync the box, install site packages, reload Dagster.
 on:
   push:
     branches: [main]

@@ -1,4 +1,4 @@
-// Build-time data: extracted query results, read once, grouped by key.
+// Build-time data: each route query's .json, read once, grouped by key.
 import { readFileSync } from 'node:fs';
 
 const tables = new Map();
@@ -6,7 +6,7 @@ const groups = new Map();
 
 /** All rows of one extracted query, such as "works/works". */
 export function rows(name) {
-	if (!tables.has(name)) tables.set(name, JSON.parse(readFileSync(`.data/${name}.json`, 'utf8')));
+	if (!tables.has(name)) tables.set(name, JSON.parse(readFileSync(`src/routes/${name}.json`, 'utf8')));
 	return tables.get(name);
 }
 

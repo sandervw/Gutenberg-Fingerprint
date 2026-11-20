@@ -20,7 +20,7 @@ Dagster on the box — nightly schedule 03:00 America/Chicago
         dbt_models     → postgres gold.*   (each dbt node a lineage asset)
         postgres_backup → R2 gufime-backup/postgres/gufime.dump
         corpus_backup  → R2 gufime-backup/corpus/
-        site           → npm build + sitemap.xml + wrangler pages deploy → gufime.com
+        site           → site_extract + npm build + wrangler pages deploy → gufime.com
 ```
 
 Dagster OSS on the box holds the schedule, the CDC gate, and the run logs (Postgres `dagster` schema). The `nightly` schedule materializes `catalog`; a `gate` asset sensor reads its `new_count` and launches the downstream chain only when New or Changed works exist. Push to `main` triggers a GitHub Actions deploy hook (`deploy.yml`) that syncs the box's checkout and restarts Dagster. The Dagster UI is served at [dagster.gufime.com](https://dagster.gufime.com) behind a Cloudflare Tunnel + Access. Files live under `/files/gufime/`, tables in Postgres (schemas `bronze`, `raw`, `gold`) over the unix socket with peer auth.
@@ -63,7 +63,7 @@ A fact constellation: `fact_style_measurement` at work × series grain, `fact_vo
 
 ## The site
 
-Each page's queries are `.sql` files beside it. The build runs each one once against the `gold` marts, then SvelteKit prerenders every page to one HTML file with its data and SVG charts inline. The build runs on the box, reading Postgres over the unix socket with peer auth, and `wrangler pages deploy` ships it to Cloudflare Pages. Styling lives in `site/src/site.css`.
+Each page's queries are `.sql` files beside it. `python.workflow.site_extract` runs each one once through the storage seam and writes a `.json` beside it, then SvelteKit prerenders every page to one HTML file with its data and SVG charts inline. The build runs on the box, reading Postgres over the unix socket with peer auth, and `wrangler pages deploy` ships it to Cloudflare Pages. Styling lives in `site/src/site.css`.
 
 ## Cost
 
@@ -100,7 +100,8 @@ uv run dbt build          # duckdb target by default
 
 cd ../site
 npm ci
-GUFIME_DUCKDB_PATH=../dbt/warehouse.duckdb npm run build  # prerenders to build/
+(cd .. && uv run python -m python.workflow.site_extract)
+npm run build             # prerenders to build/
 npm run dev
 ```
 

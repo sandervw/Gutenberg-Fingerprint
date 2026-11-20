@@ -7,8 +7,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "extract": "node scripts/extract.js",
-    "build": "node scripts/extract.js && vite build && node scripts/prune.js",
+    "build": "vite build && node scripts/prune.js",
     "dev": "vite dev"
   },
   "dependencies": {
@@ -16,11 +15,9 @@
     "d3-shape": "^3.2.1"
   },
   "devDependencies": {
-    "@duckdb/node-api": "2.0.0-r.1",
     "@sveltejs/adapter-static": "^3.0.11",
     "@sveltejs/kit": "^2.70.4",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
-    "pg": "^8.23.1",
     "svelte": "^5.58.0",
     "vite": "^8.3.8"
   }

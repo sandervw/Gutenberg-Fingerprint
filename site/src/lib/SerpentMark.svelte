@@ -1,6 +1,6 @@
 <svelte:options namespace="svg" />
 
-<!-- @component A bar drawn as a serpent from the zero line to the bar's end. -->
+<!-- @component A bar drawn as a serpent from zero to its value. -->
 <script>
 	import { area, curveCatmullRom } from 'd3-shape';
 

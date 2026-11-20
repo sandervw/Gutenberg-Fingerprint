@@ -28,7 +28,7 @@ Dagster on the box, nightly schedule 03:00 America/Chicago
         dbt_models      → gold.*  (each dbt node a lineage asset)
         postgres_backup → R2 gufime-backup/postgres/gufime.dump
         corpus_backup   → R2 gufime-backup/corpus/
-        site            → npm run build, wrangler pages deploy → gufime.com
+        site            → site_extract, npm run build, wrangler pages deploy → gufime.com
 ```
 
 `catalog_ingest.main()` returns `new_count`, New plus Changed Works, as asset metadata; the gate reads it. A quiet night runs nothing past `catalog`. *Materialize all* in the UI is the manual rebuild. `catalog`, both backups, and `site` retry twice, after 60 then 180 seconds with jitter. `texts` does not retry: a failed download marks that work `failed` for the next night. The `failure_alert` sensor emails through Cloudflare Email Sending once, after the last retry. Python assets import and call `main()`; dbt, the site build, and backups shell out. Manually uploaded works live in `/files/gufime/bronze/self/` with a `_manifest.csv`; a changed `loaded_at` re-measures one.
@@ -83,7 +83,7 @@ Files under `/files/gufime/` (`bronze/texts/`, `bronze/catalog/`, `bronze/self/`
 
 ## 7. Site
 
-A SvelteKit static site. Each page's queries are `.sql` files beside it; the build runs each once and prerenders every page to one HTML file with its data and SVG charts inline. Each query selects from the `gold` table at its own grain. Details in [reference/sveltekit.md](reference/sveltekit.md).
+A SvelteKit static site. Each page's queries are `.sql` files beside it; `site_extract` runs each once through the storage seam into a `.json` beside it, and SvelteKit prerenders every page to one HTML file with its data and SVG charts inline. Each query selects from the `gold` table at its own grain. Details in [reference/sveltekit.md](reference/sveltekit.md).
 
 ## 8. Security
 

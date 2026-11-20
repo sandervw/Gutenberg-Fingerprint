@@ -13,7 +13,7 @@ export function load({ params }) {
 	const charts = queries.map((query) => [query, rowsFor(`works/[work]/${query}`, 'work_id', params.work)]);
 	return {
 		work: rowsFor('works/[work]/work', 'work_id', params.work)[0],
-		metric_definitions: rows('works/[work]/metric_definitions'),
+		metric_definitions: rows('metric_definitions'),
 		...Object.fromEntries(charts)
 	};
 }

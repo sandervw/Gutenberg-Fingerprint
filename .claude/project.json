@@ -17,7 +17,6 @@
       ".mcp.json",
       "infra/",
       "dbt/profiles.yml",
-      "site/scripts/warehouse.js",
       "python/dagster/alert.py",
       "python/workflow/backup.py"
     ],

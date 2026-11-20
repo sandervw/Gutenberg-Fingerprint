@@ -51,7 +51,7 @@ if [ ! -d /code/gufime/.git ]; then
   su - gufime -c "git clone https://github.com/sandervw/Gutenberg-Fingerprint.git /code/gufime"
 fi
 
-# 6 GB swap: headroom for the site build beside Postgres and Dagster on a 4 GB box.
+# 6 GB swap: headroom for the site build on a 4 GB box.
 if [ ! -f /swapfile ]; then
   fallocate -l 6G /swapfile
   chmod 600 /swapfile
