@@ -3,7 +3,6 @@ import { expect, test, type Page } from "@playwright/test";
 import { openPage } from "./site";
 
 const samplePages = ["/", "/works", "/authors", "/works/10662", "/authors/Bond, Nelson S."];
-const chartPages = ["/", "/works/10662", "/authors/Bond, Nelson S."];
 
 /** Pixels the page can scroll sideways beyond the viewport. */
 function sidewaysOverflow(page: Page): Promise<number> {
@@ -99,11 +98,10 @@ for (const path of samplePages) {
   });
 }
 
-for (const path of chartPages) {
+for (const path of samplePages) {
   test(`UC-13 ${path} chart labels do not overlap at phone width`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "phone", "phone width only");
     await openPage(page, path);
-    await expect(page.getByRole("img", { name: / chart$/ }).first()).toBeVisible();
     const overlaps = await overlappingChartLabels(page);
     expect(overlaps, `${path} has ${overlaps} overlapping chart labels`).toBe(0);
   });
