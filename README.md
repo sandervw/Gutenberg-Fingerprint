@@ -63,7 +63,7 @@ A fact constellation: `fact_style_measurement` at work × series grain, `fact_vo
 
 ## The site
 
-Each page's queries are `.sql` files beside it. The build runs each one once against the `gold` marts, then SvelteKit prerenders every page to one HTML file with its data and SVG charts inline. The build runs on the box, reading Postgres over the unix socket with peer auth, and `wrangler pages deploy` ships it to Cloudflare Pages. Styling mirrors [wordleaves.com](https://wordleaves.com).
+Each page's queries are `.sql` files beside it. The build runs each one once against the `gold` marts, then SvelteKit prerenders every page to one HTML file with its data and SVG charts inline. The build runs on the box, reading Postgres over the unix socket with peer auth, and `wrangler pages deploy` ships it to Cloudflare Pages. Styling lives in `site/src/site.css`.
 
 ## Cost
 
@@ -100,7 +100,7 @@ uv run dbt build          # duckdb target by default
 
 cd ../site
 npm ci
-npm run build             # extracts from dbt/warehouse.duckdb, prerenders to build/
+GUFIME_DUCKDB_PATH=../dbt/warehouse.duckdb npm run build  # prerenders to build/
 npm run dev
 ```
 

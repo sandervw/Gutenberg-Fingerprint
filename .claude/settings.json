@@ -21,7 +21,7 @@
       "Bash(uv run python -m python.workflow.strip)",
       "Bash(uv run python -m python.workflow.measure)",
       "Bash(npm --prefix site run dev)",
-      "Bash(npm --prefix site run build)",
+      "Bash(GUFIME_DUCKDB_PATH=* npm --prefix site run build)",
       "Bash(python .claude/skills/simple-code/scripts/check_code.py *)",
       "Bash(git status*)",
       "Bash(git diff *)",

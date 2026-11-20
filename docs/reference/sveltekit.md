@@ -3,7 +3,7 @@
 ## Build
 
 - `npm run build` in `site/`: `scripts/extract.js` runs every `.sql` under `src/routes/` once into `.data/<route>/<name>.json`, `vite build` prerenders, `scripts/prune.js` deletes each `__data.json`.
-- `scripts/warehouse.js` is the one database seam. `GUFIME_TARGET=duckdb` (default) opens `GUFIME_DUCKDB_PATH` (default `../dbt/warehouse.duckdb`) read-only; `postgres` connects over `/var/run/postgresql` with peer auth (`PGHOST`, `PGDATABASE` override).
+- `scripts/warehouse.js` is the one database seam. `GUFIME_TARGET=duckdb` (default) opens `GUFIME_DUCKDB_PATH` (required) read-only; `postgres` connects over `/var/run/postgresql` with peer auth (`PGHOST`, `PGDATABASE` override).
 - Per-page SQL selects every row with a key column (`work_id`, `author`); `src/lib/server/data.js` groups by key in memory.
 - `GUFIME_OUT` sets the output folder (default `build`).
 
