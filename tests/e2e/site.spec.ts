@@ -18,6 +18,7 @@ function tableWithColumn(page: Page, column: string): Locator {
 /** Visible text of one column across every data row. */
 async function columnValues(table: Locator, column: string): Promise<string[]> {
   const names = (await table.getByRole("columnheader").allInnerTexts()).map((name) => name.trim());
+  expect(names, `no column "${column}"`).toContain(column);
   const position = names.indexOf(column);
   const rows = await table.getByRole("row").filter({ has: table.page().getByRole("cell") }).all();
   const cells = await Promise.all(rows.map((row) => row.getByRole("cell").allInnerTexts()));
@@ -44,7 +45,9 @@ async function pickOption(page: Page, dropdown: string, option: string): Promise
 /** WCAG contrast between two "rgb(r, g, b)" colours. */
 function contrast(first: string, second: string): number {
   const luminance = (colour: string) => {
-    const [red, green, blue] = (colour.match(/[\d.]+/g) ?? []).map((value) => {
+    const channels = colour.match(/[\d.]+/g);
+    if (channels === null) throw new Error(`unparsed colour ${colour}`);
+    const [red, green, blue] = channels.map((value) => {
       const scaled = Number(value) / 255;
       return scaled <= 0.03928 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
     });
@@ -75,6 +78,9 @@ test("UC-01 home summarises the corpus", async ({ page }) => {
 test("UC-02 Weirdest Works lists 25 rows by Excess and opens a work", async ({ page }) => {
   await openPage(page, "/");
   const table = tableWithColumn(page, "Excess");
+  for (const column of ["Work", "Author", "Genre", "Words"]) {
+    await expect(table.getByRole("columnheader", { name: column, exact: true })).toBeVisible();
+  }
   const excess = (await columnValues(table, "Excess")).map(Number);
   expect(excess).toHaveLength(25);
   expect(excess).toEqual([...excess].sort((left, right) => right - left));
@@ -85,7 +91,9 @@ test("UC-02 Weirdest Works lists 25 rows by Excess and opens a work", async ({ p
 
 test("UC-03 home shows the Vocabulary Overlap chart", async ({ page }) => {
   await openPage(page, "/");
-  await expect(page.getByRole("img", { name: /Vocabulary Overlap/ })).toBeVisible();
+  const chart = page.getByRole("img", { name: /Vocabulary Overlap/ });
+  // Author names read "Surname, Given", so commas mark the bar labels.
+  expect(await chart.locator("text").filter({ hasText: "," }).count()).toBeGreaterThan(1);
 });
 
 test("UC-04 works page lists Title, Author, Words, Genre, Flags", async ({ page }) => {
@@ -118,7 +126,10 @@ test("UC-06 a flag filter narrows the works", async ({ page }) => {
 });
 
 test("UC-07 a work page shows its byline and charts", async ({ page }) => {
-  await openPage(page, workPage);
+  await openPage(page, "/works");
+  await page.getByRole("textbox", { name: "Type to search" }).fill("The Night Land");
+  await tableWithColumn(page, "Flags").getByRole("cell", { name: "The Night Land", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "The Night Land", level: 1 })).toBeVisible();
   await expect(page.getByText(/^By .+ - Undetermined novel, [\d,]+ words\.$/)).toBeVisible();
   for (const chart of [/^Departure from the Author's Norm/, /^Work Signature/, /^Sentence Type Mix/]) {
     await expect(page.getByRole("img", { name: chart })).toBeVisible();
@@ -180,6 +191,7 @@ test("UC-13 phones never scroll sideways and both themes stay readable", async (
   }
   for (const theme of ["Light", "Dark"]) {
     await page.getByRole("group", { name: "Theme" }).getByRole("button", { name: theme, exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme.toLowerCase());
     const [text, background] = await headingColours(page);
     expect(contrast(text, background), `${theme} heading contrast`).toBeGreaterThanOrEqual(4.5);
   }
@@ -193,7 +205,9 @@ test("UC-14 robots.txt and sitemap.xml serve crawlers", async ({ request }) => {
   expect(rules).not.toMatch(/^Disallow: \/\S*$/m);
   expect(rules).toMatch(/^Sitemap: https:\/\/gufime\.com\/sitemap\.xml$/m);
   const sitemap = await (await request.get("/sitemap.xml")).text();
-  for (const path of ["/", "/works/", "/authors/", "/works/10662"]) {
+  for (const path of ["/", "/works/", "/authors/"]) {
     expect(sitemap).toContain(`<loc>https://gufime.com${path}</loc>`);
   }
+  expect(sitemap.match(/<loc>https:\/\/gufime\.com\/works\/[^<]+<\/loc>/g)?.length ?? 0).toBeGreaterThan(1000);
+  expect(sitemap.match(/<loc>https:\/\/gufime\.com\/authors\/[^<]+<\/loc>/g)?.length ?? 0).toBeGreaterThan(500);
 });
