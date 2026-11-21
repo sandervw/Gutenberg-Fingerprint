@@ -12,6 +12,8 @@ const crawl = process.env.GUFIME_PRERENDER_CRAWL === '1';
 export default {
 	kit: {
 		adapter: adapter({ pages: outputFolder, fallback: '404.html' }),
+		// Inline the stylesheets so first paint needs no extra request.
+		inlineStyleThreshold: 16384,
 		prerender: { concurrency, crawl, entries: ['*', '/sitemap.xml'] },
 		// A fixed version keeps unchanged pages byte-identical between builds.
 		version: { name: process.env.GUFIME_SITE_VERSION ?? '1' }
