@@ -1,35 +1,35 @@
 /* Site theme: Rulebook, a parchment or stone sheet on a wood desk. */
 @font-face {
   font-family: "Pirata One";
-  src: url("/fonts/PirataOne-Regular.woff2") format("woff2");
+  src: url("./assets/fonts/PirataOne-Regular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "Alegreya";
-  src: url("/fonts/Alegreya.woff2") format("woff2");
+  src: url("./assets/fonts/Alegreya.woff2") format("woff2");
   font-weight: 400 900;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "Alegreya";
-  src: url("/fonts/Alegreya-Italic.woff2") format("woff2");
+  src: url("./assets/fonts/Alegreya-Italic.woff2") format("woff2");
   font-weight: 400 900;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
   font-family: "Arimo";
-  src: url("/fonts/Arimo.woff2") format("woff2");
+  src: url("./assets/fonts/Arimo.woff2") format("woff2");
   font-weight: 400 700;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "Arimo";
-  src: url("/fonts/Arimo-Italic.woff2") format("woff2");
+  src: url("./assets/fonts/Arimo-Italic.woff2") format("woff2");
   font-weight: 700;
   font-style: italic;
   font-display: swap;
@@ -44,9 +44,9 @@
   --wood-base: #4a2c19;
   --wood-ink: #f1dcb8;
   --wood-ink-shadow: rgba(0, 0, 0, 0.7);
-  --wood-photo: url("/textures/wood-dark.jpg");
+  --wood-photo: url("./assets/textures/wood-dark.jpg");
   --sheet-base: #e9d3a4;
-  --sheet-photo: url("/textures/parchment.jpg");
+  --sheet-photo: url("./assets/textures/parchment.jpg");
   --sheet-edge: inset 0 0 70px rgba(110, 55, 10, 0.55), inset 0 0 14px rgba(80, 35, 5, 0.6);
   --ink: #2b1d10;
   --ink-soft: #5f4a33;
@@ -69,9 +69,9 @@
   --wood-base: #a8957a;
   --wood-ink: #24170c;
   --wood-ink-shadow: rgba(255, 240, 210, 0.45);
-  --wood-photo: url("/textures/wood-light.jpg");
+  --wood-photo: url("./assets/textures/wood-light.jpg");
   --sheet-base: #2a2a2b;
-  --sheet-photo: url("/textures/stone.jpg");
+  --sheet-photo: url("./assets/textures/stone.jpg");
   --sheet-edge: inset 3px 3px 0 rgba(255, 255, 255, 0.08), inset -4px -4px 0 rgba(0, 0, 0, 0.45), inset 0 0 60px rgba(0, 0, 0, 0.65);
   --ink: #e4dccd;
   --ink-soft: #a9a094;
