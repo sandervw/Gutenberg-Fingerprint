@@ -1,5 +1,6 @@
 <script>
 	// Works list with author, genre, title, and flag filters.
+	import FireTitle from '$lib/FireTitle.svelte';
 	import DataTable from '$lib/DataTable.svelte';
 	import Dropdown from '$lib/Dropdown.svelte';
 	import { formatValue } from '$lib/format.js';
@@ -71,7 +72,7 @@
 
 <svelte:head><title>Works</title></svelte:head>
 
-<h1>Works</h1>
+<FireTitle text="Works" />
 <p>Click a work to see its details.</p>
 
 <div class="filters">
@@ -109,8 +110,7 @@
 		grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
 		gap: 0.5rem 0.25rem;
 		margin-bottom: 1.5rem;
-		font-size: 0.79rem;
-		line-height: 1.1875rem;
+		font: 0.8rem/1.2rem var(--font-data);
 	}
 	.flag-head,
 	.flag-filter button {
@@ -120,23 +120,23 @@
 	}
 	.flag-head {
 		font-weight: 700;
-		border-bottom: 1px solid color-mix(in srgb, var(--color-muted) 60%, transparent);
+		border-bottom: 1px solid color-mix(in srgb, var(--ink-soft) 60%, transparent);
 	}
 	.flag-filter button {
 		width: 100%;
 		border: 0;
 		background: linear-gradient(
 				to right,
-				color-mix(in srgb, var(--color-accent) 15%, transparent) var(--share),
+				color-mix(in srgb, var(--link) 15%, transparent) var(--share),
 				transparent var(--share)
 			);
 		cursor: pointer;
 	}
 	.flag-filter button:hover {
-		background-color: var(--color-hover);
+		background-color: var(--hover);
 	}
 	.flag-filter button[aria-pressed='true'] {
-		color: var(--color-accent);
+		color: var(--link);
 		font-weight: 700;
 	}
 </style>

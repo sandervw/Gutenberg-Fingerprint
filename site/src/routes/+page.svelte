@@ -1,5 +1,6 @@
 <script>
 	// Home: corpus summary, Weirdest Works, Vocabulary Overlap.
+	import FireTitle from '$lib/FireTitle.svelte';
 	import BarChart from '$lib/BarChart.svelte';
 	import DataTable from '$lib/DataTable.svelte';
 	import { formatValue, longDate } from '$lib/format.js';
@@ -17,7 +18,7 @@
 
 <svelte:head><title>Gutenberg Fiction Metrics</title></svelte:head>
 
-<h1>Gutenberg Fiction Metrics</h1>
+<FireTitle text="Gutenberg Fiction Metrics" />
 <p>
 	A metric-based comparison of science fiction, fantasy, and horror in
 	<a href="https://www.gutenberg.org/">Project Gutenberg</a>. Measured as <strong>z-scores</strong>. Positive means a
@@ -42,7 +43,7 @@
 	Jaccard overlap of vocabulary. How <a href="https://wordleaves.com">my fiction</a> compares to other authors. Higher
 	= more shared words.
 </p>
-<BarChart rows={data.vocabulary_overlap} label="author" value="jaccard" format="percentTwoDecimals" title="Vocabulary Overlap" />
+<BarChart rows={data.vocabulary_overlap} label="author" value="jaccard" labelTitle="Author" measure="Jaccard overlap" format="percentTwoDecimals" title="Vocabulary Overlap" />
 
 <hr />
 <p>

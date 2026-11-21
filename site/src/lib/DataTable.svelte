@@ -1,6 +1,7 @@
 <!-- @component Paged table; linked rows end in a chevron link. -->
 <script>
 	import { formatValue } from '$lib/format.js';
+	import { pastel } from '$lib/pastels.js';
 
 	let { rows, columns, link = null, pageSize = 25 } = $props();
 
@@ -33,7 +34,7 @@
 		</thead>
 		<tbody>
 			{#each visible as row, index (index)}
-				<tr class:clickable={link !== null} onclick={() => openRow(row)}>
+				<tr class:clickable={link !== null} style:--tab={pastel(index)} onclick={() => openRow(row)}>
 					{#each columns as column (column.id)}
 						<td class:number={column.format !== undefined}>{formatValue(row[column.id], column.format)}</td>
 					{/each}
@@ -69,89 +70,3 @@
 	</div>
 {/if}
 
-<style>
-	.table-box {
-		position: relative;
-		margin: 0.5rem 0;
-		overflow-x: auto;
-		max-width: 100%;
-	}
-	table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 0.79rem;
-		line-height: 1.1875rem;
-	}
-	thead tr {
-		border-bottom: 1px solid color-mix(in srgb, var(--color-muted) 60%, transparent);
-	}
-	tbody tr {
-		border-bottom: 1px solid color-mix(in srgb, var(--color-muted) 20%, transparent);
-	}
-	th {
-		padding: 2px 1px 2px 6px;
-		text-align: left;
-		vertical-align: bottom;
-		white-space: nowrap;
-	}
-	td {
-		padding: 2px 13px 2px 6px;
-		vertical-align: middle;
-	}
-	th:first-child,
-	td:first-child {
-		padding-left: 3px;
-	}
-	.number {
-		text-align: right;
-		white-space: nowrap;
-	}
-	.clickable {
-		cursor: pointer;
-		transition: color 0.15s ease;
-	}
-	.clickable:hover {
-		color: var(--color-accent);
-		background-color: var(--color-hover);
-	}
-	.chevron {
-		width: 1rem;
-	}
-	.chevron a {
-		display: flex;
-	}
-	svg {
-		width: 1rem;
-		height: 1rem;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 2;
-		stroke-linecap: round;
-		stroke-linejoin: round;
-	}
-	.pager {
-		display: flex;
-		gap: 0.25rem;
-		margin: 0.75rem 0 1rem;
-		align-items: center;
-		font-size: 0.75rem;
-		color: var(--color-muted);
-	}
-	.pager button {
-		display: flex;
-		padding: 0.125rem;
-		border: 0;
-		background: none;
-		color: var(--color-text);
-		cursor: pointer;
-	}
-	.pager button:disabled {
-		color: var(--color-border);
-		cursor: default;
-	}
-	.page-number {
-		padding: 0.125rem 0.375rem;
-		background-color: var(--color-hover);
-		color: var(--color-text);
-	}
-</style>
