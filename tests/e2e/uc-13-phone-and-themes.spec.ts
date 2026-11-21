@@ -72,22 +72,11 @@ function contrast(first: number, second: number): number {
   return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
 }
 
-/** Cycle the Appearance menu item until it reads the wanted theme. */
+/** Press the theme switch button for the wanted theme. */
 async function chooseTheme(page: Page, theme: "Light" | "Dark"): Promise<void> {
-  const appearance = page.getByRole("menuitem", { name: /^Appearance/ });
-  // Appearance cycles Light, Dark, System; four checks reach any theme.
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    if (!(await appearance.isVisible())) {
-      // A short timeout fails fast when the button is covered.
-      await page.getByRole("button", { name: "Menu" }).click({ timeout: 10_000 });
-    }
-    if ((await appearance.innerText()).includes(theme)) {
-      break;
-    }
-    await appearance.click();
-  }
-  await expect(appearance).toContainText(theme);
-  await page.keyboard.press("Escape");
+  const button = page.getByRole("group", { name: "Theme" }).getByRole("button", { name: theme, exact: true });
+  await button.click();
+  await expect(button).toHaveAttribute("aria-pressed", "true");
 }
 
 for (const path of samplePages) {

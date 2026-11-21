@@ -1,16 +1,22 @@
-<!-- @component Horizontal bar chart in the Evidence look. -->
+<!-- @component Horizontal bar chart in the Rulebook module-chart style. -->
 <script>
 	import { scaleLinear } from 'd3-scale';
 	import { formatValue } from '$lib/format.js';
 
-	let { rows, label, value, title, format = 'twoDecimals' } = $props();
+	let { rows, label, value, title, labelTitle, measure, format = 'twoDecimals' } = $props();
 
-	const axisHeight = 22;
-	const minimumPlotHeight = 150;
-	const rowHeight = 21.6;
-	const characterWidth = 6.2;
-	const labelGap = 8;
-	const rightPadding = 24;
+	const titleRow = 20;
+	const bandHeight = 20;
+	const headHeight = titleRow + bandHeight + 2;
+	const rowHeight = 25;
+	const legendHeight = 20;
+	const legendWidth = 170;
+	const characterWidth = 7;
+	const titleCharacterWidth = 6.8;
+	const gap = 12;
+	const textInset = 6;
+	const narrowWidth = 520;
+	const pastelCount = 7;
 	let width = $state(736);
 	let hovered = $state(-1);
 	let pointer = $state({ x: 0, y: 0 });
@@ -21,26 +27,48 @@
 		return row[value] ?? 0;
 	}
 
+	/** A value as printed: formatted, with a true minus sign. */
+	function printed(amount) {
+		return formatValue(amount, format).replace('-', '−');
+	}
+
 	const amounts = $derived(rows.map(amountOf));
-	const longestLabel = $derived(Math.max(0, ...rows.map((row) => String(row[label]).length)));
-	const labelWidth = $derived(Math.min(longestLabel * characterWidth, width * 0.45) + labelGap);
-	const plotHeight = $derived(Math.max(minimumPlotHeight, rows.length * rowHeight));
-	const band = $derived(plotHeight / Math.max(1, rows.length));
-	const height = $derived(axisHeight + plotHeight);
+	const isNarrow = $derived(width < narrowWidth);
+	const longestLabel = $derived(Math.max(labelTitle.length, ...rows.map((row) => String(row[label]).length)));
+	const labelShare = $derived(isNarrow ? 0.4 : 0.32);
+	const labelWidth = $derived(Math.min(longestLabel * characterWidth, width * labelShare) + gap);
+	const valueRoom = $derived(Math.max(...amounts.map((amount) => printed(amount).length)) * characterWidth + gap);
 	const scale = $derived(
 		scaleLinear()
 			.domain([Math.min(0, ...amounts), Math.max(0, ...amounts)])
-			.range([labelWidth, width - rightPadding])
+			.range([labelWidth, width - valueRoom])
 			.nice(5)
 	);
 	const ticks = $derived(scale.ticks(5));
-	const tickLabels = $derived(ticks.map((tick) => formatValue(tick, format)));
-	const tickLabelWidth = $derived(Math.max(...tickLabels.map((text) => text.length)) * characterWidth + labelGap);
+	const tickLabels = $derived(ticks.map((tick) => printed(tick)));
+	const tickLabelWidth = $derived(Math.max(...tickLabels.map((text) => text.length)) * characterWidth + gap);
 	const tickSpacing = $derived(Math.abs(scale(ticks[1] ?? 0) - scale(ticks[0] ?? 0)) || tickLabelWidth);
 	const labelStride = $derived(Math.ceil(tickLabelWidth / tickSpacing));
 	const zeroPosition = $derived(Math.max(0, ticks.indexOf(0)));
-	const valueName = $derived(value.charAt(0).toUpperCase() + value.slice(1).replace(/_/g, ' '));
-	const maximumLabel = $derived(Math.floor((labelWidth - labelGap) / characterWidth));
+	const firstTickShown = $derived(scale(ticks[zeroPosition % labelStride]) - tickLabelWidth / 2 > labelTitle.length * characterWidth + textInset);
+	const zero = $derived(scale(0));
+	const plotMiddle = $derived((labelWidth + width - valueRoom) / 2);
+	const titleWidth = $derived(measure.length * titleCharacterWidth);
+	const titleCentre = $derived(Math.min(Math.max(plotMiddle, titleWidth / 2), width - titleWidth / 2));
+	const hasNegative = $derived(amounts.some((amount) => amount < 0));
+	const legendFitsTop = $derived(titleCentre + titleWidth / 2 + gap < width - legendWidth);
+	const rowsBottom = $derived(headHeight + rows.length * rowHeight);
+	const legendTop = $derived(legendFitsTop ? 2 : rowsBottom + 6);
+	const legendBelow = $derived(hasNegative && !legendFitsTop);
+	const height = $derived(rowsBottom + 8 + (legendBelow ? legendHeight : 0));
+	const maximumLabel = $derived(Math.floor((labelWidth - gap) / characterWidth));
+
+	/** True when a tick's label is drawn; strides out from zero. */
+	function isTickShown(position) {
+		const onStride = (position - zeroPosition) % labelStride === 0;
+		const isFirstShown = position === zeroPosition % labelStride;
+		return onStride && (firstTickShown || !isFirstShown);
+	}
 
 	/** Shorten long labels so they fit the label column. */
 	function shortLabel(text) {
@@ -57,36 +85,52 @@
 
 <div class="chart-box" bind:clientWidth={width}>
 	<svg class="chart" role="img" aria-label="{title} chart" {width} {height} viewBox="0 0 {width} {height}">
+		<text class="title" x={titleCentre} y={titleRow / 2 - 1}>{measure}</text>
+		<rect class="band" x="0" y={titleRow} {width} height={bandHeight} />
+		<text class="head" x={textInset} y={titleRow + bandHeight / 2}>{labelTitle}</text>
 		{#each ticks as tick, position (tick)}
-			<line class="grid" x1={scale(tick)} x2={scale(tick)} y1={axisHeight} y2={height} />
-			{#if (position - zeroPosition) % labelStride === 0}
-				<text class="tick" x={scale(tick)} y={axisHeight - 8}>{tickLabels[position]}</text>
+			{#if isTickShown(position)}
+				<text class="tick" x={scale(tick)} y={titleRow + bandHeight / 2}>{tickLabels[position]}</text>
 			{/if}
 		{/each}
 		{#each rows as row, index (index)}
-			{@const top = axisHeight + index * band}
+			{@const top = headHeight + index * rowHeight}
+			{@const amount = amounts[index]}
+			{@const barLeft = Math.min(zero, scale(amount))}
+			{@const barWidth = Math.max(1.5, Math.abs(scale(amount) - zero))}
 			<g
+				class="row"
 				class:active={hovered === index}
 				onpointermove={(event) => trackPointer(event, index)}
 				onpointerleave={() => (hovered = -1)}
 			>
-				<rect class="hit" x={labelWidth} y={top} width={width - rightPadding - labelWidth} height={band} />
-				<text class="label" x={labelWidth - labelGap} y={top + band / 2}>{shortLabel(String(row[label]))}</text>
-				<rect
-					class="mark"
-					x={Math.min(scale(0), scale(amounts[index]))}
-					y={top + band * 0.15}
-					width={Math.abs(scale(amounts[index]) - scale(0))}
-					height={band * 0.7}
-				/>
+				<rect class="hit" x="0" y={top} {width} height={rowHeight} />
+				{#if index < rows.length - 1}
+					<line class="rule" x1="0" x2={width} y1={top + rowHeight} y2={top + rowHeight} />
+				{/if}
+				<text class="label" x={textInset} y={top + rowHeight / 2}>{shortLabel(String(row[label]))}</text>
+				<g class="mark">
+					<rect x={barLeft} y={top + 3} width={barWidth} height={rowHeight - 6} style:fill="var(--m{(index % pastelCount) + 1})" />
+					{#if amount < 0}
+						<rect x={barLeft} y={top + 3} width={barWidth} height={rowHeight - 6} fill="url(#dither)" />
+					{/if}
+				</g>
+				<text class="value" x={Math.max(zero, scale(amount)) + textInset} y={top + rowHeight / 2}>{printed(amount)}</text>
 			</g>
 		{/each}
-		<line class="axis" x1={scale(0)} x2={scale(0)} y1={axisHeight} y2={height} />
+		<line class="zero" x1={zero} x2={zero} y1={headHeight - 2} y2={rowsBottom} />
+		{#if hasNegative}
+			<g class="legend">
+				<rect x={width - legendWidth} y={legendTop} width="14" height="12" style:fill="var(--m7)" />
+				<rect x={width - legendWidth} y={legendTop} width="14" height="12" fill="url(#dither)" />
+				<text x={width - legendWidth + 20} y={legendTop + 6}>Denotes below average</text>
+			</g>
+		{/if}
 	</svg>
 	{#if hovered >= 0}
 		<div class="tooltip" style:left="{Math.min(pointer.x + 14, width - 190)}px" style:top="{pointer.y + 14}px">
 			<strong>{rows[hovered][label]}</strong>
-			<span class="tooltip-row">{valueName}: <span>{formatValue(amounts[hovered], format)}</span></span>
+			<span class="tooltip-row">{measure}: <span>{printed(amounts[hovered])}</span></span>
 		</div>
 	{/if}
 </div>
@@ -94,56 +138,67 @@
 <style>
 	.chart-box {
 		position: relative;
-		margin: 1.25rem 0 1.75rem;
+		min-width: 0;
+		margin: 0.6rem 0 1.4rem;
 	}
 	.chart {
 		display: block;
 		overflow: visible;
 	}
 	text {
-		font-family: var(--font-inter);
-		font-size: 11px;
-		fill: var(--color-muted);
+		font: 400 12.5px var(--font-data);
+		fill: var(--ink);
 		dominant-baseline: middle;
+	}
+	.title {
+		font: 400 15px var(--font-head);
+		fill: var(--gold);
+		text-anchor: middle;
+	}
+	.band {
+		fill: var(--oxblood);
+	}
+	.head,
+	.tick {
+		font: italic 700 12px var(--font-data);
+		fill: var(--oxblood-ink);
 	}
 	.tick {
 		text-anchor: middle;
 	}
 	.label {
-		text-anchor: end;
+		font: italic 700 12.5px var(--font-data);
 	}
-	.grid {
-		stroke: var(--color-border);
-		stroke-width: 1;
+	.legend text {
+		font: 700 12px var(--font-data);
 	}
-	.axis {
-		stroke: var(--color-muted);
-		stroke-width: 1;
+	.mark {
+		filter: url(#chisel);
+	}
+	.rule {
+		stroke: var(--rule);
+		stroke-dasharray: 1 3;
+	}
+	.zero {
+		stroke: var(--gold);
+		stroke-width: 2.5;
 	}
 	.hit {
 		fill: transparent;
 	}
 	.active .hit {
-		fill: var(--color-hover);
-	}
-	.mark {
-		fill: var(--color-accent);
-	}
-	.active .mark {
-		opacity: 0.8;
+		fill: var(--hover);
 	}
 	.tooltip {
 		position: absolute;
-		z-index: 1;
+		z-index: 3;
 		display: flex;
 		flex-direction: column;
 		min-width: 9rem;
-		padding: 6px;
-		border: 1px solid var(--color-border);
-		border-radius: 4px;
-		background-color: var(--color-bg);
-		font-size: 12px;
-		line-height: 18px;
+		padding: 6px 8px;
+		border: 1px solid var(--gold);
+		background-color: var(--sheet-base);
+		font: 12px/18px var(--font-data);
 		white-space: nowrap;
 		pointer-events: none;
 	}

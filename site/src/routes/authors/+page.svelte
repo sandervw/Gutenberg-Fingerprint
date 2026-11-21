@@ -1,5 +1,6 @@
 <script>
 	// Searchable authors list.
+	import FireTitle from '$lib/FireTitle.svelte';
 	import DataTable from '$lib/DataTable.svelte';
 
 	let { data } = $props();
@@ -18,7 +19,7 @@
 
 <svelte:head><title>Authors</title></svelte:head>
 
-<h1>Authors</h1>
+<FireTitle text="Authors" />
 <p>Authors with at least one measured work.</p>
 <input class="control" type="text" aria-label="Search" placeholder="Search" bind:value={query} />
 <DataTable rows={matching} {columns} link={(row) => `/authors/${encodeURIComponent(row.name)}`} />

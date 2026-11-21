@@ -66,7 +66,7 @@
 	.divider {
 		align-self: stretch;
 		margin: 0.5rem 0;
-		border-left: 1px solid var(--color-border);
+		border-left: 1px solid var(--rule);
 	}
 	svg {
 		width: 0.75rem;
@@ -82,8 +82,8 @@
 		width: 18rem;
 		max-width: 80vw;
 		padding: 0.5rem;
-		background-color: var(--color-bg);
-		border: 1px solid var(--color-border);
+		background-color: var(--sheet-base);
+		border: 1px solid var(--rule);
 		border-radius: 0.375rem;
 		font-size: 0.875rem;
 	}
@@ -103,9 +103,9 @@
 		cursor: pointer;
 	}
 	li:hover {
-		background-color: var(--color-hover);
+		background-color: var(--hover);
 	}
 	li[aria-selected='true'] {
-		color: var(--color-accent);
+		color: var(--link);
 	}
 </style>

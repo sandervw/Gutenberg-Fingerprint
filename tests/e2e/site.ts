@@ -64,14 +64,10 @@ export async function pickOption(page: Page, dropdown: string, option: string): 
   await expect(page.getByRole("combobox", { name: dropdown, exact: true })).toContainText(option);
 }
 
-/** Click a site navigation link, opening the phone sidebar if needed. */
+/** Click a link in the site navigation. */
 export async function clickNavigation(page: Page, name: string): Promise<void> {
-  const openSidebar = page.getByRole("button", { name: "Open sidebar" });
-  if (await openSidebar.isVisible()) {
-    await openSidebar.click();
-  }
-  const link = page.getByRole("link", { name, exact: true }).filter({ visible: true });
-  await link.first().click();
+  const navigation = page.getByRole("navigation", { name: "Site" });
+  await navigation.getByRole("link", { name, exact: true }).click();
 }
 
 /** A chart must be an accessible image named like its heading. */
