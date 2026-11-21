@@ -92,6 +92,7 @@ test("UC-02 Weirdest Works lists 25 rows by Excess and opens a work", async ({ p
 test("UC-03 home shows the Vocabulary Overlap chart", async ({ page }) => {
   await openPage(page, "/");
   const chart = page.getByRole("img", { name: /Vocabulary Overlap/ });
+  await expect(chart).toBeVisible();
   // Author names read "Surname, Given", so commas mark the bar labels.
   expect(await chart.locator("text").filter({ hasText: "," }).count()).toBeGreaterThan(1);
 });
