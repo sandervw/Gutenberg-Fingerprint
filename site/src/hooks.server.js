@@ -6,7 +6,7 @@ function shouldPreload({ type, path }) {
 	return type === 'js' || type === 'css';
 }
 
-/** @type {import('@sveltejs/kit').Handle} */
+/** Render each page with the chosen preloads. @type {import('@sveltejs/kit').Handle} */
 export function handle({ event, resolve }) {
 	return resolve(event, { preload: shouldPreload });
 }
