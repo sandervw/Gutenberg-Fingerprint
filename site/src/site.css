@@ -35,8 +35,9 @@
   font-display: swap;
 }
 
-/* Colours: light is dark wood and parchment; dark is pale wood and stone. */
+/* Colours: light is wood and parchment; dark is pale wood and stone. */
 :root {
+  --page-width: 900px;
   --font-head: "Pirata One", "Old English Text MT", serif;
   --font-body: "Alegreya", Georgia, serif;
   --font-data: "Arimo", Arial, sans-serif;
@@ -55,7 +56,6 @@
   --oxblood: #5c1d12;
   --oxblood-ink: #f3e3c2;
   --hover: rgba(120, 70, 20, 0.12);
-  --dither: #e9d3a4;
   --m1: #b9f0b9;
   --m2: #f7bf8f;
   --m3: #f2ec1f;
@@ -81,7 +81,6 @@
   --oxblood: #6e2618;
   --oxblood-ink: #f1e0bd;
   --hover: rgba(255, 230, 190, 0.07);
-  --dither: #2a2a2b;
   --m1: #7fc87f;
   --m2: #e0965a;
   --m3: #d8cf2a;
@@ -150,7 +149,7 @@ input {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 22px;
-  max-width: 900px;
+  max-width: var(--page-width);
   margin: 0 auto 22px;
   align-items: baseline;
   justify-content: space-between;
@@ -202,7 +201,7 @@ input {
 /* Sheet: one rough-edged page; the flat colour hides under the texture. */
 .sheet {
   position: relative;
-  max-width: 900px;
+  max-width: var(--page-width);
   margin: 0 auto;
   padding: 12px;
   background: var(--sheet-base) content-box;
@@ -364,13 +363,7 @@ tbody td:first-child {
   font-style: italic;
   font-weight: 700;
 }
-tbody tr:nth-child(7n + 1) td:first-child { box-shadow: inset 4px 0 0 var(--m1); }
-tbody tr:nth-child(7n + 2) td:first-child { box-shadow: inset 4px 0 0 var(--m2); }
-tbody tr:nth-child(7n + 3) td:first-child { box-shadow: inset 4px 0 0 var(--m3); }
-tbody tr:nth-child(7n + 4) td:first-child { box-shadow: inset 4px 0 0 var(--m4); }
-tbody tr:nth-child(7n + 5) td:first-child { box-shadow: inset 4px 0 0 var(--m5); }
-tbody tr:nth-child(7n + 6) td:first-child { box-shadow: inset 4px 0 0 var(--m6); }
-tbody tr:nth-child(7n + 7) td:first-child { box-shadow: inset 4px 0 0 var(--m7); }
+tbody td:first-child { box-shadow: inset 4px 0 0 var(--tab); }
 .number {
   text-align: right;
   white-space: nowrap;

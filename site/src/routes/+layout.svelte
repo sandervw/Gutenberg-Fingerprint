@@ -56,8 +56,8 @@
 			<feMerge><feMergeNode in="shadow" /><feMergeNode in="chipped" /></feMerge>
 		</filter>
 		<pattern id="dither" width="4" height="4" patternUnits="userSpaceOnUse">
-			<rect x="0" y="0" width="2" height="2" style="fill: var(--dither)" />
-			<rect x="2" y="2" width="2" height="2" style="fill: var(--dither)" />
+			<rect x="0" y="0" width="2" height="2" style="fill: var(--sheet-base)" />
+			<rect x="2" y="2" width="2" height="2" style="fill: var(--sheet-base)" />
 		</pattern>
 	</defs>
 </svg>

@@ -1,6 +1,7 @@
 <!-- @component Paged table; linked rows end in a chevron link. -->
 <script>
 	import { formatValue } from '$lib/format.js';
+	import { pastel } from '$lib/pastels.js';
 
 	let { rows, columns, link = null, pageSize = 25 } = $props();
 
@@ -33,7 +34,7 @@
 		</thead>
 		<tbody>
 			{#each visible as row, index (index)}
-				<tr class:clickable={link !== null} onclick={() => openRow(row)}>
+				<tr class:clickable={link !== null} style:--tab={pastel(index)} onclick={() => openRow(row)}>
 					{#each columns as column (column.id)}
 						<td class:number={column.format !== undefined}>{formatValue(row[column.id], column.format)}</td>
 					{/each}

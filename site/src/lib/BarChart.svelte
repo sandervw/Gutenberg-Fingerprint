@@ -2,6 +2,7 @@
 <script>
 	import { scaleLinear } from 'd3-scale';
 	import { formatValue } from '$lib/format.js';
+	import { pastel } from '$lib/pastels.js';
 
 	let { rows, label, value, title, labelTitle, measure, format = 'twoDecimals' } = $props();
 
@@ -16,7 +17,6 @@
 	const gap = 12;
 	const textInset = 6;
 	const narrowWidth = 520;
-	const pastelCount = 7;
 	let width = $state(736);
 	let hovered = $state(-1);
 	let pointer = $state({ x: 0, y: 0 });
@@ -32,9 +32,9 @@
 		return formatValue(amount, format).replace('-', '−');
 	}
 
-	/** An axis tick as a plain number or whole percent: "2", "−1.5", "20%". */
+	/** An axis tick as a plain number or whole percent. */
 	function tickText(tick) {
-		const text = format.startsWith('percent') ? `${Math.round(tick * 100)}%` : String(tick);
+		const text = format.startsWith('percent') ? formatValue(tick, 'wholePercent') : String(tick);
 		return text.replace('-', '−');
 	}
 
@@ -116,7 +116,7 @@
 				{/if}
 				<text class="label" x={textInset} y={top + rowHeight / 2}>{shortLabel(String(row[label]))}</text>
 				<g class="mark">
-					<rect x={barLeft} y={top + 3} width={barWidth} height={rowHeight - 6} style:fill="var(--m{(index % pastelCount) + 1})" />
+					<rect x={barLeft} y={top + 3} width={barWidth} height={rowHeight - 6} style:fill={pastel(index)} />
 					{#if amount < 0}
 						<rect x={barLeft} y={top + 3} width={barWidth} height={rowHeight - 6} fill="url(#dither)" />
 					{/if}

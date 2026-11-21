@@ -3,6 +3,7 @@ const formatters = {
 	wholeNumber: new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }),
 	oneDecimal: new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
 	twoDecimals: new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+	wholePercent: new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 0 }),
 	percentOneDecimal: new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }),
 	percentTwoDecimals: new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })
 };
