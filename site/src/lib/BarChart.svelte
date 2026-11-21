@@ -32,6 +32,12 @@
 		return formatValue(amount, format).replace('-', '−');
 	}
 
+	/** An axis tick as a plain number or whole percent: "2", "−1.5", "20%". */
+	function tickText(tick) {
+		const text = format.startsWith('percent') ? `${Math.round(tick * 100)}%` : String(tick);
+		return text.replace('-', '−');
+	}
+
 	const amounts = $derived(rows.map(amountOf));
 	const isNarrow = $derived(width < narrowWidth);
 	const longestLabel = $derived(Math.max(labelTitle.length, ...rows.map((row) => String(row[label]).length)));
@@ -45,7 +51,7 @@
 			.nice(5)
 	);
 	const ticks = $derived(scale.ticks(5));
-	const tickLabels = $derived(ticks.map((tick) => printed(tick)));
+	const tickLabels = $derived(ticks.map(tickText));
 	const tickLabelWidth = $derived(Math.max(...tickLabels.map((text) => text.length)) * characterWidth + gap);
 	const tickSpacing = $derived(Math.abs(scale(ticks[1] ?? 0) - scale(ticks[0] ?? 0)) || tickLabelWidth);
 	const labelStride = $derived(Math.ceil(tickLabelWidth / tickSpacing));
